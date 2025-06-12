@@ -1,7 +1,7 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
-  output: 'standalone',
+  output: 'export',
   images: {
     unoptimized: true,
     domains: ['dhd61lan4.cloudinary.net'],
@@ -30,6 +30,8 @@ const nextConfig = {
     maxInactiveAge: 25 * 1000,
     pagesBufferLength: 2,
   },
+  // Configuración de assetPrefix para producción
+  assetPrefix: process.env.NODE_ENV === 'production' ? 'https://revisioncasitas.netlify.app' : '',
 }
 
 module.exports = nextConfig 
