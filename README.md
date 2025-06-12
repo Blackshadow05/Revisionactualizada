@@ -66,3 +66,9 @@ Cada revisión incluye los siguientes campos:
 - Equipamiento (Chromecast, binoculares, etc.)
 - Evidencias fotográficas
 - Y más... 
+
+## Última Actualización
+
+- Actualización de configuración para optimizar el despliegue en Netlify
+- Mejoras en la gestión de dependencias
+- Optimización del rendimiento general 
