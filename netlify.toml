@@ -1,5 +1,5 @@
 [build]
-  command = "rm -rf node_modules .next && npm install && npm run build"
+  command = "rm -rf node_modules .next && npm install && npm install -D tailwindcss@latest postcss@latest autoprefixer@latest && npm run build"
   publish = ".next"
 
 [build.environment]
