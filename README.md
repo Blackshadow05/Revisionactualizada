@@ -4,7 +4,7 @@ Aplicación web para la gestión de revisiones de casitas.
 
 ## Estado del Proyecto
 
-✅ Despliegue exitoso en Vercel
+✅ Despliegue exitoso en Netlify
 ✅ Variables de entorno configuradas correctamente
 ✅ Funcionalidades principales operativas
 
@@ -23,6 +23,7 @@ Aplicación web para la gestión de revisiones de casitas.
 - Supabase
 - Tailwind CSS
 - TypeScript
+- Netlify
 
 ## Configuración
 
