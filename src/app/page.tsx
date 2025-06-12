@@ -98,7 +98,7 @@ export default function Home() {
 
       // Verificar la conexión con Supabase
       const isConnected = await checkSupabaseConnection();
-      if (!isConnected || !supabase) {
+      if (!isConnected) {
         throw new Error('No se pudo conectar con la base de datos. Por favor, verifica tu conexión.');
       }
 
@@ -109,10 +109,14 @@ export default function Home() {
 
       if (error) {
         console.error('Error fetching data:', error);
-        throw error;
+        throw new Error('Error al cargar los datos: ' + error.message);
       }
 
-      setData(revisiones || []);
+      if (!revisiones) {
+        throw new Error('No se encontraron datos');
+      }
+
+      setData(revisiones);
     } catch (error: any) {
       console.error('Error in fetchData:', error);
       setError(error.message || 'Error al cargar los datos');
