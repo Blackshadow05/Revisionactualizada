@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
-import { supabase } from '@/lib/supabase';
+import { supabase, checkSupabaseConnection } from '@/lib/supabase';
 import { useRouter } from 'next/navigation';
 import { MagnifyingGlassIcon } from '@heroicons/react/24/outline';
 import NotasForm from '@/components/NotasForm';
@@ -94,12 +94,14 @@ export default function Home() {
   const fetchRevisiones = async () => {
     try {
       setLoading(true);
-      if (!supabase) {
-        throw new Error('No se pudo conectar con la base de datos');
+      setError(null);
+
+      // Verificar la conexión con Supabase
+      const isConnected = await checkSupabaseConnection();
+      if (!isConnected || !supabase) {
+        throw new Error('No se pudo conectar con la base de datos. Por favor, verifica tu conexión.');
       }
 
-      console.log('Fetching data from Supabase...');
-      
       const { data: revisiones, error } = await supabase
         .from('revisiones_casitas')
         .select('*')
@@ -110,11 +112,10 @@ export default function Home() {
         throw error;
       }
 
-      console.log('Data fetched successfully:', revisiones);
       setData(revisiones || []);
     } catch (error: any) {
       console.error('Error in fetchData:', error);
-      setError(error.message);
+      setError(error.message || 'Error al cargar los datos');
     } finally {
       setLoading(false);
     }
@@ -291,8 +292,8 @@ export default function Home() {
   };
 
   return (
-    <main className="min-h-screen bg-gradient-to-br from-[#1a1f35] to-[#2d364c]">
-      <div className="max-w-7xl mx-auto px-4 py-8">
+    <main className="min-h-screen bg-gradient-to-br from-[#1a1f35] to-[#2d364c] py-8 md:py-12">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center mb-6">
           <h1 className="text-3xl font-bold text-white">Revisión de Casitas</h1>
           <div className="flex gap-4">
