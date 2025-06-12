@@ -36,7 +36,4 @@
   pretty_urls = true
 
 [build.processing.images]
-  compress = true
-
-[build.processing.skip_processing]
-  skip_processing = false 
+  compress = true 
