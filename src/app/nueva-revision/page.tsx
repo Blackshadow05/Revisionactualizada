@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { supabase } from '@/lib/supabase';
 import { useRouter } from 'next/navigation';
 import ButtonGroup from '@/components/ButtonGroup';
@@ -92,6 +92,10 @@ export default function NuevaRevision() {
     quien_revisa: user || ''
   });
 
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const fileInputRef2 = useRef<HTMLInputElement>(null);
+  const fileInputRef3 = useRef<HTMLInputElement>(null);
+
   // Efecto para actualizar quien_revisa cuando cambie el usuario
   useEffect(() => {
     if (user) {
@@ -112,6 +116,33 @@ export default function NuevaRevision() {
   const handleFileChange = (field: keyof FileData, file: File | null) => {
     if (error) setError(null);
     setFormData(prev => ({ ...prev, [field]: file }));
+  };
+
+  const handleCapture = async (evidenceNumber: 'evidencia_01' | 'evidencia_02' | 'evidencia_03') => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+      const video = document.createElement('video');
+      video.srcObject = stream;
+      await video.play();
+
+      const canvas = document.createElement('canvas');
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
+      const ctx = canvas.getContext('2d');
+      ctx?.drawImage(video, 0, 0);
+
+      stream.getTracks().forEach(track => track.stop());
+
+      canvas.toBlob(async (blob) => {
+        if (blob) {
+          const file = new File([blob], `foto_${Date.now()}.jpg`, { type: 'image/jpeg' });
+          handleFileChange(evidenceNumber, file);
+        }
+      }, 'image/jpeg');
+    } catch (error) {
+      console.error('Error al acceder a la cámara:', error);
+      setError('No se pudo acceder a la cámara. Por favor, verifica los permisos.');
+    }
   };
 
   const compressImage = async (file: File): Promise<File> => {
@@ -409,30 +440,96 @@ export default function NuevaRevision() {
                 <div className="space-y-4">
                   <div className="space-y-2">
                     <label className="block text-sm font-medium text-gray-300">Evidencia 1 (URL) <span className="text-red-500">*</span></label>
-                    <input
-                      type="file"
-                      accept="image/*"
-                      className="w-full text-sm text-gray-400 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-[#c9a45c]/20 file:text-[#c9a45c] hover:file:bg-[#c9a45c]/30"
-                      onChange={(e) => handleFileChange('evidencia_01', e.target.files ? e.target.files[0] : null)}
-                    />
+                    <div className="flex gap-4">
+                      <input
+                        ref={fileInputRef}
+                        type="file"
+                        accept="image/*"
+                        className="hidden"
+                        onChange={(e) => handleFileChange('evidencia_01', e.target.files ? e.target.files[0] : null)}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => fileInputRef.current?.click()}
+                        className="px-4 py-2 bg-[#1a1f35] border border-[#3d4659] rounded-md text-white hover:bg-[#2a3347] transition-colors"
+                      >
+                        Seleccionar archivo
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleCapture('evidencia_01')}
+                        className="px-4 py-2 bg-[#1a1f35] border border-[#3d4659] rounded-md text-white hover:bg-[#2a3347] transition-colors"
+                      >
+                        Tomar foto
+                      </button>
+                    </div>
+                    {formData.evidencia_01 instanceof File && (
+                      <p className="mt-2 text-sm text-gray-400">
+                        Archivo seleccionado: {formData.evidencia_01.name}
+                      </p>
+                    )}
                   </div>
                   <div className="space-y-2">
                     <label className="block text-sm font-medium text-gray-300">Evidencia 2 (URL)</label>
-                    <input
-                      type="file"
-                      accept="image/*"
-                      className="w-full text-sm text-gray-400 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-[#c9a45c]/20 file:text-[#c9a45c] hover:file:bg-[#c9a45c]/30"
-                      onChange={(e) => handleFileChange('evidencia_02', e.target.files ? e.target.files[0] : null)}
-                    />
+                    <div className="flex gap-4">
+                      <input
+                        ref={fileInputRef2}
+                        type="file"
+                        accept="image/*"
+                        className="hidden"
+                        onChange={(e) => handleFileChange('evidencia_02', e.target.files ? e.target.files[0] : null)}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => fileInputRef2.current?.click()}
+                        className="px-4 py-2 bg-[#1a1f35] border border-[#3d4659] rounded-md text-white hover:bg-[#2a3347] transition-colors"
+                      >
+                        Seleccionar archivo
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleCapture('evidencia_02')}
+                        className="px-4 py-2 bg-[#1a1f35] border border-[#3d4659] rounded-md text-white hover:bg-[#2a3347] transition-colors"
+                      >
+                        Tomar foto
+                      </button>
+                    </div>
+                    {formData.evidencia_02 instanceof File && (
+                      <p className="mt-2 text-sm text-gray-400">
+                        Archivo seleccionado: {formData.evidencia_02.name}
+                      </p>
+                    )}
                   </div>
                   <div className="space-y-2">
                     <label className="block text-sm font-medium text-gray-300">Evidencia 3 (URL)</label>
-                    <input
-                      type="file"
-                      accept="image/*"
-                      className="w-full text-sm text-gray-400 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-[#c9a45c]/20 file:text-[#c9a45c] hover:file:bg-[#c9a45c]/30"
-                      onChange={(e) => handleFileChange('evidencia_03', e.target.files ? e.target.files[0] : null)}
-                    />
+                    <div className="flex gap-4">
+                      <input
+                        ref={fileInputRef3}
+                        type="file"
+                        accept="image/*"
+                        className="hidden"
+                        onChange={(e) => handleFileChange('evidencia_03', e.target.files ? e.target.files[0] : null)}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => fileInputRef3.current?.click()}
+                        className="px-4 py-2 bg-[#1a1f35] border border-[#3d4659] rounded-md text-white hover:bg-[#2a3347] transition-colors"
+                      >
+                        Seleccionar archivo
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleCapture('evidencia_03')}
+                        className="px-4 py-2 bg-[#1a1f35] border border-[#3d4659] rounded-md text-white hover:bg-[#2a3347] transition-colors"
+                      >
+                        Tomar foto
+                      </button>
+                    </div>
+                    {formData.evidencia_03 instanceof File && (
+                      <p className="mt-2 text-sm text-gray-400">
+                        Archivo seleccionado: {formData.evidencia_03.name}
+                      </p>
+                    )}
                   </div>
                   <div className="space-y-2">
                     <label className="block text-sm font-medium text-gray-300">Notas</label>
