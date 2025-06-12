@@ -14,7 +14,7 @@ interface Usuario {
   Usuario: string;
   password_hash: string;
   Rol: string;
-  created_at: string | null;
+  created_at: string;
 }
 
 export default function GestionUsuarios() {
@@ -77,7 +77,8 @@ export default function GestionUsuarios() {
         .insert([{
           Usuario: nuevoUsuario.Usuario,
           password_hash: nuevoUsuario.password_hash,
-          Rol: nuevoUsuario.Rol
+          Rol: nuevoUsuario.Rol,
+          created_at: new Date().toISOString()
         }]);
 
       if (error) throw error;
