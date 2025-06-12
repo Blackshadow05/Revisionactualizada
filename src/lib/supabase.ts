@@ -29,6 +29,11 @@ export const supabase = supabaseUrl && supabaseKey && isValidUrl(supabaseUrl)
         headers: {
           'x-application-name': 'revision-casitas'
         }
+      },
+      realtime: {
+        params: {
+          eventsPerSecond: 2
+        }
       }
     })
   : null;
@@ -41,7 +46,8 @@ export const checkSupabaseConnection = async () => {
   }
 
   try {
-    const { data, error } = await supabase.from('revisiones_casitas').select('count').limit(1);
+    // Usar una consulta más ligera para verificar la conexión
+    const { error } = await supabase.from('revisiones_casitas').select('id').limit(1);
     if (error) throw error;
     return true;
   } catch (error) {
