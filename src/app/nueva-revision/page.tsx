@@ -419,7 +419,6 @@ export default function NuevaRevision() {
                       ref={fileInputRef}
                       type="file"
                       accept="image/*"
-                      capture="user"
                       className="hidden"
                       onChange={(e) => {
                         const file = e.target.files?.[0];
@@ -453,7 +452,6 @@ export default function NuevaRevision() {
                       ref={fileInputRef2}
                       type="file"
                       accept="image/*"
-                      capture="user"
                       className="hidden"
                       onChange={(e) => {
                         const file = e.target.files?.[0];
@@ -487,7 +485,6 @@ export default function NuevaRevision() {
                       ref={fileInputRef3}
                       type="file"
                       accept="image/*"
-                      capture="user"
                       className="hidden"
                       onChange={(e) => {
                         const file = e.target.files?.[0];
