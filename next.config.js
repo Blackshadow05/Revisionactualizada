@@ -20,6 +20,16 @@ const nextConfig = {
     };
     return config;
   },
+  // Optimizaciones para producción
+  swcMinify: true,
+  compiler: {
+    removeConsole: process.env.NODE_ENV === 'production',
+  },
+  // Configuración de caché
+  onDemandEntries: {
+    maxInactiveAge: 25 * 1000,
+    pagesBufferLength: 2,
+  },
 }
 
 module.exports = nextConfig 
