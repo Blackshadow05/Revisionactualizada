@@ -7,6 +7,7 @@
   NODE_VERSION = "18"
   NEXT_PUBLIC_SUPABASE_URL = ""
   NEXT_PUBLIC_SUPABASE_ANON_KEY = ""
+  NODE_ENV = "production"
 
 [[plugins]]
   package = "@netlify/plugin-nextjs"
@@ -35,4 +36,7 @@
   pretty_urls = true
 
 [build.processing.images]
-  compress = true 
+  compress = true
+
+[build.processing.skip_processing]
+  skip_processing = false 
