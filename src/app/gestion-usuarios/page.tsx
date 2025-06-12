@@ -35,11 +35,29 @@ export default function GestionUsuarios() {
   const [usuarioToDelete, setUsuarioToDelete] = useState<Usuario | null>(null);
 
   useEffect(() => {
-    if (userRole !== 'SuperAdmin') {
-      router.push('/');
-      return;
-    }
-    fetchUsuarios();
+    const checkAccess = async () => {
+      try {
+        if (!userRole) {
+          console.log('Esperando carga del rol...');
+          return;
+        }
+
+        console.log('Rol actual:', userRole);
+        
+        if (userRole !== 'SuperAdmin') {
+          console.log('Acceso denegado: Rol no autorizado');
+          router.push('/');
+          return;
+        }
+
+        await fetchUsuarios();
+      } catch (error) {
+        console.error('Error al verificar acceso:', error);
+        setError('Error al verificar permisos de acceso');
+      }
+    };
+
+    checkAccess();
   }, [userRole, router]);
 
   const fetchUsuarios = async () => {
@@ -48,12 +66,18 @@ export default function GestionUsuarios() {
         throw new Error('No se pudo conectar con la base de datos');
       }
 
+      console.log('Iniciando fetch de usuarios...');
       const { data, error } = await supabase
         .from('Usuarios')
         .select('*')
         .order('created_at', { ascending: false });
 
-      if (error) throw error;
+      if (error) {
+        console.error('Error en la consulta:', error);
+        throw error;
+      }
+
+      console.log('Usuarios obtenidos:', data?.length);
       setUsuarios(data || []);
     } catch (error: any) {
       console.error('Error al cargar usuarios:', error);

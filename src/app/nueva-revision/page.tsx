@@ -95,6 +95,9 @@ export default function NuevaRevision() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const fileInputRef2 = useRef<HTMLInputElement>(null);
   const fileInputRef3 = useRef<HTMLInputElement>(null);
+  const fileInputRefCamera = useRef<HTMLInputElement>(null);
+  const fileInputRef2Camera = useRef<HTMLInputElement>(null);
+  const fileInputRef3Camera = useRef<HTMLInputElement>(null);
 
   // Efecto para actualizar quien_revisa cuando cambie el usuario
   useEffect(() => {
@@ -408,97 +411,92 @@ export default function NuevaRevision() {
             </div>
 
             {showEvidenceFields && (
-              <div>
-                <h3 className="text-xl font-bold text-gray-200 mb-4 border-b border-[#3d4659] pb-2">Evidencias y Notas</h3>
-                <div className="space-y-4">
-                  <div className="space-y-2">
-                    <label className="block text-sm font-medium text-gray-300">Evidencia 1 (URL) <span className="text-red-500">*</span></label>
-                    <div className="flex gap-4">
-                      <input
-                        ref={fileInputRef}
-                        type="file"
-                        accept="image/*"
-                        capture="environment"
-                        className="hidden"
-                        onChange={(e) => handleFileChange('evidencia_01', e.target.files ? e.target.files[0] : null)}
-                      />
-                      <button
-                        type="button"
-                        onClick={() => fileInputRef.current?.click()}
-                        className="px-4 py-2 bg-[#1a1f35] border border-[#3d4659] rounded-md text-white hover:bg-[#2a3347] transition-colors"
-                      >
-                        Seleccionar archivo
-                      </button>
-                    </div>
-                    {formData.evidencia_01 instanceof File && (
-                      <p className="mt-2 text-sm text-gray-400">
-                        Archivo seleccionado: {formData.evidencia_01.name}
-                      </p>
-                    )}
-                  </div>
-                  <div className="space-y-2">
-                    <label className="block text-sm font-medium text-gray-300">Evidencia 2 (URL)</label>
-                    <div className="flex gap-4">
-                      <input
-                        ref={fileInputRef2}
-                        type="file"
-                        accept="image/*"
-                        capture="environment"
-                        className="hidden"
-                        onChange={(e) => handleFileChange('evidencia_02', e.target.files ? e.target.files[0] : null)}
-                      />
-                      <button
-                        type="button"
-                        onClick={() => fileInputRef2.current?.click()}
-                        className="px-4 py-2 bg-[#1a1f35] border border-[#3d4659] rounded-md text-white hover:bg-[#2a3347] transition-colors"
-                      >
-                        Seleccionar archivo
-                      </button>
-                    </div>
-                    {formData.evidencia_02 instanceof File && (
-                      <p className="mt-2 text-sm text-gray-400">
-                        Archivo seleccionado: {formData.evidencia_02.name}
-                      </p>
-                    )}
-                  </div>
-                  <div className="space-y-2">
-                    <label className="block text-sm font-medium text-gray-300">Evidencia 3 (URL)</label>
-                    <div className="flex gap-4">
-                      <input
-                        ref={fileInputRef3}
-                        type="file"
-                        accept="image/*"
-                        capture="environment"
-                        className="hidden"
-                        onChange={(e) => handleFileChange('evidencia_03', e.target.files ? e.target.files[0] : null)}
-                      />
-                      <button
-                        type="button"
-                        onClick={() => fileInputRef3.current?.click()}
-                        className="px-4 py-2 bg-[#1a1f35] border border-[#3d4659] rounded-md text-white hover:bg-[#2a3347] transition-colors"
-                      >
-                        Seleccionar archivo
-                      </button>
-                    </div>
-                    {formData.evidencia_03 instanceof File && (
-                      <p className="mt-2 text-sm text-gray-400">
-                        Archivo seleccionado: {formData.evidencia_03.name}
-                      </p>
-                    )}
-                  </div>
-                  <div className="space-y-2">
-                    <label className="block text-sm font-medium text-gray-300">Notas</label>
-                    <textarea
-                      className="w-full px-4 py-2 md:py-3 bg-[#1e2538] border border-[#3d4659] rounded-lg text-white focus:ring-2 focus:ring-[#c9a45c]"
-                      value={formData.faltantes}
-                      onChange={(e) => handleInputChange('faltantes', e.target.value)}
-                      placeholder="Describe cualquier otro elemento faltante o comentario general..."
-                      rows={3}
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <label className="block text-sm font-medium text-gray-300">Evidencia 1 (URL) <span className="text-red-500">*</span></label>
+                  <div className="flex gap-4">
+                    <input
+                      ref={fileInputRef}
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      onChange={(e) => handleFileChange('evidencia_01', e.target.files ? e.target.files[0] : null)}
                     />
+                    <button
+                      type="button"
+                      onClick={() => fileInputRef.current?.click()}
+                      className="px-4 py-2 bg-[#1a1f35] border border-[#3d4659] rounded-md text-white hover:bg-[#2a3347] transition-colors"
+                    >
+                      Seleccionar archivo
+                    </button>
                   </div>
+                  {formData.evidencia_01 instanceof File && (
+                    <p className="mt-2 text-sm text-gray-400">
+                      Archivo seleccionado: {formData.evidencia_01.name}
+                    </p>
+                  )}
+                </div>
+                <div className="space-y-2">
+                  <label className="block text-sm font-medium text-gray-300">Evidencia 2 (URL)</label>
+                  <div className="flex gap-4">
+                    <input
+                      ref={fileInputRef2}
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      onChange={(e) => handleFileChange('evidencia_02', e.target.files ? e.target.files[0] : null)}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => fileInputRef2.current?.click()}
+                      className="px-4 py-2 bg-[#1a1f35] border border-[#3d4659] rounded-md text-white hover:bg-[#2a3347] transition-colors"
+                    >
+                      Seleccionar archivo
+                    </button>
+                  </div>
+                  {formData.evidencia_02 instanceof File && (
+                    <p className="mt-2 text-sm text-gray-400">
+                      Archivo seleccionado: {formData.evidencia_02.name}
+                    </p>
+                  )}
+                </div>
+                <div className="space-y-2">
+                  <label className="block text-sm font-medium text-gray-300">Evidencia 3 (URL)</label>
+                  <div className="flex gap-4">
+                    <input
+                      ref={fileInputRef3}
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      onChange={(e) => handleFileChange('evidencia_03', e.target.files ? e.target.files[0] : null)}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => fileInputRef3.current?.click()}
+                      className="px-4 py-2 bg-[#1a1f35] border border-[#3d4659] rounded-md text-white hover:bg-[#2a3347] transition-colors"
+                    >
+                      Seleccionar archivo
+                    </button>
+                  </div>
+                  {formData.evidencia_03 instanceof File && (
+                    <p className="mt-2 text-sm text-gray-400">
+                      Archivo seleccionado: {formData.evidencia_03.name}
+                    </p>
+                  )}
                 </div>
               </div>
             )}
+
+            <div className="space-y-2">
+              <label className="block text-sm font-medium text-gray-300">Notas</label>
+              <textarea
+                className="w-full px-4 py-2 md:py-3 bg-[#1e2538] border border-[#3d4659] rounded-lg text-white focus:ring-2 focus:ring-[#c9a45c]"
+                value={formData.faltantes}
+                onChange={(e) => handleInputChange('faltantes', e.target.value)}
+                placeholder="Describe cualquier otro elemento faltante o comentario general..."
+                rows={3}
+              />
+            </div>
 
             <div className="mt-8">
               {error && (
