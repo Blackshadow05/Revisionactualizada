@@ -24,7 +24,7 @@ export async function GET(
         { status: 500 }
       );
     }
-
+    
     if (!params.id) {
       return NextResponse.json(
         { error: 'ID no proporcionado' },

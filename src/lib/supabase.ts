@@ -23,24 +23,24 @@ export const supabase = createClient(
   supabaseUrl || '',
   supabaseKey || '',
   {
-    auth: {
-      persistSession: true,
-      autoRefreshToken: true,
+      auth: {
+        persistSession: true,
+        autoRefreshToken: true,
       detectSessionInUrl: true
-    },
-    db: {
-      schema: 'public'
-    },
-    global: {
-      headers: {
-        'x-application-name': 'revision-casitas'
-      }
+      },
+      db: {
+        schema: 'public'
+      },
+      global: {
+        headers: {
+          'x-application-name': 'revision-casitas'
+        }
     },
     realtime: {
       params: {
         eventsPerSecond: 2
       }
-    }
+      }
   }
 );
 

@@ -101,7 +101,7 @@ export default function Home() {
       if (!isConnected) {
         throw new Error('No se pudo conectar con la base de datos. Por favor, verifica tu conexión.');
       }
-
+      
       const { data: revisiones, error } = await supabase
         .from('revisiones_casitas')
         .select('*')

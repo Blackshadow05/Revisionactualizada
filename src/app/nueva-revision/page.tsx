@@ -92,6 +92,8 @@ export default function NuevaRevision() {
     quien_revisa: user || ''
   });
 
+  const [highlightedField, setHighlightedField] = useState<string | null>('casita');
+
   const fileInputRef = useRef<HTMLInputElement>(null);
   const fileInputRef2 = useRef<HTMLInputElement>(null);
   const fileInputRef3 = useRef<HTMLInputElement>(null);
@@ -111,9 +113,39 @@ export default function NuevaRevision() {
 
   const showEvidenceFields = ['Check in', 'Upsell', 'Back to Back'].includes(formData.caja_fuerte);
 
+  const requiredFields: (keyof RevisionData)[] = [
+    'casita',
+    'quien_revisa',
+    'caja_fuerte',
+    'puertas_ventanas',
+    'chromecast',
+    'binoculares',
+    'trapo_binoculares',
+    'speaker',
+    'usb_speaker',
+    'controles_tv',
+    'secadora',
+    'accesorios_secadora',
+    'steamer',
+    'bolsa_vapor',
+    'plancha_cabello',
+    'bulto',
+    'sombrero',
+    'bolso_yute',
+    'camas_ordenadas',
+    'cola_caballo'
+  ];
+
   const handleInputChange = (field: keyof RevisionData, value: string) => {
     if (error) setError(null);
-    setFormData(prev => ({ ...prev, [field]: value }));
+    
+    // Crear el nuevo estado con el valor actualizado
+    const newFormData = { ...formData, [field]: value };
+    setFormData(newFormData);
+    
+    // Buscar el primer campo vacío usando el nuevo estado
+    const nextEmptyField = requiredFields.find(f => !newFormData[f]);
+    setHighlightedField(nextEmptyField || null);
   };
 
   const handleFileChange = (field: keyof FileData, file: File | null) => {
@@ -189,14 +221,6 @@ export default function NuevaRevision() {
       const fechaLocal = new Date(now.getTime() - (now.getTimezoneOffset() * 60000));
       const nowISO = fechaLocal.toISOString();
 
-      const requiredFields: (keyof Omit<RevisionData, 'accesorios_secadora_faltante' | 'faltantes' | 'evidencia_02' | 'evidencia_03'>)[] = [
-        'casita', 'quien_revisa', 'caja_fuerte', 'puertas_ventanas',
-        'chromecast', 'binoculares', 'trapo_binoculares', 'speaker',
-        'usb_speaker', 'controles_tv', 'secadora', 'accesorios_secadora',
-        'steamer', 'bolsa_vapor', 'plancha_cabello', 'bulto', 'sombrero',
-        'bolso_yute', 'camas_ordenadas', 'cola_caballo'
-      ];
-      
       for (const field of requiredFields) {
         if (!formData[field]) {
           const fieldName = field.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
@@ -281,6 +305,14 @@ export default function NuevaRevision() {
     }
   };
 
+  // Modificar los estilos de los campos para incluir el resaltado
+  const getHighlightStyle = (fieldName: string) => {
+    if (highlightedField === fieldName) {
+      return 'animate-pulse border-2 border-[#00ff00] shadow-[0_0_15px_#00ff00]';
+    }
+    return '';
+  };
+
   return (
     <main className="min-h-screen bg-gradient-to-br from-[#1a1f35] to-[#2d364c] py-8 md:py-12">
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -299,10 +331,10 @@ export default function NuevaRevision() {
           <div className="space-y-6">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
               <div className="space-y-2">
-                <label className="block text-sm font-medium text-gray-300">Casita <span className="text-red-500">*</span></label>
+                <label className="block text-base font-semibold text-[#ff8c42]">Casita <span className="text-red-500">*</span></label>
                 <select
                   required
-                  className="w-full px-4 py-2 md:py-3 bg-[#1e2538] border border-[#3d4659] rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-[#c9a45c] focus:border-transparent transition-all"
+                  className={`w-full px-4 py-2 md:py-3 bg-[#1e2538] border border-[#3d4659] rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-[#c9a45c] focus:border-transparent transition-all ${getHighlightStyle('casita')}`}
                   value={formData.casita}
                   onChange={(e) => handleInputChange('casita', e.target.value)}
                 >
@@ -314,13 +346,13 @@ export default function NuevaRevision() {
               </div>
 
               <div className="space-y-2">
-                <label className="block text-sm font-medium text-gray-300">Quien revisa <span className="text-red-500">*</span></label>
+                <label className="block text-base font-semibold text-[#ff8c42]">Quien revisa <span className="text-red-500">*</span></label>
                 {user ? (
                   <input
                     type="text"
                     value={user}
                     readOnly
-                    className="w-full px-4 py-2 md:py-3 bg-[#1e2538] border border-[#3d4659] rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-[#c9a45c] focus:border-transparent transition-all"
+                    className={`w-full px-4 py-2 md:py-3 bg-[#1e2538] border border-[#3d4659] rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-[#c9a45c] focus:border-transparent transition-all ${getHighlightStyle('quien_revisa')}`}
                   />
                 ) : (
                   <select
@@ -344,14 +376,15 @@ export default function NuevaRevision() {
               selectedValue={formData.caja_fuerte}
               onSelect={(value) => handleInputChange('caja_fuerte', value)}
               required
+              highlight={highlightedField === 'caja_fuerte'}
             />
             
             <div className="space-y-2">
-              <label className="block text-sm font-medium text-gray-300">¿Puertas y ventanas? (revisar casa por fuera) <span className="text-red-500">*</span></label>
+              <label className="block text-base font-semibold text-[#ff8c42]">¿Puertas y ventanas? (revisar casa por fuera) <span className="text-red-500">*</span></label>
               <input
                 type="text"
                 required
-                className="w-full px-4 py-2 md:py-3 bg-[#1e2538] border border-[#3d4659] rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-[#c9a45c] focus:border-transparent transition-all"
+                className={`w-full px-4 py-2 md:py-3 bg-[#1e2538] border border-[#3d4659] rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-[#c9a45c] focus:border-transparent transition-all ${getHighlightStyle('puertas_ventanas')}`}
                 value={formData.puertas_ventanas}
                 onChange={(e) => handleInputChange('puertas_ventanas', e.target.value)}
                 placeholder="Estado de puertas y ventanas"
@@ -359,21 +392,70 @@ export default function NuevaRevision() {
             </div>
             
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
-              <ButtonGroup label="Chromecast" options={['0', '01', '02', '03', '04']} selectedValue={formData.chromecast} onSelect={v => handleInputChange('chromecast', v)} required />
-              <ButtonGroup label="Binoculares" options={['0', '01', '02', '03']} selectedValue={formData.binoculares} onSelect={v => handleInputChange('binoculares', v)} required />
-              <ButtonGroup label="Trapo para los binoculares" options={['Si', 'No']} selectedValue={formData.trapo_binoculares} onSelect={v => handleInputChange('trapo_binoculares', v)} required />
-              <ButtonGroup label="Speaker" options={['0', '01', '02', '03']} selectedValue={formData.speaker} onSelect={v => handleInputChange('speaker', v)} required />
-              <ButtonGroup label="USB Speaker" options={['0', '01', '02', '03']} selectedValue={formData.usb_speaker} onSelect={v => handleInputChange('usb_speaker', v)} required />
-              <ButtonGroup label="Controles TV" options={['0', '01', '02', '03']} selectedValue={formData.controles_tv} onSelect={v => handleInputChange('controles_tv', v)} required />
-              <ButtonGroup label="Secadora" options={['0', '01', '02', '03']} selectedValue={formData.secadora} onSelect={v => handleInputChange('secadora', v)} required />
+              <ButtonGroup 
+                label="Chromecast" 
+                options={['0', '01', '02', '03', '04']} 
+                selectedValue={formData.chromecast} 
+                onSelect={v => handleInputChange('chromecast', v)} 
+                required 
+                highlight={highlightedField === 'chromecast'}
+              />
+              <ButtonGroup 
+                label="Binoculares" 
+                options={['0', '01', '02', '03']} 
+                selectedValue={formData.binoculares} 
+                onSelect={v => handleInputChange('binoculares', v)} 
+                required 
+                highlight={highlightedField === 'binoculares'}
+              />
+              <ButtonGroup 
+                label="Trapo para los binoculares" 
+                options={['Si', 'No']} 
+                selectedValue={formData.trapo_binoculares} 
+                onSelect={v => handleInputChange('trapo_binoculares', v)} 
+                required 
+                highlight={highlightedField === 'trapo_binoculares'}
+              />
+              <ButtonGroup 
+                label="Speaker" 
+                options={['0', '01', '02', '03']} 
+                selectedValue={formData.speaker} 
+                onSelect={v => handleInputChange('speaker', v)} 
+                required 
+                highlight={highlightedField === 'speaker'}
+              />
+              <ButtonGroup 
+                label="USB Speaker" 
+                options={['0', '01', '02', '03']} 
+                selectedValue={formData.usb_speaker} 
+                onSelect={v => handleInputChange('usb_speaker', v)} 
+                required 
+                highlight={highlightedField === 'usb_speaker'}
+              />
+              <ButtonGroup 
+                label="Controles TV" 
+                options={['0', '01', '02', '03']} 
+                selectedValue={formData.controles_tv} 
+                onSelect={v => handleInputChange('controles_tv', v)} 
+                required 
+                highlight={highlightedField === 'controles_tv'}
+              />
+              <ButtonGroup 
+                label="Secadora" 
+                options={['0', '01', '02', '03']} 
+                selectedValue={formData.secadora} 
+                onSelect={v => handleInputChange('secadora', v)} 
+                required 
+                highlight={highlightedField === 'secadora'}
+              />
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
               <div className="space-y-2">
-                <label className="block text-sm font-medium text-gray-300">Accesorios secadora <span className="text-red-500">*</span></label>
+                <label className="block text-base font-semibold text-[#ff8c42]">Accesorios secadora <span className="text-red-500">*</span></label>
                 <select
                   required
-                  className="w-full px-4 py-2 md:py-3 bg-[#1e2538] border border-[#3d4659] rounded-lg text-white focus:ring-2 focus:ring-[#c9a45c]"
+                  className={`w-full px-4 py-2 md:py-3 bg-[#1e2538] border border-[#3d4659] rounded-lg text-white focus:ring-2 focus:ring-[#c9a45c] ${getHighlightStyle('accesorios_secadora')}`}
                   value={formData.accesorios_secadora}
                   onChange={(e) => handleInputChange('accesorios_secadora', e.target.value)}
                 >
@@ -385,7 +467,7 @@ export default function NuevaRevision() {
                 </select>
               </div>
               <div className="space-y-2">
-                <label className="block text-sm font-medium text-gray-300">En caso de faltar un accesorio. Cual es?</label>
+                <label className="block text-base font-semibold text-[#ff8c42]">En caso de faltar un accesorio. Cual es?</label>
                 <input
                   type="text"
                   className="w-full px-4 py-2 md:py-3 bg-[#1e2538] border border-[#3d4659] rounded-lg text-white focus:ring-2 focus:ring-[#c9a45c]"
@@ -397,23 +479,79 @@ export default function NuevaRevision() {
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
-              <ButtonGroup label="Steamer (plancha a vapor)" options={['0', '01', '02']} selectedValue={formData.steamer} onSelect={v => handleInputChange('steamer', v)} required />
-              <ButtonGroup label="Bolsa de vapor (plancha vapor)" options={['Si', 'No']} selectedValue={formData.bolsa_vapor} onSelect={v => handleInputChange('bolsa_vapor', v)} required />
-              <ButtonGroup label="Plancha cabello" options={['0', '01', '02']} selectedValue={formData.plancha_cabello} onSelect={v => handleInputChange('plancha_cabello', v)} required />
-              <ButtonGroup label="Bulto" options={['0', '01', '02']} selectedValue={formData.bulto} onSelect={v => handleInputChange('bulto', v)} required />
-              <ButtonGroup label="Sombrero" options={['0', '01', '02']} selectedValue={formData.sombrero} onSelect={v => handleInputChange('sombrero', v)} required />
-              <ButtonGroup label="Bolso yute" options={['0', '01', '02', '03']} selectedValue={formData.bolso_yute} onSelect={v => handleInputChange('bolso_yute', v)} required />
+              <ButtonGroup 
+                label="Steamer (plancha a vapor)" 
+                options={['0', '01', '02']} 
+                selectedValue={formData.steamer} 
+                onSelect={v => handleInputChange('steamer', v)} 
+                required 
+                highlight={highlightedField === 'steamer'}
+              />
+              <ButtonGroup 
+                label="Bolsa de vapor (plancha vapor)" 
+                options={['Si', 'No']} 
+                selectedValue={formData.bolsa_vapor} 
+                onSelect={v => handleInputChange('bolsa_vapor', v)} 
+                required 
+                highlight={highlightedField === 'bolsa_vapor'}
+              />
+              <ButtonGroup 
+                label="Plancha cabello" 
+                options={['0', '01', '02']} 
+                selectedValue={formData.plancha_cabello} 
+                onSelect={v => handleInputChange('plancha_cabello', v)} 
+                required 
+                highlight={highlightedField === 'plancha_cabello'}
+              />
+              <ButtonGroup 
+                label="Bulto" 
+                options={['0', '01', '02']} 
+                selectedValue={formData.bulto} 
+                onSelect={v => handleInputChange('bulto', v)} 
+                required 
+                highlight={highlightedField === 'bulto'}
+              />
+              <ButtonGroup 
+                label="Sombrero" 
+                options={['0', '01', '02']} 
+                selectedValue={formData.sombrero} 
+                onSelect={v => handleInputChange('sombrero', v)} 
+                required 
+                highlight={highlightedField === 'sombrero'}
+              />
+              <ButtonGroup 
+                label="Bolso yute" 
+                options={['0', '01', '02', '03']} 
+                selectedValue={formData.bolso_yute} 
+                onSelect={v => handleInputChange('bolso_yute', v)} 
+                required 
+                highlight={highlightedField === 'bolso_yute'}
+              />
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
-              <ButtonGroup label="Camas ordenadas" options={['Si', 'No']} selectedValue={formData.camas_ordenadas} onSelect={v => handleInputChange('camas_ordenadas', v)} required />
-              <ButtonGroup label="Cola de caballo" options={['Si', 'No']} selectedValue={formData.cola_caballo} onSelect={v => handleInputChange('cola_caballo', v)} required />
+              <ButtonGroup 
+                label="Camas ordenadas" 
+                options={['Si', 'No']} 
+                selectedValue={formData.camas_ordenadas} 
+                onSelect={v => handleInputChange('camas_ordenadas', v)} 
+                required 
+                highlight={highlightedField === 'camas_ordenadas'}
+              />
+              <ButtonGroup 
+                label="Cola de caballo" 
+                options={['Si', 'No']} 
+                selectedValue={formData.cola_caballo} 
+                onSelect={v => handleInputChange('cola_caballo', v)} 
+                required 
+                highlight={highlightedField === 'cola_caballo'}
+              />
             </div>
 
             {showEvidenceFields && (
               <div className="space-y-4">
                 <div className="space-y-2">
-                  <label className="block text-sm font-medium text-gray-300">Evidencia 1 (URL) <span className="text-red-500">*</span></label>
+                  <label className="block text-base font-semibold text-[#ff8c42]">Evidencia 1 (URL) <span className="text-red-500">*</span></label>
                   <div className="flex gap-4">
                     <input
                       ref={fileInputRef}
@@ -477,7 +615,7 @@ export default function NuevaRevision() {
                   )}
                 </div>
                 <div className="space-y-2">
-                  <label className="block text-sm font-medium text-gray-300">Evidencia 2 (URL)</label>
+                  <label className="block text-base font-semibold text-[#ff8c42]">Evidencia 2 (URL)</label>
                   <div className="flex gap-4">
                     <input
                       ref={fileInputRef2}
@@ -541,7 +679,7 @@ export default function NuevaRevision() {
                   )}
                 </div>
                 <div className="space-y-2">
-                  <label className="block text-sm font-medium text-gray-300">Evidencia 3 (URL)</label>
+                  <label className="block text-base font-semibold text-[#ff8c42]">Evidencia 3 (URL)</label>
                   <div className="flex gap-4">
                     <input
                       ref={fileInputRef3}
@@ -608,7 +746,7 @@ export default function NuevaRevision() {
             )}
 
             <div className="space-y-2">
-              <label className="block text-sm font-medium text-gray-300">Notas</label>
+              <label className="block text-base font-semibold text-[#ff8c42]">Notas</label>
               <textarea
                 className="w-full px-4 py-2 md:py-3 bg-[#1e2538] border border-[#3d4659] rounded-lg text-white focus:ring-2 focus:ring-[#c9a45c]"
                 value={formData.faltantes}
