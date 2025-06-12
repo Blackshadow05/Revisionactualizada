@@ -420,11 +420,20 @@ export default function NuevaRevision() {
                       type="file"
                       accept="image/*"
                       className="hidden"
-                      onChange={(e) => handleFileChange('evidencia_01', e.target.files ? e.target.files[0] : null)}
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (file) {
+                          handleFileChange('evidencia_01', file);
+                        }
+                      }}
                     />
                     <button
                       type="button"
-                      onClick={() => fileInputRef.current?.click()}
+                      onClick={() => {
+                        if (fileInputRef.current) {
+                          fileInputRef.current.click();
+                        }
+                      }}
                       className="px-4 py-2 bg-[#1a1f35] border border-[#3d4659] rounded-md text-white hover:bg-[#2a3347] transition-colors"
                     >
                       Seleccionar archivo
@@ -444,11 +453,20 @@ export default function NuevaRevision() {
                       type="file"
                       accept="image/*"
                       className="hidden"
-                      onChange={(e) => handleFileChange('evidencia_02', e.target.files ? e.target.files[0] : null)}
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (file) {
+                          handleFileChange('evidencia_02', file);
+                        }
+                      }}
                     />
                     <button
                       type="button"
-                      onClick={() => fileInputRef2.current?.click()}
+                      onClick={() => {
+                        if (fileInputRef2.current) {
+                          fileInputRef2.current.click();
+                        }
+                      }}
                       className="px-4 py-2 bg-[#1a1f35] border border-[#3d4659] rounded-md text-white hover:bg-[#2a3347] transition-colors"
                     >
                       Seleccionar archivo
@@ -468,11 +486,20 @@ export default function NuevaRevision() {
                       type="file"
                       accept="image/*"
                       className="hidden"
-                      onChange={(e) => handleFileChange('evidencia_03', e.target.files ? e.target.files[0] : null)}
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (file) {
+                          handleFileChange('evidencia_03', file);
+                        }
+                      }}
                     />
                     <button
                       type="button"
-                      onClick={() => fileInputRef3.current?.click()}
+                      onClick={() => {
+                        if (fileInputRef3.current) {
+                          fileInputRef3.current.click();
+                        }
+                      }}
                       className="px-4 py-2 bg-[#1a1f35] border border-[#3d4659] rounded-md text-white hover:bg-[#2a3347] transition-colors"
                     >
                       Seleccionar archivo
