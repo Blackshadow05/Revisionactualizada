@@ -118,33 +118,6 @@ export default function NuevaRevision() {
     setFormData(prev => ({ ...prev, [field]: file }));
   };
 
-  const handleCapture = async (evidenceNumber: 'evidencia_01' | 'evidencia_02' | 'evidencia_03') => {
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ video: true });
-      const video = document.createElement('video');
-      video.srcObject = stream;
-      await video.play();
-
-      const canvas = document.createElement('canvas');
-      canvas.width = video.videoWidth;
-      canvas.height = video.videoHeight;
-      const ctx = canvas.getContext('2d');
-      ctx?.drawImage(video, 0, 0);
-
-      stream.getTracks().forEach(track => track.stop());
-
-      canvas.toBlob(async (blob) => {
-        if (blob) {
-          const file = new File([blob], `foto_${Date.now()}.jpg`, { type: 'image/jpeg' });
-          handleFileChange(evidenceNumber, file);
-        }
-      }, 'image/jpeg');
-    } catch (error) {
-      console.error('Error al acceder a la cámara:', error);
-      setError('No se pudo acceder a la cámara. Por favor, verifica los permisos.');
-    }
-  };
-
   const compressImage = async (file: File): Promise<File> => {
     return new Promise((resolve, reject) => {
       const reader = new FileReader();
@@ -445,6 +418,7 @@ export default function NuevaRevision() {
                         ref={fileInputRef}
                         type="file"
                         accept="image/*"
+                        capture="environment"
                         className="hidden"
                         onChange={(e) => handleFileChange('evidencia_01', e.target.files ? e.target.files[0] : null)}
                       />
@@ -454,13 +428,6 @@ export default function NuevaRevision() {
                         className="px-4 py-2 bg-[#1a1f35] border border-[#3d4659] rounded-md text-white hover:bg-[#2a3347] transition-colors"
                       >
                         Seleccionar archivo
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => handleCapture('evidencia_01')}
-                        className="px-4 py-2 bg-[#1a1f35] border border-[#3d4659] rounded-md text-white hover:bg-[#2a3347] transition-colors"
-                      >
-                        Tomar foto
                       </button>
                     </div>
                     {formData.evidencia_01 instanceof File && (
@@ -476,6 +443,7 @@ export default function NuevaRevision() {
                         ref={fileInputRef2}
                         type="file"
                         accept="image/*"
+                        capture="environment"
                         className="hidden"
                         onChange={(e) => handleFileChange('evidencia_02', e.target.files ? e.target.files[0] : null)}
                       />
@@ -485,13 +453,6 @@ export default function NuevaRevision() {
                         className="px-4 py-2 bg-[#1a1f35] border border-[#3d4659] rounded-md text-white hover:bg-[#2a3347] transition-colors"
                       >
                         Seleccionar archivo
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => handleCapture('evidencia_02')}
-                        className="px-4 py-2 bg-[#1a1f35] border border-[#3d4659] rounded-md text-white hover:bg-[#2a3347] transition-colors"
-                      >
-                        Tomar foto
                       </button>
                     </div>
                     {formData.evidencia_02 instanceof File && (
@@ -507,6 +468,7 @@ export default function NuevaRevision() {
                         ref={fileInputRef3}
                         type="file"
                         accept="image/*"
+                        capture="environment"
                         className="hidden"
                         onChange={(e) => handleFileChange('evidencia_03', e.target.files ? e.target.files[0] : null)}
                       />
@@ -516,13 +478,6 @@ export default function NuevaRevision() {
                         className="px-4 py-2 bg-[#1a1f35] border border-[#3d4659] rounded-md text-white hover:bg-[#2a3347] transition-colors"
                       >
                         Seleccionar archivo
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => handleCapture('evidencia_03')}
-                        className="px-4 py-2 bg-[#1a1f35] border border-[#3d4659] rounded-md text-white hover:bg-[#2a3347] transition-colors"
-                      >
-                        Tomar foto
                       </button>
                     </div>
                     {formData.evidencia_03 instanceof File && (
