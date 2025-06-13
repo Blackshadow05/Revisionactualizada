@@ -210,6 +210,7 @@ export default function NuevaRevision() {
       ].filter(Boolean).join('\n');
 
       // Insertar la revisión primero
+      console.log('Intentando insertar revisión en Supabase...');
       const { data, error: insertError } = await supabase
         .from('revisiones_casitas')
         .insert([
@@ -235,14 +236,21 @@ export default function NuevaRevision() {
             camas_ordenadas: formData.camas_ordenadas,
             cola_caballo: formData.cola_caballo,
             Notas: notas_completas,
-            created_at: nowISO
+            created_at: nowISO,
+            evidencia_01: '',
+            evidencia_02: '',
+            evidencia_03: ''
           }
         ])
         .select()
         .single();
 
-      if (insertError) throw insertError;
+      if (insertError) {
+        console.error('Error al insertar en Supabase:', insertError);
+        throw insertError;
+      }
 
+      console.log('Revisión insertada correctamente:', data);
       setRevisionId(data.id);
 
       // Iniciar la subida de archivos en segundo plano
