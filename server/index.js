@@ -8,6 +8,7 @@ const { promisify } = require('util');
 const writeFileAsync = promisify(fs.writeFile);
 const mkdirAsync = promisify(fs.mkdir);
 const unlinkAsync = promisify(fs.unlink);
+const { getWeek } = require('date-fns');
 
 const app = express();
 const port = process.env.PORT || 10000;
@@ -155,7 +156,8 @@ app.post('/upload/finalize', async (req, res) => {
     // Subir a Cloudinary
     const result = await cloudinary.uploader.upload(filePath, {
       resource_type: 'auto',
-      folder: 'revisiones',
+      folder: `prueba-imagenes/${new Date().getMonth() + 1}/semana_${getWeek(new Date(), { weekStartsOn: 1 })}`,
+      upload_preset: 'PruebaSubir'
     });
 
     // Limpiar
