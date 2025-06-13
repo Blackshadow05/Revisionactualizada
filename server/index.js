@@ -110,11 +110,15 @@ app.post('/upload/chunk', upload.single('chunk'), async (req, res) => {
 // Finalizar la subida y subir a Cloudinary
 app.post('/upload/finalize', async (req, res) => {
   try {
-    const { uploadId, fileName } = req.body;
+    const { uploadId, fileName, id } = req.body;
     const uploadInfo = uploads.get(uploadId);
 
     if (!uploadInfo) {
       return res.status(404).json({ error: 'Subida no encontrada' });
+    }
+
+    if (!id) {
+      return res.status(400).json({ error: 'ID de revisión no proporcionado' });
     }
 
     // Verificar que todos los chunks estén presentes
@@ -157,11 +161,16 @@ app.post('/upload/finalize', async (req, res) => {
     const { data: revisionData, error: revisionError } = await supabase
       .from('revisiones_casitas')
       .select('imagenes')
-      .eq('id', uploadInfo.id)
+      .eq('id', id)
       .single();
 
     if (revisionError) {
-      throw new Error('Error al obtener datos de la revisión');
+      console.error('Error al obtener datos de la revisión:', revisionError);
+      throw new Error(`Error al obtener datos de la revisión: ${revisionError.message}`);
+    }
+
+    if (!revisionData) {
+      throw new Error('No se encontró la revisión en la base de datos');
     }
 
     const imagenes = revisionData.imagenes || [];
@@ -170,10 +179,11 @@ app.post('/upload/finalize', async (req, res) => {
     const { error: updateError } = await supabase
       .from('revisiones_casitas')
       .update({ imagenes })
-      .eq('id', uploadInfo.id);
+      .eq('id', id);
 
     if (updateError) {
-      throw new Error('Error al actualizar la revisión con la URL de la imagen');
+      console.error('Error al actualizar la revisión:', updateError);
+      throw new Error(`Error al actualizar la revisión: ${updateError.message}`);
     }
 
     // Limpiar

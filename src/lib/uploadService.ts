@@ -145,6 +145,7 @@ export const uploadFileInChunks = async (
       body: JSON.stringify({
         uploadId,
         fileName: file.name,
+        id,
       }),
     });
 
