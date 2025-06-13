@@ -8,11 +8,11 @@ if (!RENDER_URL) {
 }
 
 export interface UploadProgress {
-  status: 'pending' | 'completed' | 'error';
+  status: 'pending' | 'uploading' | 'processing' | 'storing' | 'updating' | 'completed' | 'error';
   progress: number;
   url?: string;
   error?: string;
-  message: string;
+  message?: string;
 }
 
 const handleResponse = async (response: Response) => {
