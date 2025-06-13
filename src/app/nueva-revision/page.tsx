@@ -175,7 +175,10 @@ export default function NuevaRevision() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    console.log('Iniciando envío del formulario...');
+    
     if (!supabase) {
+      console.error('No se pudo conectar con Supabase');
       setError('No se pudo conectar con la base de datos');
       return;
     }
@@ -189,15 +192,18 @@ export default function NuevaRevision() {
       const fechaLocal = new Date(now.getTime() - (now.getTimezoneOffset() * 60000));
       const nowISO = fechaLocal.toISOString();
 
+      // Validar campos requeridos
       for (const field of requiredFields) {
         if (!formData[field]) {
           const fieldName = field.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+          console.error(`Campo requerido faltante: ${fieldName}`);
           setError(`El campo "${fieldName}" es obligatorio.`);
           return;
         }
       }
       
       if (showEvidenceFields && !formData.evidencia_01) {
+        console.error('Evidencia 1 es requerida para Check in, Upsell, o Back to Back');
         setError('El campo "Evidencia 1" es obligatorio cuando se selecciona Check in, Upsell, o Back to Back.');
         return;
       }
@@ -209,45 +215,53 @@ export default function NuevaRevision() {
         faltantes ? `Faltantes generales: ${faltantes}` : ''
       ].filter(Boolean).join('\n');
 
-      // Insertar la revisión primero
+      // Preparar datos para la inserción
+      const revisionData = {
+        casita: formData.casita,
+        quien_revisa: formData.quien_revisa,
+        caja_fuerte: formData.caja_fuerte,
+        puertas_ventanas: formData.puertas_ventanas,
+        chromecast: formData.chromecast,
+        binoculares: formData.binoculares,
+        trapo_binoculares: formData.trapo_binoculares,
+        speaker: formData.speaker,
+        usb_speaker: formData.usb_speaker,
+        controles_tv: formData.controles_tv,
+        secadora: formData.secadora,
+        accesorios_secadora: formData.accesorios_secadora,
+        steamer: formData.steamer,
+        bolsa_vapor: formData.bolsa_vapor,
+        plancha_cabello: formData.plancha_cabello,
+        bulto: formData.bulto,
+        sombrero: formData.sombrero,
+        bolso_yute: formData.bolso_yute,
+        camas_ordenadas: formData.camas_ordenadas,
+        cola_caballo: formData.cola_caballo,
+        Notas: notas_completas,
+        created_at: nowISO,
+        evidencia_01: '',
+        evidencia_02: '',
+        evidencia_03: ''
+      };
+
+      console.log('Datos a insertar:', revisionData);
+
+      // Insertar la revisión
       console.log('Intentando insertar revisión en Supabase...');
       const { data, error: insertError } = await supabase
         .from('revisiones_casitas')
-        .insert([
-          {
-            casita: formData.casita,
-            quien_revisa: formData.quien_revisa,
-            caja_fuerte: formData.caja_fuerte,
-            puertas_ventanas: formData.puertas_ventanas,
-            chromecast: formData.chromecast,
-            binoculares: formData.binoculares,
-            trapo_binoculares: formData.trapo_binoculares,
-            speaker: formData.speaker,
-            usb_speaker: formData.usb_speaker,
-            controles_tv: formData.controles_tv,
-            secadora: formData.secadora,
-            accesorios_secadora: formData.accesorios_secadora,
-            steamer: formData.steamer,
-            bolsa_vapor: formData.bolsa_vapor,
-            plancha_cabello: formData.plancha_cabello,
-            bulto: formData.bulto,
-            sombrero: formData.sombrero,
-            bolso_yute: formData.bolso_yute,
-            camas_ordenadas: formData.camas_ordenadas,
-            cola_caballo: formData.cola_caballo,
-            Notas: notas_completas,
-            created_at: nowISO,
-            evidencia_01: '',
-            evidencia_02: '',
-            evidencia_03: ''
-          }
-        ])
+        .insert([revisionData])
         .select()
         .single();
 
       if (insertError) {
         console.error('Error al insertar en Supabase:', insertError);
-        throw insertError;
+        throw new Error(`Error al insertar en Supabase: ${insertError.message}`);
+      }
+
+      if (!data) {
+        console.error('No se recibieron datos de la inserción');
+        throw new Error('No se pudo crear la revisión');
       }
 
       console.log('Revisión insertada correctamente:', data);
@@ -255,6 +269,7 @@ export default function NuevaRevision() {
 
       // Iniciar la subida de archivos en segundo plano
       if (formData.evidencia_01 instanceof File) {
+        console.log('Iniciando subida de evidencia_01...');
         const uploadId = addUpload({
           revisionId: data.id,
           fileName: formData.evidencia_01.name,
@@ -263,16 +278,26 @@ export default function NuevaRevision() {
         });
 
         uploadFileInChunks(formData.evidencia_01, data.id, (progress) => {
+          console.log('Progreso de evidencia_01:', progress);
           if (progress.status === 'completed' && progress.url) {
+            console.log('Actualizando evidencia_01 con URL:', progress.url);
             supabase
               .from('revisiones_casitas')
               .update({ evidencia_01: progress.url })
-              .eq('id', data.id);
+              .eq('id', data.id)
+              .then(({ error }) => {
+                if (error) {
+                  console.error('Error al actualizar evidencia_01:', error);
+                } else {
+                  console.log('evidencia_01 actualizada correctamente');
+                }
+              });
           }
         });
       }
 
       if (formData.evidencia_02 instanceof File) {
+        console.log('Iniciando subida de evidencia_02...');
         const uploadId = addUpload({
           revisionId: data.id,
           fileName: formData.evidencia_02.name,
@@ -281,16 +306,26 @@ export default function NuevaRevision() {
         });
 
         uploadFileInChunks(formData.evidencia_02, data.id, (progress) => {
+          console.log('Progreso de evidencia_02:', progress);
           if (progress.status === 'completed' && progress.url) {
+            console.log('Actualizando evidencia_02 con URL:', progress.url);
             supabase
               .from('revisiones_casitas')
               .update({ evidencia_02: progress.url })
-              .eq('id', data.id);
+              .eq('id', data.id)
+              .then(({ error }) => {
+                if (error) {
+                  console.error('Error al actualizar evidencia_02:', error);
+                } else {
+                  console.log('evidencia_02 actualizada correctamente');
+                }
+              });
           }
         });
       }
 
       if (formData.evidencia_03 instanceof File) {
+        console.log('Iniciando subida de evidencia_03...');
         const uploadId = addUpload({
           revisionId: data.id,
           fileName: formData.evidencia_03.name,
@@ -299,11 +334,20 @@ export default function NuevaRevision() {
         });
 
         uploadFileInChunks(formData.evidencia_03, data.id, (progress) => {
+          console.log('Progreso de evidencia_03:', progress);
           if (progress.status === 'completed' && progress.url) {
+            console.log('Actualizando evidencia_03 con URL:', progress.url);
             supabase
               .from('revisiones_casitas')
               .update({ evidencia_03: progress.url })
-              .eq('id', data.id);
+              .eq('id', data.id)
+              .then(({ error }) => {
+                if (error) {
+                  console.error('Error al actualizar evidencia_03:', error);
+                } else {
+                  console.log('evidencia_03 actualizada correctamente');
+                }
+              });
           }
         });
       }
@@ -319,7 +363,7 @@ export default function NuevaRevision() {
 
     } catch (error: any) {
       console.error('Error al guardar la revisión:', error);
-      setError(error.message);
+      setError(error.message || 'Error al guardar la revisión');
     } finally {
       setLoading(false);
     }
