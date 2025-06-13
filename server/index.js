@@ -157,10 +157,10 @@ app.post('/upload/finalize', async (req, res) => {
       upload_preset: 'PruebaSubir'
     });
 
-    // Actualizar Supabase con la URL de la imagen
+    // Obtener la revisión actual
     const { data: revisionData, error: revisionError } = await supabase
       .from('revisiones_casitas')
-      .select('imagenes')
+      .select('evidencia_01, evidencia_02, evidencia_03')
       .eq('id', id)
       .single();
 
@@ -173,12 +173,22 @@ app.post('/upload/finalize', async (req, res) => {
       throw new Error('No se encontró la revisión en la base de datos');
     }
 
-    const imagenes = revisionData.imagenes || [];
-    imagenes.push(result.secure_url);
+    // Determinar en qué campo guardar la URL
+    let updateData = {};
+    if (!revisionData.evidencia_01) {
+      updateData = { evidencia_01: result.secure_url };
+    } else if (!revisionData.evidencia_02) {
+      updateData = { evidencia_02: result.secure_url };
+    } else if (!revisionData.evidencia_03) {
+      updateData = { evidencia_03: result.secure_url };
+    } else {
+      throw new Error('Ya se han subido las tres imágenes permitidas');
+    }
 
+    // Actualizar Supabase con la URL de la imagen
     const { error: updateError } = await supabase
       .from('revisiones_casitas')
-      .update({ imagenes })
+      .update(updateData)
       .eq('id', id);
 
     if (updateError) {
