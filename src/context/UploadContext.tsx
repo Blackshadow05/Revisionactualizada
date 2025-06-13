@@ -1,60 +1,95 @@
 'use client';
 
-import React, { createContext, useContext, useState, useCallback } from 'react';
-import { v4 as uuidv4 } from 'uuid';
+import React, { createContext, useContext, useState, useEffect } from 'react';
+import { uploadFileInChunks } from '@/lib/uploadService';
 
-interface UploadStatus {
+interface UploadProgress {
   id: string;
-  revisionId: string;
   fileName: string;
   progress: number;
   status: 'pending' | 'uploading' | 'processing' | 'storing' | 'updating' | 'completed' | 'error';
-  error?: string;
-  url?: string;
   message?: string;
 }
 
 interface UploadContextType {
-  uploads: UploadStatus[];
-  addUpload: (upload: Omit<UploadStatus, 'id'>) => string;
-  updateUpload: (id: string, update: Partial<UploadStatus>) => void;
-  removeUpload: (id: string) => void;
-  getUploadsByRevision: (id: string) => UploadStatus[];
+  uploads: UploadProgress[];
+  addUpload: (file: File, revisionId: string) => Promise<void>;
+  clearUploads: () => void;
+  hasActiveUploads: boolean;
 }
 
 const UploadContext = createContext<UploadContextType | undefined>(undefined);
 
 export function UploadProvider({ children }: { children: React.ReactNode }) {
-  const [uploads, setUploads] = useState<UploadStatus[]>([]);
+  const [uploads, setUploads] = useState<UploadProgress[]>(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('uploadProgress');
+      return saved ? JSON.parse(saved) : [];
+    }
+    return [];
+  });
 
-  const addUpload = useCallback((upload: Omit<UploadStatus, 'id'>) => {
-    const id = uuidv4();
-    setUploads(prev => [...prev, { ...upload, id }]);
-    return id;
-  }, []);
-
-  const updateUpload = useCallback((id: string, update: Partial<UploadStatus>) => {
-    setUploads(prev => prev.map(upload => 
-      upload.id === id ? { ...upload, ...update } : upload
-    ));
-  }, []);
-
-  const removeUpload = useCallback((id: string) => {
-    setUploads(prev => prev.filter(upload => upload.id !== id));
-  }, []);
-
-  const getUploadsByRevision = useCallback((id: string) => {
-    return uploads.filter(upload => upload.revisionId === id);
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('uploadProgress', JSON.stringify(uploads));
+    }
   }, [uploads]);
 
+  const addUpload = async (file: File, revisionId: string) => {
+    const uploadId = `${revisionId}-${file.name}`;
+    
+    // Verificar si ya existe una subida con el mismo ID
+    const existingUpload = uploads.find(u => u.id === uploadId);
+    if (existingUpload && existingUpload.status === 'completed') {
+      return; // No permitir subir el mismo archivo si ya está completado
+    }
+
+    setUploads(prev => [
+      ...prev.filter(u => u.id !== uploadId), // Remover si existe
+      {
+        id: uploadId,
+        fileName: file.name,
+        progress: 0,
+        status: 'pending',
+        message: 'Verificando conexión con el servidor...'
+      }
+    ]);
+
+    try {
+      await uploadFileInChunks(file, revisionId, (progress, status, message) => {
+        setUploads(prev => 
+          prev.map(upload => 
+            upload.id === uploadId 
+              ? { ...upload, progress, status, message } 
+              : upload
+          )
+        );
+      });
+    } catch (error) {
+      console.error('Error en la subida:', error);
+      setUploads(prev => 
+        prev.map(upload => 
+          upload.id === uploadId 
+            ? { ...upload, status: 'error', message: 'Error en la subida' } 
+            : upload
+        )
+      );
+    }
+  };
+
+  const clearUploads = () => {
+    setUploads([]);
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem('uploadProgress');
+    }
+  };
+
+  const hasActiveUploads = uploads.some(
+    upload => ['pending', 'uploading', 'processing', 'storing', 'updating'].includes(upload.status)
+  );
+
   return (
-    <UploadContext.Provider value={{
-      uploads,
-      addUpload,
-      updateUpload,
-      removeUpload,
-      getUploadsByRevision
-    }}>
+    <UploadContext.Provider value={{ uploads, addUpload, clearUploads, hasActiveUploads }}>
       {children}
     </UploadContext.Provider>
   );
