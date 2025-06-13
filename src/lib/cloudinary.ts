@@ -26,9 +26,9 @@ export const uploadToCloudinary = async (file: File): Promise<string> => {
     }
 
     const data = await response.json();
-    const url = data.secure_url;
-    const modifiedUrl = url.replace('/upload/', '/upload/f_auto,q_auto/');
-    return modifiedUrl;
+    const url = new URL(data.secure_url);
+    url.pathname = url.pathname.replace('/upload/', '/upload/f_auto,q_auto/');
+    return url.toString();
   } catch (error) {
     console.error('Error en uploadToCloudinary:', error);
     throw error;

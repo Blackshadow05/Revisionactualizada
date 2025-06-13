@@ -7,6 +7,7 @@ import ButtonGroup from '@/components/ButtonGroup';
 import { getWeek } from 'date-fns';
 import { uploadToCloudinary } from '@/lib/cloudinary';
 import { useAuth } from '@/context/AuthContext';
+import { uploadFileInChunks } from '@/lib/uploadService';
 
 interface RevisionData {
   casita: string;
@@ -40,6 +41,12 @@ interface FileData {
   evidencia_01: File | null;
   evidencia_02: File | null;
   evidencia_03: File | null;
+}
+
+interface UploadProgress {
+  progress: number;
+  status: 'uploading' | 'processing' | 'completed' | 'error';
+  error?: string;
 }
 
 const initialFormData: RevisionData = {
@@ -101,6 +108,8 @@ export default function NuevaRevision() {
   const cameraInputRef2 = useRef<HTMLInputElement>(null);
   const cameraInputRef3 = useRef<HTMLInputElement>(null);
 
+  const [uploadProgress, setUploadProgress] = useState<Record<string, UploadProgress>>({});
+
   // Efecto para actualizar quien_revisa cuando cambie el usuario
   useEffect(() => {
     if (user) {
@@ -151,58 +160,12 @@ export default function NuevaRevision() {
   const handleFileChange = (field: keyof FileData, file: File | null) => {
     if (error) setError(null);
     setFormData(prev => ({ ...prev, [field]: file }));
-  };
-
-  const compressImage = async (file: File): Promise<File> => {
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.readAsDataURL(file);
-      reader.onload = (event) => {
-        const img = new Image();
-        img.src = event.target?.result as string;
-        img.onload = () => {
-          const canvas = document.createElement('canvas');
-          const MAX_WIDTH = 1280;
-          const MAX_HEIGHT = 1280;
-          let width = img.width;
-          let height = img.height;
-
-          if (width > height) {
-            if (width > MAX_WIDTH) {
-              height *= MAX_WIDTH / width;
-              width = MAX_WIDTH;
-            }
-          } else {
-            if (height > MAX_HEIGHT) {
-              width *= MAX_HEIGHT / height;
-              height = MAX_HEIGHT;
-            }
-          }
-
-          canvas.width = width;
-          canvas.height = height;
-          const ctx = canvas.getContext('2d');
-          ctx?.drawImage(img, 0, 0, width, height);
-
-          canvas.toBlob(
-            (blob) => {
-              if (blob) {
-                const compressedFile = new File([blob], file.name, {
-                  type: 'image/jpeg',
-                  lastModified: Date.now(),
-                });
-                resolve(compressedFile);
-              } else {
-                reject(new Error('Error al comprimir la imagen'));
-              }
-            },
-            'image/jpeg',
-            0.7
-          );
-        };
-      };
-      reader.onerror = (error) => reject(error);
-    });
+    if (file) {
+      setUploadProgress(prev => ({
+        ...prev,
+        [field]: { progress: 0, status: 'uploading' }
+      }));
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -240,19 +203,35 @@ export default function NuevaRevision() {
         evidencia_03: '',
       };
 
+      // Subir archivos usando el nuevo servicio de chunks
       if (formData.evidencia_01 instanceof File) {
-        const compressedFile = await compressImage(formData.evidencia_01);
-        uploadedUrls.evidencia_01 = await uploadToCloudinary(compressedFile);
+        uploadedUrls.evidencia_01 = await uploadFileInChunks(
+          formData.evidencia_01,
+          (progress) => setUploadProgress(prev => ({
+            ...prev,
+            evidencia_01: progress
+          }))
+        );
       }
 
       if (formData.evidencia_02 instanceof File) {
-        const compressedFile = await compressImage(formData.evidencia_02);
-        uploadedUrls.evidencia_02 = await uploadToCloudinary(compressedFile);
+        uploadedUrls.evidencia_02 = await uploadFileInChunks(
+          formData.evidencia_02,
+          (progress) => setUploadProgress(prev => ({
+            ...prev,
+            evidencia_02: progress
+          }))
+        );
       }
 
       if (formData.evidencia_03 instanceof File) {
-        const compressedFile = await compressImage(formData.evidencia_03);
-        uploadedUrls.evidencia_03 = await uploadToCloudinary(compressedFile);
+        uploadedUrls.evidencia_03 = await uploadFileInChunks(
+          formData.evidencia_03,
+          (progress) => setUploadProgress(prev => ({
+            ...prev,
+            evidencia_03: progress
+          }))
+        );
       }
 
       const { faltantes, accesorios_secadora_faltante, ...restOfFormData } = formData;
@@ -765,11 +744,7 @@ export default function NuevaRevision() {
               <button
                 type="submit"
                 disabled={loading}
-                className={`w-full ${
-                  loading 
-                    ? 'bg-[#00ff00] text-white animate-pulse border-2 border-[#00ff00] shadow-[0_0_15px_#00ff00]' 
-                    : 'bg-gradient-to-br from-[#c9a45c] via-[#d4b06c] to-[#f0c987] text-[#1a1f35]'
-                } font-bold px-8 py-3 md:py-4 rounded-xl transform hover:scale-[1.02] transition-all duration-200 shadow-[0_8px_16px_rgb(0_0_0/0.2)] hover:shadow-[0_12px_24px_rgb(0_0_0/0.3)] relative overflow-hidden before:absolute before:inset-0 before:bg-gradient-to-r before:from-transparent before:via-white/40 before:to-transparent before:translate-x-[-200%] hover:before:translate-x-[200%] before:transition-transform before:duration-1000 after:absolute after:inset-0 after:bg-gradient-to-b after:from-white/20 after:to-transparent after:opacity-0 hover:after:opacity-100 after:transition-opacity after:duration-300 border-2 border-white/40 hover:border-white/60 ${loading ? 'opacity-100 cursor-wait' : ''}`}
+                className={`w-full ${loading ? 'bg-[#00ff00] text-white' : 'bg-gradient-to-br from-[#c9a45c] via-[#d4b06c] to-[#f0c987] text-[#1a1f35]'} font-bold px-8 py-3 md:py-4 rounded-xl transform hover:scale-[1.02] transition-all duration-200 shadow-[0_8px_16px_rgb(0_0_0/0.2)] hover:shadow-[0_12px_24px_rgb(0_0_0/0.3)] relative overflow-hidden before:absolute before:inset-0 before:bg-gradient-to-r before:from-transparent before:via-${loading ? '[#00ff00]/20' : 'white/40'} before:to-transparent before:translate-x-[-200%] before:animate-shimmer before:transition-transform before:duration-1000 after:absolute after:inset-0 after:bg-gradient-to-b after:from-${loading ? '[#00ff00]/10' : 'white/20'} after:to-transparent after:opacity-100 after:transition-opacity after:duration-300 border-2 border-white/40 hover:border-white/60 ${loading ? 'opacity-100 cursor-wait' : ''}`}
               >
                 {loading ? 'Guardando...' : 'Guardar Revisión'}
               </button>

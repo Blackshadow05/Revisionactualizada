@@ -94,10 +94,9 @@ export default function NuevaNota() {
     if (error) setError(null);
     if (file) {
       try {
-        const compressedFile = await compressImage(file);
-        setFormData(prev => ({ ...prev, evidencia: compressedFile }));
+        setFormData(prev => ({ ...prev, evidencia: file }));
       } catch (error) {
-        console.error('Error al comprimir la imagen:', error);
+        console.error('Error al procesar la imagen:', error);
         setError('Error al procesar la imagen');
       }
     } else {

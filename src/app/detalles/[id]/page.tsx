@@ -158,14 +158,13 @@ export default function DetallesRevision() {
       let evidenciaUrl = null;
 
       if (nuevaNota.evidencia) {
-        const compressedImage = await compressImage(nuevaNota.evidencia);
         const now = new Date();
         const month = String(now.getMonth() + 1).padStart(2, '0');
         const week = `semana_${getWeek(now, { weekStartsOn: 1 })}`;
         const folder = `notas/${month}/${week}`;
         
         const formDataCloudinary = new FormData();
-        formDataCloudinary.append('file', compressedImage);
+        formDataCloudinary.append('file', nuevaNota.evidencia);
         formDataCloudinary.append('upload_preset', 'PruebaSubir');
         formDataCloudinary.append('cloud_name', 'dhd61lan4');
         formDataCloudinary.append('folder', folder);
@@ -183,7 +182,10 @@ export default function DetallesRevision() {
         }
 
         const data = await response.json();
-        evidenciaUrl = data.secure_url;
+        // Añadir los parámetros f_auto,q_auto a la URL
+        const url = new URL(data.secure_url);
+        url.pathname = url.pathname.replace('/upload/', '/upload/f_auto,q_auto/');
+        evidenciaUrl = url.toString();
       }
 
       // Obtener fecha y hora local del dispositivo
