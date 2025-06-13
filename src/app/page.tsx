@@ -68,6 +68,10 @@ export default function Home() {
     password: ''
   });
   const [loginError, setLoginError] = useState<string | null>(null);
+  const [showMenuDropdown, setShowMenuDropdown] = useState(false);
+  const [showReportModal, setShowReportModal] = useState(false);
+  const [reportDateFrom, setReportDateFrom] = useState('');
+  const [reportDateTo, setReportDateTo] = useState('');
 
   const tableContainerRef = useRef<HTMLDivElement>(null);
   const [startX, setStartX] = useState(0);
@@ -91,19 +95,52 @@ export default function Home() {
     }
   }, []);
 
+  // Cerrar menú desplegable al hacer clic fuera
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (showMenuDropdown) {
+        const target = event.target as Element;
+        if (!target.closest('.menu-dropdown-container')) {
+          setShowMenuDropdown(false);
+        }
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [showMenuDropdown]);
+
   const fetchRevisiones = async () => {
     try {
       setLoading(true);
-      const { data, error } = await supabase
+      setError(null);
+
+      // Verificar la conexión con Supabase
+      const isConnected = await checkSupabaseConnection();
+      if (!isConnected) {
+        throw new Error('No se pudo conectar con la base de datos. Por favor, verifica tu conexión.');
+      }
+      
+      const { data: revisiones, error } = await supabase
         .from('revisiones_casitas')
         .select('*')
         .order('created_at', { ascending: false });
 
-      if (error) throw error;
-      setData(data || []);
+      if (error) {
+        console.error('Error fetching data:', error);
+        throw new Error('Error al cargar los datos: ' + error.message);
+      }
+
+      if (!revisiones) {
+        throw new Error('No se encontraron datos');
+      }
+
+      setData(revisiones);
     } catch (error: any) {
-      console.error('Error al cargar revisiones:', error);
-      setError(error.message);
+      console.error('Error in fetchData:', error);
+      setError(error.message || 'Error al cargar los datos');
     } finally {
       setLoading(false);
     }
@@ -279,100 +316,269 @@ export default function Home() {
     }
   };
 
+  const handleExportExcel = async () => {
+    try {
+      // Filtrar datos por rango de fechas
+      const filteredDataForExport = data.filter(row => {
+        const rowDate = new Date(row.created_at).toISOString().split('T')[0];
+        return rowDate >= reportDateFrom && rowDate <= reportDateTo;
+      });
+
+      if (filteredDataForExport.length === 0) {
+        alert('No hay datos en el rango de fechas seleccionado');
+        return;
+      }
+
+      // Preparar datos para Excel
+      const excelData = filteredDataForExport.map(row => {
+        // Usar la fecha tal como está almacenada, sin conversiones de zona horaria
+        const fechaOriginal = row.created_at;
+        const fechaFormateada = fechaOriginal.replace('T', ' ').substring(0, 16); // YYYY-MM-DD HH:MM
+        const [fecha, hora] = fechaFormateada.split(' ');
+        const [year, month, day] = fecha.split('-');
+        const fechaFinal = `${day}/${month}/${year} ${hora}`;
+        
+        return {
+        'Fecha': fechaFinal,
+        'Casita': row.casita,
+        'Quien Revisa': row.quien_revisa,
+        'Caja Fuerte': row.caja_fuerte,
+        'Puertas/Ventanas': row.puertas_ventanas,
+        'Chromecast': row.chromecast,
+        'Binoculares': row.binoculares,
+        'Trapo Binoculares': row.trapo_binoculares,
+        'Speaker': row.speaker,
+        'USB Speaker': row.usb_speaker,
+        'Controles TV': row.controles_tv,
+        'Secadora': row.secadora,
+        'Accesorios Secadora': row.accesorios_secadora,
+        'Steamer': row.steamer,
+        'Bolsa Vapor': row.bolsa_vapor,
+        'Plancha Cabello': row.plancha_cabello,
+        'Bulto': row.bulto,
+        'Sombrero': row.sombrero,
+        'Bolso Yute': row.bolso_yute,
+        'Camas Ordenadas': row.camas_ordenadas,
+        'Cola Caballo': row.cola_caballo,
+        'Notas': row.Notas || '',
+        'Evidencia 1': row.evidencia_01 ? 'Sí' : 'No',
+        'Evidencia 2': row.evidencia_02 ? 'Sí' : 'No',
+        'Evidencia 3': row.evidencia_03 ? 'Sí' : 'No'
+        };
+      });
+
+      // Crear archivo Excel usando una implementación simple
+      const csvContent = [
+        Object.keys(excelData[0]).join(','),
+        ...excelData.map(row => Object.values(row).map(val => `"${val}"`).join(','))
+      ].join('\n');
+
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+      const link = document.createElement('a');
+      const url = URL.createObjectURL(blob);
+      link.setAttribute('href', url);
+      link.setAttribute('download', `Reporte_Revisiones_${reportDateFrom}_${reportDateTo}.csv`);
+      link.style.visibility = 'hidden';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+
+      // Cerrar modal y limpiar campos
+      setShowReportModal(false);
+      setShowMenuDropdown(false);
+      setReportDateFrom('');
+      setReportDateTo('');
+      
+      alert(`Reporte exportado exitosamente como CSV`);
+    } catch (error) {
+      console.error('Error al exportar:', error);
+      alert('Error al exportar el reporte');
+    }
+  };
+
   return (
-    <main className="min-h-screen bg-gradient-to-br from-[#1a1f35] to-[#2d364c] py-8 md:py-12">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex justify-between items-center mb-6">
-          <h1 className="text-3xl font-bold text-white">Revisión de Casitas</h1>
-          <div className="flex gap-4">
-            {userRole === 'SuperAdmin' && (
-              <button
-                onClick={() => router.push('/gestion-usuarios')}
-                className="px-4 py-2 bg-[#c9a45c] text-white rounded-lg hover:bg-[#d4b06c] transition-all transform hover:scale-[1.02] shadow-[0_8px_16px_rgb(0_0_0/0.2)] hover:shadow-[0_12px_24px_rgb(0_0_0/0.3)] relative overflow-hidden border-2 border-white/40 hover:border-white/60"
-              >
-                Gestión de Usuarios
-              </button>
-            )}
+    <main className="min-h-screen bg-gradient-to-br from-[#0f1419] via-[#1a1f35] to-[#1e2538] relative overflow-hidden">
+      {/* Efectos de fondo */}
+      <div className="absolute inset-0 bg-[url('data:image/svg+xml,%3Csvg%20width%3D%2260%22%20height%3D%2260%22%20viewBox%3D%220%200%2060%2060%22%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%3E%3Cg%20fill%3D%22none%22%20fill-rule%3D%22evenodd%22%3E%3Cg%20fill%3D%22%23c9a45c%22%20fill-opacity%3D%220.03%22%3E%3Ccircle%20cx%3D%2230%22%20cy%3D%2230%22%20r%3D%222%22/%3E%3C/g%3E%3C/g%3E%3C/svg%3E')] opacity-50"></div>
+      <div className="absolute top-0 left-0 w-full h-full bg-gradient-to-b from-transparent via-transparent to-[#0f1419]/20"></div>
+      
+      <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* Hero Section */}
+        <div className="text-center mb-12">
+          <div className="inline-flex items-center gap-3 mb-6">
+            <div className="relative menu-dropdown-container lg:absolute lg:top-8 lg:left-8">
+              <div className="w-12 h-12 bg-gradient-to-br from-[#c9a45c] to-[#f0c987] rounded-xl flex items-center justify-center shadow-lg cursor-pointer hover:shadow-xl transition-all duration-300"
+                   onClick={() => setShowMenuDropdown(!showMenuDropdown)}>
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-7 h-7 text-[#1a1f35]">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5" />
+                </svg>
+              </div>
+              
+              {/* Menú Desplegable */}
+              {showMenuDropdown && (
+                <div className="absolute top-14 left-0 w-64 bg-gradient-to-br from-[#1e2538]/95 to-[#2a3347]/95 backdrop-blur-md rounded-xl border border-[#3d4659]/50 shadow-2xl z-50">
+                  <div className="p-2">
+                    <div className="px-3 py-2 text-xs font-medium text-[#c9a45c] uppercase tracking-wider border-b border-[#3d4659]/30 mb-2">
+                      Reportes
+                    </div>
+                    <button
+                      onClick={() => {
+                        setShowReportModal(true);
+                        setShowMenuDropdown(false);
+                      }}
+                      className="w-full flex items-center gap-3 px-3 py-2.5 text-white hover:bg-[#3d4659]/30 rounded-lg transition-all duration-200 text-left"
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5 text-green-400">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" />
+                      </svg>
+                      <div>
+                        <div className="font-medium">Exportar Excel</div>
+                        <div className="text-xs text-gray-400">Reporte por fechas</div>
+                      </div>
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+            <h1 className="text-4xl md:text-5xl font-bold bg-gradient-to-r from-white via-[#c9a45c] to-[#f0c987] bg-clip-text text-transparent">
+              Revisión de Casitas
+            </h1>
           </div>
         </div>
-        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-8">
-          <div>
-            {user && (
-              <p className="text-[#c9a45c] font-medium">
-                Usuario: <span className="text-white">{user}</span>
-              </p>
-            )}
-          </div>
-          <div className="flex flex-col md:flex-row items-start md:items-center gap-4 w-full md:w-auto">
-            {isLoggedIn ? (
-              <div className="flex flex-col md:flex-row items-start md:items-center gap-4 w-full md:w-auto">
-                <span className="text-[#c9a45c]">Rol: {userRole}</span>
+
+        {/* Barra de Acciones Mejorada */}
+        <div className="bg-gradient-to-br from-[#1e2538]/80 to-[#2a3347]/80 backdrop-blur-md rounded-xl p-6 border border-[#3d4659]/50 mb-8">
+          <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-6">
+            {/* Info del Usuario */}
+            <div className="flex items-center gap-4">
+              {user && (
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 bg-gradient-to-br from-[#c9a45c] to-[#f0c987] rounded-full flex items-center justify-center">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5 text-[#1a1f35]">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0A17.933 17.933 0 0112 21.75c-2.676 0-5.216-.584-7.499-1.632z" />
+                    </svg>
+                  </div>
+                  <div>
+                    <p className="text-white font-medium">{user}</p>
+                    <p className="text-[#c9a45c] text-sm">{userRole}</p>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Botones de Acción */}
+            <div className="flex flex-wrap gap-3">
+              {userRole === 'SuperAdmin' && (
+                <button
+                  onClick={() => router.push('/gestion-usuarios')}
+                  className="px-4 py-2.5 bg-gradient-to-r from-purple-500 to-purple-600 text-white rounded-xl hover:from-purple-600 hover:to-purple-700 transition-all duration-300 transform hover:scale-[1.02] shadow-lg hover:shadow-purple-500/25 flex items-center gap-2 font-medium"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-4 h-4">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M15 19.128a9.38 9.38 0 002.625.372 9.337 9.337 0 004.121-.952 4.125 4.125 0 00-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 018.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0111.964-3.07M12 6.375a3.375 3.375 0 11-6.75 0 3.375 3.375 0 016.75 0zm8.25 2.25a2.625 2.625 0 11-5.25 0 2.625 2.625 0 015.25 0z" />
+                  </svg>
+                  Gestión Usuarios
+                </button>
+              )}
+
+              {isLoggedIn ? (
                 <button
                   onClick={logout}
-                  className="w-full md:w-auto px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-all transform hover:scale-[1.02] shadow-[0_8px_16px_rgb(0_0_0/0.2)] hover:shadow-[0_12px_24px_rgb(0_0_0/0.3)] relative overflow-hidden border-2 border-white/40 hover:border-white/60 before:absolute before:inset-0 before:bg-gradient-to-r before:from-transparent before:via-red-300/40 before:to-transparent before:translate-x-[-200%] hover:before:translate-x-[200%] before:transition-transform before:duration-1000 after:absolute after:inset-0 after:bg-gradient-to-b after:from-red-300/30 after:to-transparent after:opacity-100 after:transition-opacity after:duration-300 md:before:translate-x-[-200%] md:hover:before:translate-x-[200%] before:translate-x-[200%] before:animate-[shimmer_1.5s_infinite]"
+                  className="metallic-button metallic-button-red px-4 py-2.5 text-white rounded-xl hover:shadow-lg hover:shadow-red-500/25 transition-all duration-300 transform hover:scale-[1.02] flex items-center gap-2 font-medium"
                 >
+                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-4 h-4">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 9V5.25A2.25 2.25 0 0013.5 3h-6a2.25 2.25 0 00-2.25 2.25v13.5A2.25 2.25 0 007.5 21h6a2.25 2.25 0 002.25-2.25V15M12 9l-3 3m0 0l3 3m-3-3h12.75" />
+                  </svg>
                   Cerrar Sesión
                 </button>
-              </div>
-            ) : (
-              <button
-                onClick={() => setShowLoginModal(true)}
-                className="w-full md:w-auto px-4 py-2 bg-[#2a3347] text-white rounded-lg hover:bg-[#2a3347] transition-all transform hover:scale-[1.02] shadow-[0_8px_16px_rgb(0_0_0/0.2)] hover:shadow-[0_12px_24px_rgb(0_0_0/0.3)] relative overflow-hidden border-2 border-white/40 hover:border-white/60 before:absolute before:inset-0 before:bg-gradient-to-r before:from-transparent before:via-[#e0e614]/40 before:to-transparent before:translate-x-[-200%] md:before:translate-x-[-200%] md:hover:before:translate-x-[200%] before:translate-x-[200%] before:animate-[shimmer_2s_infinite] after:absolute after:inset-0 after:bg-gradient-to-b after:from-[#e0e614]/30 after:to-transparent after:opacity-100 after:transition-opacity after:duration-300"
+              ) : (
+                <button
+                  onClick={() => setShowLoginModal(true)}
+                  className="metallic-button metallic-button-gold px-4 py-2.5 text-white rounded-xl hover:shadow-lg hover:shadow-[#c9a45c]/40 transition-all duration-300 transform hover:scale-[1.02] flex items-center gap-2 font-medium"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-4 h-4">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0A17.933 17.933 0 0112 21.75c-2.676 0-5.216-.584-7.499-1.632z" />
+                  </svg>
+                  Iniciar Sesión
+                </button>
+              )}
+
+              <Link
+                href="/nueva-revision"
+                className="metallic-button metallic-button-green px-8 py-3 text-white rounded-xl hover:shadow-lg hover:shadow-green-500/40 transition-all duration-300 transform hover:scale-[1.02] flex items-center gap-3 font-medium text-lg min-w-[200px] justify-center"
               >
-                Iniciar Sesión
-              </button>
-            )}
-            <Link
-              href="/nueva-revision"
-              className="w-full md:w-auto px-6 py-3 bg-[#2a3347] text-white font-bold rounded-xl transform hover:scale-[1.02] transition-all duration-200 shadow-[0_8px_16px_rgb(0_0_0/0.2)] hover:shadow-[0_12px_24px_rgb(0_0_0/0.3)] whitespace-nowrap flex items-center justify-center gap-2 group relative overflow-hidden before:absolute before:inset-0 before:bg-gradient-to-r before:from-transparent before:via-[#06c426]/20 before:to-transparent before:translate-x-[-200%] md:before:translate-x-[-200%] md:hover:before:translate-x-[200%] before:translate-x-[200%] before:animate-[shimmer_2s_infinite] after:absolute after:inset-0 after:bg-gradient-to-b after:from-[#06c426]/15 after:to-transparent after:opacity-100 after:transition-opacity after:duration-300 border-2 border-white/40 hover:border-white/60"
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 transform group-hover:rotate-90 transition-transform duration-300" viewBox="0 0 20 20" fill="currentColor">
-                <path fillRule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clipRule="evenodd" />
-              </svg>
-              Nueva Revisión
-            </Link>
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+                </svg>
+                Nueva Revisión
+              </Link>
+
+
+            </div>
           </div>
         </div>
 
-        {/* Barra de búsqueda y filtros */}
-        <div className="flex flex-col md:flex-row gap-4 mb-6">
-          <div className="flex flex-col md:flex-row gap-4 w-full">
-            {/* Filtro por Caja Fuerte */}
-            <select
-              value={cajaFuerteFilter}
-              onChange={(e) => setCajaFuerteFilter(e.target.value)}
-              className="w-full md:w-48 px-4 py-2 bg-[#1e2538] border border-[#3d4659] rounded-lg text-white"
-            >
-              <option value="">Todas las cajas</option>
-              {cajaFuerteOptions.map(option => (
-                <option key={option} value={option}>{option}</option>
-              ))}
-            </select>
-
-            {/* Barra de búsqueda */}
-            <div className="relative flex-1">
+        {/* Barra de Búsqueda y Filtros Mejorada */}
+        <div className="bg-gradient-to-br from-[#1e2538]/80 to-[#2a3347]/80 backdrop-blur-md rounded-xl p-6 border border-[#3d4659]/50 mb-8">
+          <div className="flex flex-col lg:flex-row gap-4">
+            {/* Búsqueda Principal */}
+            <div className="flex-1 relative">
+              <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                <svg className="h-5 w-5 text-[#c9a45c]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                </svg>
+              </div>
               <input
+                ref={searchInputRef}
                 type="text"
-                placeholder="Buscar por casita..."
+                placeholder="Buscar por casita, revisor o estado..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full px-4 py-2 pl-10 bg-[#1e2538] border border-[#3d4659] rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-[#c9a45c] focus:border-transparent transition-all"
+                className="w-full pl-12 pr-4 py-3 bg-gradient-to-r from-[#1a1f35] to-[#1e2538] border border-[#3d4659] rounded-xl text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#c9a45c]/50 focus:border-[#c9a45c]/50 transition-all duration-300 hover:border-[#c9a45c]/30"
+                onFocus={() => setIsSearchFocused(true)}
+                onBlur={() => setIsSearchFocused(false)}
               />
-              <svg
-                className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
+              {searchTerm && (
+                <button
+                  onClick={() => setSearchTerm('')}
+                  className="absolute inset-y-0 right-0 pr-4 flex items-center text-gray-400 hover:text-white transition-colors"
+                >
+                  <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              )}
+            </div>
+
+            {/* Filtro por Caja Fuerte */}
+            <div className="relative">
+              <select
+                value={cajaFuerteFilter}
+                onChange={(e) => setCajaFuerteFilter(e.target.value)}
+                className="w-full lg:w-48 px-4 py-3 bg-gradient-to-r from-[#1a1f35] to-[#1e2538] border border-[#3d4659] rounded-xl text-white focus:outline-none focus:ring-2 focus:ring-[#c9a45c]/50 focus:border-[#c9a45c]/50 transition-all duration-300 hover:border-[#c9a45c]/30 appearance-none cursor-pointer"
               >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
-                />
-              </svg>
+                <option value="">Todas las cajas</option>
+                {cajaFuerteOptions.map(option => (
+                  <option key={option} value={option} className="bg-[#1e2538]">{option}</option>
+                ))}
+              </select>
+              <div className="absolute inset-y-0 right-0 flex items-center pr-4 pointer-events-none">
+                <svg className="w-4 h-4 text-[#c9a45c]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                </svg>
+              </div>
             </div>
           </div>
+
+          {/* Resultados de búsqueda */}
+          {(searchTerm || cajaFuerteFilter) && (
+            <div className="mt-4 pt-4 border-t border-[#3d4659]/50">
+              <p className="text-gray-400 text-sm">
+                Mostrando {filteredData.length} de {data.length} revisiones
+                {searchTerm && <span> para "{searchTerm}"</span>}
+                {cajaFuerteFilter && <span> con caja fuerte "{cajaFuerteFilter}"</span>}
+              </p>
+            </div>
+          )}
         </div>
 
         {/* Tabla con diseño moderno */}
@@ -563,51 +769,159 @@ export default function Home() {
           </div>
         )}
 
-        {/* Modal de Login */}
+        {/* Modal de Login Modernizado */}
         {showLoginModal && (
-          <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50">
-            <div className="bg-[#1e2538] p-6 rounded-lg shadow-xl w-full max-w-md">
-              <h2 className="text-2xl font-bold text-[#c9a45c] mb-4">Iniciar Sesión</h2>
-              <form onSubmit={handleLogin} className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-300 mb-1">Usuario</label>
+          <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+            <div className="bg-gradient-to-br from-[#1e2538] to-[#2a3347] p-8 rounded-2xl shadow-2xl w-full max-w-md border border-[#3d4659]/50 backdrop-blur-md">
+              <div className="text-center mb-8">
+                <div className="w-16 h-16 bg-gradient-to-br from-[#c9a45c] to-[#f0c987] rounded-full flex items-center justify-center mx-auto mb-4 shadow-lg">
+                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-8 h-8 text-[#1a1f35]">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0A17.933 17.933 0 0112 21.75c-2.676 0-5.216-.584-7.499-1.632z" />
+                  </svg>
+                </div>
+                <h2 className="text-3xl font-bold bg-gradient-to-r from-white to-[#c9a45c] bg-clip-text text-transparent">
+                  Iniciar Sesión
+                </h2>
+                <p className="text-gray-400 mt-2">Accede a tu cuenta para continuar</p>
+              </div>
+              
+              <form onSubmit={handleLogin} className="space-y-6">
+                <div className="space-y-2">
+                  <label className="block text-sm font-semibold text-gray-300 flex items-center gap-2">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-4 h-4 text-[#c9a45c]">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0A17.933 17.933 0 0112 21.75c-2.676 0-5.216-.584-7.499-1.632z" />
+                    </svg>
+                    Usuario
+                  </label>
                   <input
                     type="text"
                     value={loginData.usuario}
                     onChange={(e) => setLoginData({ ...loginData, usuario: e.target.value })}
-                    className="w-full px-4 py-2 bg-[#2a3347] border border-[#3d4659] rounded-md text-white"
+                    className="w-full px-4 py-3 bg-gradient-to-r from-[#1a1f35] to-[#1e2538] border border-[#3d4659] rounded-xl text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#c9a45c]/50 focus:border-[#c9a45c]/50 transition-all duration-300 hover:border-[#c9a45c]/30"
+                    placeholder="Ingresa tu usuario"
                     required
                   />
                 </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-300 mb-1">Contraseña</label>
+                
+                <div className="space-y-2">
+                  <label className="block text-sm font-semibold text-gray-300 flex items-center gap-2">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-4 h-4 text-[#c9a45c]">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 10-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 002.25-2.25v-6.75a2.25 2.25 0 00-2.25-2.25H6.75a2.25 2.25 0 00-2.25 2.25v6.75a2.25 2.25 0 002.25 2.25z" />
+                    </svg>
+                    Contraseña
+                  </label>
                   <input
                     type="password"
                     value={loginData.password}
                     onChange={(e) => setLoginData({ ...loginData, password: e.target.value })}
-                    className="w-full px-4 py-2 bg-[#2a3347] border border-[#3d4659] rounded-md text-white"
+                    className="w-full px-4 py-3 bg-gradient-to-r from-[#1a1f35] to-[#1e2538] border border-[#3d4659] rounded-xl text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#c9a45c]/50 focus:border-[#c9a45c]/50 transition-all duration-300 hover:border-[#c9a45c]/30"
+                    placeholder="Ingresa tu contraseña"
                     required
                   />
                 </div>
+                
                 {loginError && (
-                  <p className="text-red-500 text-sm">{loginError}</p>
+                  <div className="bg-red-500/10 border border-red-500/20 rounded-xl p-3">
+                    <p className="text-red-400 text-sm flex items-center gap-2">
+                      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-4 h-4">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z" />
+                      </svg>
+                      {loginError}
+                    </p>
+                  </div>
                 )}
-                <div className="flex justify-end gap-2">
+                
+                <div className="flex gap-3 pt-4">
                   <button
                     type="button"
                     onClick={() => setShowLoginModal(false)}
-                    className="px-4 py-2 bg-[#3d4659] text-gray-300 rounded-lg hover:bg-[#4a5568] transition-all"
+                    className="flex-1 px-4 py-3 bg-gradient-to-r from-gray-600 to-gray-700 text-white rounded-xl hover:from-gray-700 hover:to-gray-800 transition-all duration-300 transform hover:scale-[1.02] shadow-lg hover:shadow-gray-600/25 font-medium"
                   >
                     Cancelar
                   </button>
                   <button
                     type="submit"
-                    className="px-4 py-2 bg-[#c9a45c] text-white rounded-lg hover:bg-[#d4b06c] transition-all"
+                    className="flex-1 px-4 py-3 bg-gradient-to-r from-[#c9a45c] to-[#f0c987] text-[#1a1f35] rounded-xl hover:from-[#d4b06c] hover:to-[#f5d49a] transition-all duration-300 transform hover:scale-[1.02] shadow-lg hover:shadow-[#c9a45c]/25 font-medium"
                   >
                     Iniciar Sesión
                   </button>
                 </div>
               </form>
+            </div>
+          </div>
+        )}
+
+        {/* Modal de Reportes */}
+        {showReportModal && (
+          <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+            <div className="bg-gradient-to-br from-[#1e2538] to-[#2a3347] p-8 rounded-2xl shadow-2xl w-full max-w-md border border-[#3d4659]/50 backdrop-blur-md">
+              <div className="text-center mb-8">
+                <div className="w-16 h-16 bg-gradient-to-br from-green-500 to-green-600 rounded-full flex items-center justify-center mx-auto mb-4 shadow-lg">
+                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-8 h-8 text-white">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" />
+                  </svg>
+                </div>
+                <h2 className="text-3xl font-bold bg-gradient-to-r from-white to-green-400 bg-clip-text text-transparent">
+                  Exportar Reporte
+                </h2>
+                <p className="text-gray-400 mt-2">Selecciona el rango de fechas para el reporte</p>
+              </div>
+              
+              <div className="space-y-6">
+                <div className="space-y-2">
+                  <label className="block text-sm font-semibold text-gray-300 flex items-center gap-2">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-4 h-4 text-green-400">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121 7.5v11.25m-18 0A2.25 2.25 0 005.25 21h13.5a2.25 2.25 0 002.25-2.25m-18 0v-7.5A2.25 2.25 0 015.25 9h13.5a2.25 2.25 0 012.25 2.25v7.5" />
+                    </svg>
+                    Fecha Desde
+                  </label>
+                  <input
+                    type="date"
+                    value={reportDateFrom}
+                    onChange={(e) => setReportDateFrom(e.target.value)}
+                    className="w-full px-4 py-3 bg-gradient-to-r from-[#1a1f35] to-[#1e2538] border border-[#3d4659] rounded-xl text-white focus:outline-none focus:ring-2 focus:ring-green-500/50 focus:border-green-500/50 transition-all duration-300 hover:border-green-500/30"
+                    required
+                  />
+                </div>
+                
+                <div className="space-y-2">
+                  <label className="block text-sm font-semibold text-gray-300 flex items-center gap-2">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-4 h-4 text-green-400">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121 7.5v11.25m-18 0A2.25 2.25 0 005.25 21h13.5a2.25 2.25 0 002.25-2.25m-18 0v-7.5A2.25 2.25 0 015.25 9h13.5a2.25 2.25 0 012.25 2.25v7.5" />
+                    </svg>
+                    Fecha Hasta
+                  </label>
+                  <input
+                    type="date"
+                    value={reportDateTo}
+                    onChange={(e) => setReportDateTo(e.target.value)}
+                    className="w-full px-4 py-3 bg-gradient-to-r from-[#1a1f35] to-[#1e2538] border border-[#3d4659] rounded-xl text-white focus:outline-none focus:ring-2 focus:ring-green-500/50 focus:border-green-500/50 transition-all duration-300 hover:border-green-500/30"
+                    required
+                  />
+                </div>
+                
+                <div className="flex gap-3 pt-4">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowReportModal(false);
+                      setReportDateFrom('');
+                      setReportDateTo('');
+                    }}
+                    className="flex-1 px-4 py-3 bg-gradient-to-r from-gray-600 to-gray-700 text-white rounded-xl hover:from-gray-700 hover:to-gray-800 transition-all duration-300 transform hover:scale-[1.02] shadow-lg hover:shadow-gray-600/25 font-medium"
+                  >
+                    Cancelar
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleExportExcel}
+                    disabled={!reportDateFrom || !reportDateTo}
+                    className="flex-1 px-4 py-3 bg-gradient-to-r from-green-500 to-green-600 text-white rounded-xl hover:from-green-600 hover:to-green-700 transition-all duration-300 transform hover:scale-[1.02] shadow-lg hover:shadow-green-500/25 font-medium disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
+                  >
+                    Exportar Excel
+                  </button>
+                </div>
+              </div>
             </div>
           </div>
         )}

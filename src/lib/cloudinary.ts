@@ -6,20 +6,15 @@ export const uploadToCloudinary = async (file: File): Promise<string> => {
   const week = `semana_${getWeek(now, { weekStartsOn: 1 })}`;
   const folder = `prueba-imagenes/${month}/${week}`;
 
-  const cloudName = process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME;
-  if (!cloudName) {
-    throw new Error('Cloudinary cloud name no está configurado');
-  }
-
   const formData = new FormData();
   formData.append('file', file);
-  formData.append('upload_preset', 'PruebaSubir');
-  formData.append('cloud_name', cloudName);
+  formData.append('upload_preset', 'ml_default');
+  formData.append('cloud_name', 'dhd61lan4');
   formData.append('folder', folder);
 
   try {
     const response = await fetch(
-      `https://api.cloudinary.com/v1_1/${cloudName}/image/upload`,
+      `https://api.cloudinary.com/v1_1/dhd61lan4/image/upload`,
       {
         method: 'POST',
         body: formData,
@@ -31,9 +26,8 @@ export const uploadToCloudinary = async (file: File): Promise<string> => {
     }
 
     const data = await response.json();
-    const url = new URL(data.secure_url);
-    url.pathname = url.pathname.replace('/upload/', '/upload/f_auto,q_auto/');
-    return url.toString();
+    // Retornar la URL original sin optimizaciones adicionales de Cloudinary
+    return data.secure_url;
   } catch (error) {
     console.error('Error en uploadToCloudinary:', error);
     throw error;
