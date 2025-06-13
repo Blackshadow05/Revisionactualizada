@@ -1,7 +1,7 @@
 'use client';
 
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { uploadFileInChunks } from '@/lib/uploadService';
+import { uploadFileInChunks, UploadProgress as ServiceUploadProgress } from '@/lib/uploadService';
 
 interface UploadProgress {
   id: string;
@@ -56,11 +56,16 @@ export function UploadProvider({ children }: { children: React.ReactNode }) {
     ]);
 
     try {
-      await uploadFileInChunks(file, revisionId, (progress, status, message) => {
+      await uploadFileInChunks(file, revisionId, (progress: ServiceUploadProgress) => {
         setUploads(prev => 
           prev.map(upload => 
             upload.id === uploadId 
-              ? { ...upload, progress, status, message } 
+              ? { 
+                  ...upload, 
+                  progress: progress.progress, 
+                  status: progress.status, 
+                  message: progress.message 
+                } 
               : upload
           )
         );
