@@ -267,90 +267,49 @@ export default function NuevaRevision() {
       console.log('Revisión insertada correctamente:', data);
       setRevisionId(data.id);
 
-      // Iniciar la subida de archivos en segundo plano
-      if (formData.evidencia_01 instanceof File) {
-        console.log('Iniciando subida de evidencia_01...');
+      // Función para manejar la subida de una imagen
+      const handleImageUpload = async (file: File, fieldName: string) => {
+        if (!(file instanceof File)) return;
+
+        console.log(`Iniciando subida de ${fieldName}...`);
         const uploadId = addUpload({
           revisionId: data.id,
-          fileName: formData.evidencia_01.name,
+          fileName: file.name,
           progress: 0,
           status: 'pending'
         });
 
-        uploadFileInChunks(formData.evidencia_01, data.id, (progress) => {
-          console.log('Progreso de evidencia_01:', progress);
-          if (progress.status === 'completed' && progress.url) {
-            console.log('Actualizando evidencia_01 con URL:', progress.url);
-            supabase
-              .from('revisiones_casitas')
-              .update({ evidencia_01: progress.url })
-              .eq('id', data.id)
-              .then(({ error }) => {
-                if (error) {
-                  console.error('Error al actualizar evidencia_01:', error);
-                } else {
-                  console.log('evidencia_01 actualizada correctamente');
-                }
-              });
-          }
-        });
-      }
+        try {
+          await uploadFileInChunks(file, data.id, async (progress) => {
+            console.log(`Progreso de ${fieldName}:`, progress);
+            if (progress.status === 'completed' && progress.url) {
+              console.log(`Actualizando ${fieldName} con URL:`, progress.url);
+              const { error: updateError } = await supabase
+                .from('revisiones_casitas')
+                .update({ [fieldName]: progress.url })
+                .eq('id', data.id);
 
-      if (formData.evidencia_02 instanceof File) {
-        console.log('Iniciando subida de evidencia_02...');
-        const uploadId = addUpload({
-          revisionId: data.id,
-          fileName: formData.evidencia_02.name,
-          progress: 0,
-          status: 'pending'
-        });
+              if (updateError) {
+                console.error(`Error al actualizar ${fieldName}:`, updateError);
+                throw new Error(`Error al actualizar ${fieldName}: ${updateError.message}`);
+              }
+              console.log(`${fieldName} actualizada correctamente`);
+            }
+          });
+        } catch (error) {
+          console.error(`Error en la subida de ${fieldName}:`, error);
+          throw error;
+        }
+      };
 
-        uploadFileInChunks(formData.evidencia_02, data.id, (progress) => {
-          console.log('Progreso de evidencia_02:', progress);
-          if (progress.status === 'completed' && progress.url) {
-            console.log('Actualizando evidencia_02 con URL:', progress.url);
-            supabase
-              .from('revisiones_casitas')
-              .update({ evidencia_02: progress.url })
-              .eq('id', data.id)
-              .then(({ error }) => {
-                if (error) {
-                  console.error('Error al actualizar evidencia_02:', error);
-                } else {
-                  console.log('evidencia_02 actualizada correctamente');
-                }
-              });
-          }
-        });
-      }
+      // Subir las tres imágenes en paralelo
+      const uploadPromises = [
+        formData.evidencia_01 instanceof File ? handleImageUpload(formData.evidencia_01, 'evidencia_01') : Promise.resolve(),
+        formData.evidencia_02 instanceof File ? handleImageUpload(formData.evidencia_02, 'evidencia_02') : Promise.resolve(),
+        formData.evidencia_03 instanceof File ? handleImageUpload(formData.evidencia_03, 'evidencia_03') : Promise.resolve()
+      ];
 
-      if (formData.evidencia_03 instanceof File) {
-        console.log('Iniciando subida de evidencia_03...');
-        const uploadId = addUpload({
-          revisionId: data.id,
-          fileName: formData.evidencia_03.name,
-          progress: 0,
-          status: 'pending'
-        });
-
-        uploadFileInChunks(formData.evidencia_03, data.id, (progress) => {
-          console.log('Progreso de evidencia_03:', progress);
-          if (progress.status === 'completed' && progress.url) {
-            console.log('Actualizando evidencia_03 con URL:', progress.url);
-            supabase
-              .from('revisiones_casitas')
-              .update({ evidencia_03: progress.url })
-              .eq('id', data.id)
-              .then(({ error }) => {
-                if (error) {
-                  console.error('Error al actualizar evidencia_03:', error);
-                } else {
-                  console.log('evidencia_03 actualizada correctamente');
-                }
-              });
-          }
-        });
-      }
+      await Promise.all(uploadPromises);
 
       // Limpiar el formulario
       setFormData({
