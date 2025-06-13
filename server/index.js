@@ -20,8 +20,21 @@ cloudinary.config({
 });
 
 // Configuración de CORS
+const allowedOrigins = [
+  'http://localhost:3000',
+  'https://revisioncasitas.netlify.app',
+  'https://revisioncasitas.netlify.app/',
+  process.env.NEXT_PUBLIC_APP_URL
+].filter(Boolean);
+
 const corsOptions = {
-  origin: process.env.NEXT_PUBLIC_APP_URL || '*',
+  origin: function (origin, callback) {
+    if (!origin || allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
   methods: ['GET', 'POST', 'OPTIONS'],
   allowedHeaders: ['Content-Type'],
   credentials: true,
