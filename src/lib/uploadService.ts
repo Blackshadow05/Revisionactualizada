@@ -55,6 +55,7 @@ const checkServerHealth = async () => {
 
 export const uploadFileInChunks = async (
   file: File,
+  id: string,
   onProgress: (progress: UploadProgress) => void
 ): Promise<string> => {
   if (!RENDER_URL) {
@@ -82,6 +83,7 @@ export const uploadFileInChunks = async (
         fileName: file.name,
         fileSize: file.size,
         uploadId,
+        id,
       }),
     });
 

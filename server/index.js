@@ -56,16 +56,16 @@ app.get('/health', (req, res) => {
 // Iniciar una nueva subida
 app.post('/upload/init', (req, res) => {
   try {
-    const { uploadId, fileName, fileSize, revisionId } = req.body;
+    const { uploadId, fileName, fileSize, id } = req.body;
     
-    if (!uploadId || !fileName || !fileSize || !revisionId) {
+    if (!uploadId || !fileName || !fileSize || !id) {
       return res.status(400).json({ error: 'Faltan campos requeridos' });
     }
 
     uploads.set(uploadId, {
       fileName,
       fileSize,
-      revisionId,
+      id,
       chunks: [],
       uploadedSize: 0,
       createdAt: Date.now(),
@@ -157,7 +157,7 @@ app.post('/upload/finalize', async (req, res) => {
     const { data: revisionData, error: revisionError } = await supabase
       .from('revisiones_casitas')
       .select('imagenes')
-      .eq('id', uploadInfo.revisionId)
+      .eq('id', uploadInfo.id)
       .single();
 
     if (revisionError) {
@@ -170,7 +170,7 @@ app.post('/upload/finalize', async (req, res) => {
     const { error: updateError } = await supabase
       .from('revisiones_casitas')
       .update({ imagenes })
-      .eq('id', uploadInfo.revisionId);
+      .eq('id', uploadInfo.id);
 
     if (updateError) {
       throw new Error('Error al actualizar la revisión con la URL de la imagen');

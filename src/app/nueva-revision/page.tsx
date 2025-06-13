@@ -253,7 +253,7 @@ export default function NuevaRevision() {
           status: 'pending'
         });
 
-        uploadFileInChunks(formData.evidencia_01, (progress) => {
+        uploadFileInChunks(formData.evidencia_01, data.id, (progress) => {
           if (progress.status === 'completed' && progress.url) {
             supabase
               .from('revisiones_casitas')
@@ -263,7 +263,41 @@ export default function NuevaRevision() {
         });
       }
 
-      // Repetir para evidencia_02 y evidencia_03...
+      if (formData.evidencia_02 instanceof File) {
+        const uploadId = addUpload({
+          revisionId: data.id,
+          fileName: formData.evidencia_02.name,
+          progress: 0,
+          status: 'pending'
+        });
+
+        uploadFileInChunks(formData.evidencia_02, data.id, (progress) => {
+          if (progress.status === 'completed' && progress.url) {
+            supabase
+              .from('revisiones_casitas')
+              .update({ evidencia_02: progress.url })
+              .eq('id', data.id);
+          }
+        });
+      }
+
+      if (formData.evidencia_03 instanceof File) {
+        const uploadId = addUpload({
+          revisionId: data.id,
+          fileName: formData.evidencia_03.name,
+          progress: 0,
+          status: 'pending'
+        });
+
+        uploadFileInChunks(formData.evidencia_03, data.id, (progress) => {
+          if (progress.status === 'completed' && progress.url) {
+            supabase
+              .from('revisiones_casitas')
+              .update({ evidencia_03: progress.url })
+              .eq('id', data.id);
+          }
+        });
+      }
 
       // Limpiar el formulario
       setFormData({

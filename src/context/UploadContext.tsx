@@ -1,13 +1,14 @@
 'use client';
 
 import React, { createContext, useContext, useState, useCallback } from 'react';
+import { v4 as uuidv4 } from 'uuid';
 
 interface UploadStatus {
   id: string;
   revisionId: string;
   fileName: string;
   progress: number;
-  status: 'pending' | 'uploading' | 'processing' | 'completed' | 'error';
+  status: 'pending' | 'completed' | 'error';
   error?: string;
   url?: string;
 }
@@ -17,7 +18,7 @@ interface UploadContextType {
   addUpload: (upload: Omit<UploadStatus, 'id'>) => string;
   updateUpload: (id: string, update: Partial<UploadStatus>) => void;
   removeUpload: (id: string) => void;
-  getUploadsByRevision: (revisionId: string) => UploadStatus[];
+  getUploadsByRevision: (id: string) => UploadStatus[];
 }
 
 const UploadContext = createContext<UploadContextType | undefined>(undefined);
@@ -26,7 +27,7 @@ export function UploadProvider({ children }: { children: React.ReactNode }) {
   const [uploads, setUploads] = useState<UploadStatus[]>([]);
 
   const addUpload = useCallback((upload: Omit<UploadStatus, 'id'>) => {
-    const id = Math.random().toString(36).substr(2, 9);
+    const id = uuidv4();
     setUploads(prev => [...prev, { ...upload, id }]);
     return id;
   }, []);
@@ -41,8 +42,8 @@ export function UploadProvider({ children }: { children: React.ReactNode }) {
     setUploads(prev => prev.filter(upload => upload.id !== id));
   }, []);
 
-  const getUploadsByRevision = useCallback((revisionId: string) => {
-    return uploads.filter(upload => upload.revisionId === revisionId);
+  const getUploadsByRevision = useCallback((id: string) => {
+    return uploads.filter(upload => upload.revisionId === id);
   }, [uploads]);
 
   return (
@@ -61,7 +62,7 @@ export function UploadProvider({ children }: { children: React.ReactNode }) {
 export function useUpload() {
   const context = useContext(UploadContext);
   if (context === undefined) {
-    throw new Error('useUpload must be used within an UploadProvider');
+    throw new Error('useUpload debe ser usado dentro de un UploadProvider');
   }
   return context;
 } 
