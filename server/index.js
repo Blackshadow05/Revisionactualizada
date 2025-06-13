@@ -5,10 +5,12 @@ const { v2: cloudinary } = require('cloudinary');
 const fs = require('fs');
 const path = require('path');
 const { promisify } = require('util');
+const { createClient } = require('@supabase/supabase-js');
+const { getWeek } = require('date-fns');
+
 const writeFileAsync = promisify(fs.writeFile);
 const mkdirAsync = promisify(fs.mkdir);
 const unlinkAsync = promisify(fs.unlink);
-const { getWeek } = require('date-fns');
 
 const app = express();
 const port = process.env.PORT || 10000;
@@ -20,28 +22,18 @@ cloudinary.config({
   api_secret: process.env.CLOUDINARY_API_SECRET,
 });
 
-// Configuración de CORS
-const allowedOrigins = [
-  'http://localhost:3000',
-  'https://revisioncasitas.netlify.app',
-  'https://revisioncasitas.netlify.app/',
-  process.env.NEXT_PUBLIC_APP_URL
-].filter(Boolean);
+// Configuración de Supabase
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL,
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+);
 
-const corsOptions = {
-  origin: function (origin, callback) {
-    if (!origin || allowedOrigins.includes(origin)) {
-      callback(null, true);
-    } else {
-      callback(new Error('Not allowed by CORS'));
-    }
-  },
-  methods: ['GET', 'POST', 'OPTIONS'],
-  allowedHeaders: ['Content-Type'],
-  credentials: true,
-};
+app.use(cors({
+  origin: [process.env.NEXT_PUBLIC_APP_URL, 'http://localhost:3000'],
+  methods: ['GET', 'POST'],
+  allowedHeaders: ['Content-Type']
+}));
 
-app.use(cors(corsOptions));
 app.use(express.json());
 
 // Directorio temporal para los chunks
@@ -64,15 +56,16 @@ app.get('/health', (req, res) => {
 // Iniciar una nueva subida
 app.post('/upload/init', (req, res) => {
   try {
-    const { uploadId, fileName, fileSize } = req.body;
+    const { uploadId, fileName, fileSize, revisionId } = req.body;
     
-    if (!uploadId || !fileName || !fileSize) {
+    if (!uploadId || !fileName || !fileSize || !revisionId) {
       return res.status(400).json({ error: 'Faltan campos requeridos' });
     }
 
     uploads.set(uploadId, {
       fileName,
       fileSize,
+      revisionId,
       chunks: [],
       uploadedSize: 0,
       createdAt: Date.now(),
@@ -160,6 +153,29 @@ app.post('/upload/finalize', async (req, res) => {
       upload_preset: 'PruebaSubir'
     });
 
+    // Actualizar Supabase con la URL de la imagen
+    const { data: revisionData, error: revisionError } = await supabase
+      .from('revisiones_casitas')
+      .select('imagenes')
+      .eq('id', uploadInfo.revisionId)
+      .single();
+
+    if (revisionError) {
+      throw new Error('Error al obtener datos de la revisión');
+    }
+
+    const imagenes = revisionData.imagenes || [];
+    imagenes.push(result.secure_url);
+
+    const { error: updateError } = await supabase
+      .from('revisiones_casitas')
+      .update({ imagenes })
+      .eq('id', uploadInfo.revisionId);
+
+    if (updateError) {
+      throw new Error('Error al actualizar la revisión con la URL de la imagen');
+    }
+
     // Limpiar
     await unlinkAsync(filePath);
     uploads.delete(uploadId);
@@ -187,7 +203,7 @@ setInterval(() => {
       uploads.delete(uploadId);
     }
   }
-}, 60 * 60 * 1000); // Cada hora
+}, 60 * 60 * 1000);
 
 app.listen(port, () => {
   console.log(`Servidor escuchando en el puerto ${port}`);
