@@ -1,15 +1,10 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import { supabase } from '@/lib/supabase';
 import { useRouter } from 'next/navigation';
-import ButtonGroup from '@/components/ButtonGroup';
-import { getWeek } from 'date-fns';
-import { uploadToCloudinary } from '@/lib/cloudinary';
 import { useAuth } from '@/context/AuthContext';
 import { useUpload } from '@/context/UploadContext';
-import { uploadFileInChunks } from '@/lib/uploadService';
-import Link from 'next/link';
+import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
 import UploadProgress from '@/components/UploadProgress';
 
 interface RevisionData {
@@ -44,12 +39,6 @@ interface FileData {
   evidencia_01: File | null;
   evidencia_02: File | null;
   evidencia_03: File | null;
-}
-
-interface UploadProgress {
-  progress: number;
-  status: 'uploading' | 'processing' | 'completed' | 'error';
-  error?: string;
 }
 
 const initialFormData: RevisionData = {
@@ -95,15 +84,14 @@ const nombresRevisores = [
 export default function NuevaRevision() {
   const router = useRouter();
   const { user } = useAuth();
-  const { addUpload, getUploadsByRevision } = useUpload();
+  const { addUpload, uploads } = useUpload();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [revisionId, setRevisionId] = useState<string | null>(null);
-  const [formData, setFormData] = useState<RevisionData>({
-    ...initialFormData,
-    quien_revisa: user || ''
-  });
+  const supabase = createClientComponentClient();
 
+  const [formData, setFormData] = useState<RevisionData>(initialFormData);
+  const [fileData, setFileData] = useState<FileData>(initialFileData);
   const [highlightedField, setHighlightedField] = useState<string | null>('casita');
 
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -112,8 +100,6 @@ export default function NuevaRevision() {
   const cameraInputRef = useRef<HTMLInputElement>(null);
   const cameraInputRef2 = useRef<HTMLInputElement>(null);
   const cameraInputRef3 = useRef<HTMLInputElement>(null);
-
-  const [uploadProgress, setUploadProgress] = useState<Record<string, UploadProgress>>({});
 
   // Efecto para actualizar quien_revisa cuando cambie el usuario
   useEffect(() => {
@@ -164,165 +150,43 @@ export default function NuevaRevision() {
 
   const handleFileChange = (field: keyof FileData, file: File | null) => {
     if (error) setError(null);
-    setFormData(prev => ({ ...prev, [field]: file }));
-    if (file) {
-      setUploadProgress(prev => ({
-        ...prev,
-        [field]: { progress: 0, status: 'uploading' }
-      }));
-    }
+    setFileData(prev => ({ ...prev, [field]: file }));
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    console.log('Iniciando envío del formulario...');
-    
-    if (!supabase) {
-      console.error('No se pudo conectar con Supabase');
-      setError('No se pudo conectar con la base de datos');
-      return;
-    }
+    setLoading(true);
+    setError(null);
 
     try {
-      setLoading(true);
-      setError(null);
-
-      // Obtener fecha y hora local del dispositivo
-      const now = new Date();
-      const fechaLocal = new Date(now.getTime() - (now.getTimezoneOffset() * 60000));
-      const nowISO = fechaLocal.toISOString();
-
-      // Validar campos requeridos
-      for (const field of requiredFields) {
-        if (!formData[field]) {
-          const fieldName = field.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
-          console.error(`Campo requerido faltante: ${fieldName}`);
-          setError(`El campo "${fieldName}" es obligatorio.`);
-          return;
-        }
-      }
-      
-      if (showEvidenceFields && !formData.evidencia_01) {
-        console.error('Evidencia 1 es requerida para Check in, Upsell, o Back to Back');
-        setError('El campo "Evidencia 1" es obligatorio cuando se selecciona Check in, Upsell, o Back to Back.');
-        return;
-      }
-
-      const { faltantes, accesorios_secadora_faltante, ...restOfFormData } = formData;
-
-      const notas_completas = [
-        accesorios_secadora_faltante ? `Faltante accesorios secadora: ${accesorios_secadora_faltante}` : '',
-        faltantes ? `Faltantes generales: ${faltantes}` : ''
-      ].filter(Boolean).join('\n');
-
-      // Preparar datos para la inserción
-      const revisionData = {
-        casita: formData.casita,
-        quien_revisa: formData.quien_revisa,
-        caja_fuerte: formData.caja_fuerte,
-        puertas_ventanas: formData.puertas_ventanas,
-        chromecast: formData.chromecast,
-        binoculares: formData.binoculares,
-        trapo_binoculares: formData.trapo_binoculares,
-        speaker: formData.speaker,
-        usb_speaker: formData.usb_speaker,
-        controles_tv: formData.controles_tv,
-        secadora: formData.secadora,
-        accesorios_secadora: formData.accesorios_secadora,
-        steamer: formData.steamer,
-        bolsa_vapor: formData.bolsa_vapor,
-        plancha_cabello: formData.plancha_cabello,
-        bulto: formData.bulto,
-        sombrero: formData.sombrero,
-        bolso_yute: formData.bolso_yute,
-        camas_ordenadas: formData.camas_ordenadas,
-        cola_caballo: formData.cola_caballo,
-        Notas: notas_completas,
-        created_at: nowISO,
-        evidencia_01: '',
-        evidencia_02: '',
-        evidencia_03: ''
-      };
-
-      console.log('Datos a insertar:', revisionData);
-
-      // Insertar la revisión
-      console.log('Intentando insertar revisión en Supabase...');
-      const { data, error: insertError } = await supabase
+      // Insertar la revisión en Supabase
+      const { data: revision, error: insertError } = await supabase
         .from('revisiones_casitas')
-        .insert([revisionData])
+        .insert([formData])
         .select()
         .single();
 
-      if (insertError) {
-        console.error('Error al insertar en Supabase:', insertError);
-        throw new Error(`Error al insertar en Supabase: ${insertError.message}`);
-      }
+      if (insertError) throw insertError;
 
-      if (!data) {
-        console.error('No se recibieron datos de la inserción');
-        throw new Error('No se pudo crear la revisión');
-      }
+      setRevisionId(revision.id);
 
-      console.log('Revisión insertada correctamente:', data);
-      setRevisionId(data.id);
+      // Subir las imágenes en segundo plano
+      const files = [
+        fileData.evidencia_01,
+        fileData.evidencia_02,
+        fileData.evidencia_03
+      ].filter((file): file is File => file !== null);
 
-      // Función para manejar la subida de una imagen
-      const handleImageUpload = async (file: File, fieldName: string) => {
-        if (!(file instanceof File)) return;
-
-        console.log(`Iniciando subida de ${fieldName}...`);
-        const uploadId = addUpload({
-          revisionId: data.id,
-          fileName: file.name,
-          progress: 0,
-          status: 'pending'
-        });
-
-        try {
-          await uploadFileInChunks(file, data.id, async (progress) => {
-            console.log(`Progreso de ${fieldName}:`, progress);
-            if (progress.status === 'completed' && progress.url) {
-              console.log(`Actualizando ${fieldName} con URL:`, progress.url);
-              const { error: updateError } = await supabase
-                .from('revisiones_casitas')
-                .update({ [fieldName]: progress.url })
-                .eq('id', data.id);
-
-              if (updateError) {
-                console.error(`Error al actualizar ${fieldName}:`, updateError);
-                throw new Error(`Error al actualizar ${fieldName}: ${updateError.message}`);
-              }
-              console.log(`${fieldName} actualizada correctamente`);
-            }
-          });
-        } catch (error) {
-          console.error(`Error en la subida de ${fieldName}:`, error);
-          throw error;
+      for (const file of files) {
+        if (file.size > 0) {
+          await addUpload(file, revision.id);
         }
-      };
+      }
 
-      // Subir las tres imágenes en paralelo
-      const uploadPromises = [
-        formData.evidencia_01 instanceof File ? handleImageUpload(formData.evidencia_01, 'evidencia_01') : Promise.resolve(),
-        formData.evidencia_02 instanceof File ? handleImageUpload(formData.evidencia_02, 'evidencia_02') : Promise.resolve(),
-        formData.evidencia_03 instanceof File ? handleImageUpload(formData.evidencia_03, 'evidencia_03') : Promise.resolve()
-      ];
-
-      await Promise.all(uploadPromises);
-
-      // Limpiar el formulario
-      setFormData({
-        ...initialFormData,
-        quien_revisa: user || ''
-      });
-
-      // Mostrar mensaje de éxito
-      setError('Revisión guardada. Las imágenes se están subiendo en segundo plano.');
-
-    } catch (error: any) {
-      console.error('Error al guardar la revisión:', error);
-      setError(error.message || 'Error al guardar la revisión');
+      router.push('/');
+    } catch (err) {
+      console.error('Error al guardar la revisión:', err);
+      setError('Error al guardar la revisión. Por favor, intente nuevamente.');
     } finally {
       setLoading(false);
     }
@@ -337,480 +201,137 @@ export default function NuevaRevision() {
   };
 
   return (
-    <main className="min-h-screen bg-gradient-to-br from-[#1a1f35] to-[#2d364c] py-8 md:py-12">
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
-        <form onSubmit={handleSubmit} className="bg-[#2a3347] rounded-xl shadow-2xl p-4 md:p-8 border border-[#3d4659]">
-          <div className="flex justify-between items-center mb-6 md:mb-8">
-            <h1 className="text-2xl md:text-3xl font-bold text-[#c9a45c]">Nueva Revisión</h1>
-            <div className="flex gap-2">
-              {revisionId && (
-                <Link
-                  href={`/estado-subidas/${revisionId}`}
-                  className="px-3 py-1 text-sm text-white bg-blue-500 rounded-xl hover:bg-blue-600 transition-all"
-                >
-                  Ver Estado de Subidas
-                </Link>
-              )}
-              <button
-                type="button"
-                onClick={() => router.push('/')}
-                className="px-3 py-1 md:px-4 md:py-2 text-sm text-[#1a1f35] bg-gradient-to-br from-[#c9a45c] via-[#d4b06c] to-[#f0c987] rounded-xl hover:from-[#d4b06c] hover:via-[#e0bc7c] hover:to-[#f7d498] transform hover:scale-[1.02] transition-all duration-200"
-              >
-                Volver
-              </button>
-            </div>
+    <div className="min-h-screen bg-[#1e2538] p-8">
+      <div className="max-w-2xl mx-auto">
+        <h1 className="text-2xl font-bold text-white mb-8">Nueva Revisión</h1>
+
+        {error && (
+          <div className="bg-red-500/20 border border-red-500 text-red-500 px-4 py-3 rounded mb-6">
+            {error}
+          </div>
+        )}
+
+        <form onSubmit={handleSubmit} className="space-y-6">
+          <div>
+            <label htmlFor="casita" className="block text-sm font-medium text-gray-300 mb-2">
+              Casita
+            </label>
+            <input
+              type="text"
+              id="casita"
+              name="casita"
+              value={formData.casita}
+              onChange={(e) => handleInputChange('casita', e.target.value)}
+              required
+              className={`w-full px-4 py-2 bg-[#2a3347] border border-[#3d4659] rounded text-white focus:outline-none focus:border-[#c9a45c] ${getHighlightStyle('casita')}`}
+            />
           </div>
 
-          <div className="space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
-              <div className="space-y-2">
-                <label className="block text-base font-semibold text-[#ff8c42]">Casita <span className="text-red-500">*</span></label>
-                <select
-                  required
-                  className={`w-full px-4 py-2 md:py-3 bg-[#1e2538] border border-[#3d4659] rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-[#c9a45c] focus:border-transparent transition-all ${getHighlightStyle('casita')}`}
-                  value={formData.casita}
-                  onChange={(e) => handleInputChange('casita', e.target.value)}
-                >
-                  <option value="">Seleccionar casita</option>
-                  {Array.from({ length: 50 }, (_, i) => i + 1).map(num => (
-                    <option key={num} value={num}>{num}</option>
-                  ))}
-                </select>
-              </div>
-
-              <div className="space-y-2">
-                <label className="block text-base font-semibold text-[#ff8c42]">Quien revisa <span className="text-red-500">*</span></label>
-                {user ? (
-                  <input
-                    type="text"
-                    value={user}
-                    readOnly
-                    className={`w-full px-4 py-2 md:py-3 bg-[#1e2538] border border-[#3d4659] rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-[#c9a45c] focus:border-transparent transition-all ${getHighlightStyle('quien_revisa')}`}
-                  />
-                ) : (
-                  <select
-                    required
-                    className="w-full px-4 py-2 md:py-3 bg-[#1e2538] border border-[#3d4659] rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-[#c9a45c] focus:border-transparent transition-all"
-                    value={formData.quien_revisa}
-                    onChange={(e) => handleInputChange('quien_revisa', e.target.value)}
-                  >
-                    <option value="">Seleccionar persona</option>
-                    {nombresRevisores.map(nombre => (
-                      <option key={nombre} value={nombre}>{nombre}</option>
-                    ))}
-                  </select>
-                )}
-              </div>
-            </div>
-
-            <ButtonGroup
-              label="Guardado en la caja fuerte?"
-              options={['Si', 'No', 'Check in', 'Check out', 'Upsell', 'Guardar Upsell', 'Back to Back', 'Show Room']}
-              selectedValue={formData.caja_fuerte}
-              onSelect={(value) => handleInputChange('caja_fuerte', value)}
+          <div>
+            <label htmlFor="quien_revisa" className="block text-sm font-medium text-gray-300 mb-2">
+              Quién Revisa
+            </label>
+            <select
+              id="quien_revisa"
+              name="quien_revisa"
+              value={formData.quien_revisa}
+              onChange={(e) => handleInputChange('quien_revisa', e.target.value)}
               required
-              highlight={highlightedField === 'caja_fuerte'}
-            />
-            
-            <div className="space-y-2">
-              <label className="block text-base font-semibold text-[#ff8c42]">¿Puertas y ventanas? (revisar casa por fuera) <span className="text-red-500">*</span></label>
-              <input
-                type="text"
-                required
-                className={`w-full px-4 py-2 md:py-3 bg-[#1e2538] border border-[#3d4659] rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-[#c9a45c] focus:border-transparent transition-all ${getHighlightStyle('puertas_ventanas')}`}
-                value={formData.puertas_ventanas}
-                onChange={(e) => handleInputChange('puertas_ventanas', e.target.value)}
-                placeholder="Estado de puertas y ventanas"
-              />
-            </div>
-            
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
-              <ButtonGroup 
-                label="Chromecast" 
-                options={['0', '01', '02', '03', '04']} 
-                selectedValue={formData.chromecast} 
-                onSelect={v => handleInputChange('chromecast', v)} 
-                required 
-                highlight={highlightedField === 'chromecast'}
-              />
-              <ButtonGroup 
-                label="Binoculares" 
-                options={['0', '01', '02', '03']} 
-                selectedValue={formData.binoculares} 
-                onSelect={v => handleInputChange('binoculares', v)} 
-                required 
-                highlight={highlightedField === 'binoculares'}
-              />
-              <ButtonGroup 
-                label="Trapo para los binoculares" 
-                options={['Si', 'No']} 
-                selectedValue={formData.trapo_binoculares} 
-                onSelect={v => handleInputChange('trapo_binoculares', v)} 
-                required 
-                highlight={highlightedField === 'trapo_binoculares'}
-              />
-              <ButtonGroup 
-                label="Speaker" 
-                options={['0', '01', '02', '03']} 
-                selectedValue={formData.speaker} 
-                onSelect={v => handleInputChange('speaker', v)} 
-                required 
-                highlight={highlightedField === 'speaker'}
-              />
-              <ButtonGroup 
-                label="USB Speaker" 
-                options={['0', '01', '02', '03']} 
-                selectedValue={formData.usb_speaker} 
-                onSelect={v => handleInputChange('usb_speaker', v)} 
-                required 
-                highlight={highlightedField === 'usb_speaker'}
-              />
-              <ButtonGroup 
-                label="Controles TV" 
-                options={['0', '01', '02', '03']} 
-                selectedValue={formData.controles_tv} 
-                onSelect={v => handleInputChange('controles_tv', v)} 
-                required 
-                highlight={highlightedField === 'controles_tv'}
-              />
-              <ButtonGroup 
-                label="Secadora" 
-                options={['0', '01', '02', '03']} 
-                selectedValue={formData.secadora} 
-                onSelect={v => handleInputChange('secadora', v)} 
-                required 
-                highlight={highlightedField === 'secadora'}
-              />
-            </div>
+              className={`w-full px-4 py-2 bg-[#2a3347] border border-[#3d4659] rounded text-white focus:outline-none focus:border-[#c9a45c] ${getHighlightStyle('quien_revisa')}`}
+            >
+              <option value="">Seleccione un revisor</option>
+              {nombresRevisores.map((nombre) => (
+                <option key={nombre} value={nombre}>
+                  {nombre}
+                </option>
+              ))}
+            </select>
+          </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
-              <div className="space-y-2">
-                <label className="block text-base font-semibold text-[#ff8c42]">Accesorios secadora <span className="text-red-500">*</span></label>
-                <select
-                  required
-                  className={`w-full px-4 py-2 md:py-3 bg-[#1e2538] border border-[#3d4659] rounded-lg text-white focus:ring-2 focus:ring-[#c9a45c] ${getHighlightStyle('accesorios_secadora')}`}
-                  value={formData.accesorios_secadora}
-                  onChange={(e) => handleInputChange('accesorios_secadora', e.target.value)}
-                >
-                  <option value="">Seleccionar cantidad</option>
-                  <option key="0" value="0">0</option>
-                  {Array.from({ length: 8 }, (_, i) => String(i + 1).padStart(2, '0')).map(num => (
-                    <option key={num} value={num}>{num}</option>
-                  ))}
-                </select>
-              </div>
-              <div className="space-y-2">
-                <label className="block text-base font-semibold text-[#ff8c42]">En caso de faltar un accesorio. Cual es?</label>
+          <div>
+            <label htmlFor="caja_fuerte" className="block text-sm font-medium text-gray-300 mb-2">
+              Tipo de Revisión
+            </label>
+            <select
+              id="caja_fuerte"
+              name="caja_fuerte"
+              value={formData.caja_fuerte}
+              onChange={(e) => handleInputChange('caja_fuerte', e.target.value)}
+              required
+              className={`w-full px-4 py-2 bg-[#2a3347] border border-[#3d4659] rounded text-white focus:outline-none focus:border-[#c9a45c] ${getHighlightStyle('caja_fuerte')}`}
+            >
+              <option value="">Seleccione un tipo</option>
+              <option value="Check in">Check in</option>
+              <option value="Upsell">Upsell</option>
+              <option value="Back to Back">Back to Back</option>
+            </select>
+          </div>
+
+          {showEvidenceFields && (
+            <div className="space-y-4">
+              <div>
+                <label htmlFor="evidencia_01" className="block text-sm font-medium text-gray-300 mb-2">
+                  Evidencia 1
+                </label>
                 <input
-                  type="text"
-                  className="w-full px-4 py-2 md:py-3 bg-[#1e2538] border border-[#3d4659] rounded-lg text-white focus:ring-2 focus:ring-[#c9a45c]"
-                  value={formData.accesorios_secadora_faltante}
-                  onChange={(e) => handleInputChange('accesorios_secadora_faltante', e.target.value)}
-                  placeholder="Describe el accesorio faltante"
+                  type="file"
+                  id="evidencia_01"
+                  name="evidencia_01"
+                  accept="image/*"
+                  onChange={(e) => handleFileChange('evidencia_01', e.target.files?.[0] || null)}
+                  className="w-full px-4 py-2 bg-[#2a3347] border border-[#3d4659] rounded text-white focus:outline-none focus:border-[#c9a45c]"
+                />
+              </div>
+
+              <div>
+                <label htmlFor="evidencia_02" className="block text-sm font-medium text-gray-300 mb-2">
+                  Evidencia 2
+                </label>
+                <input
+                  type="file"
+                  id="evidencia_02"
+                  name="evidencia_02"
+                  accept="image/*"
+                  onChange={(e) => handleFileChange('evidencia_02', e.target.files?.[0] || null)}
+                  className="w-full px-4 py-2 bg-[#2a3347] border border-[#3d4659] rounded text-white focus:outline-none focus:border-[#c9a45c]"
+                />
+              </div>
+
+              <div>
+                <label htmlFor="evidencia_03" className="block text-sm font-medium text-gray-300 mb-2">
+                  Evidencia 3
+                </label>
+                <input
+                  type="file"
+                  id="evidencia_03"
+                  name="evidencia_03"
+                  accept="image/*"
+                  onChange={(e) => handleFileChange('evidencia_03', e.target.files?.[0] || null)}
+                  className="w-full px-4 py-2 bg-[#2a3347] border border-[#3d4659] rounded text-white focus:outline-none focus:border-[#c9a45c]"
                 />
               </div>
             </div>
+          )}
 
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
-              <ButtonGroup 
-                label="Steamer (plancha a vapor)" 
-                options={['0', '01', '02']} 
-                selectedValue={formData.steamer} 
-                onSelect={v => handleInputChange('steamer', v)} 
-                required 
-                highlight={highlightedField === 'steamer'}
-              />
-              <ButtonGroup 
-                label="Bolsa de vapor (plancha vapor)" 
-                options={['Si', 'No']} 
-                selectedValue={formData.bolsa_vapor} 
-                onSelect={v => handleInputChange('bolsa_vapor', v)} 
-                required 
-                highlight={highlightedField === 'bolsa_vapor'}
-              />
-              <ButtonGroup 
-                label="Plancha cabello" 
-                options={['0', '01', '02']} 
-                selectedValue={formData.plancha_cabello} 
-                onSelect={v => handleInputChange('plancha_cabello', v)} 
-                required 
-                highlight={highlightedField === 'plancha_cabello'}
-              />
-              <ButtonGroup 
-                label="Bulto" 
-                options={['0', '01', '02']} 
-                selectedValue={formData.bulto} 
-                onSelect={v => handleInputChange('bulto', v)} 
-                required 
-                highlight={highlightedField === 'bulto'}
-              />
-              <ButtonGroup 
-                label="Sombrero" 
-                options={['0', '01', '02']} 
-                selectedValue={formData.sombrero} 
-                onSelect={v => handleInputChange('sombrero', v)} 
-                required 
-                highlight={highlightedField === 'sombrero'}
-              />
-              <ButtonGroup 
-                label="Bolso yute" 
-                options={['0', '01', '02', '03']} 
-                selectedValue={formData.bolso_yute} 
-                onSelect={v => handleInputChange('bolso_yute', v)} 
-                required 
-                highlight={highlightedField === 'bolso_yute'}
-              />
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
-              <ButtonGroup 
-                label="Camas ordenadas" 
-                options={['Si', 'No']} 
-                selectedValue={formData.camas_ordenadas} 
-                onSelect={v => handleInputChange('camas_ordenadas', v)} 
-                required 
-                highlight={highlightedField === 'camas_ordenadas'}
-              />
-              <ButtonGroup 
-                label="Cola de caballo" 
-                options={['Si', 'No']} 
-                selectedValue={formData.cola_caballo} 
-                onSelect={v => handleInputChange('cola_caballo', v)} 
-                required 
-                highlight={highlightedField === 'cola_caballo'}
-              />
-            </div>
-
-            {showEvidenceFields && (
-              <div className="space-y-4">
-                <div className="space-y-2">
-                  <label className="block text-base font-semibold text-[#ff8c42]">Evidencia 1 (URL) <span className="text-red-500">*</span></label>
-                  <div className="flex gap-4">
-                    <input
-                      ref={fileInputRef}
-                      type="file"
-                      accept="image/*"
-                      className="hidden"
-                      onChange={(e) => {
-                        const file = e.target.files?.[0];
-                        if (file) {
-                          handleFileChange('evidencia_01', file);
-                        }
-                      }}
-                    />
-                    <input
-                      ref={cameraInputRef}
-                      type="file"
-                      accept="image/*"
-                      capture="environment"
-                      className="hidden"
-                      onChange={(e) => {
-                        const file = e.target.files?.[0];
-                        if (file) {
-                          handleFileChange('evidencia_01', file);
-                        }
-                      }}
-                    />
-                    <button
-                      type="button"
-                      onClick={() => {
-                        if (fileInputRef.current) {
-                          fileInputRef.current.click();
-                        }
-                      }}
-                      className="px-4 py-2 bg-[#1a1f35] border border-[#3d4659] rounded-md text-white hover:bg-[#2a3347] transition-colors flex items-center gap-2"
-                    >
-                      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5">
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5" />
-                      </svg>
-                      <span>Galería</span>
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        if (cameraInputRef.current) {
-                          cameraInputRef.current.click();
-                        }
-                      }}
-                      className="px-4 py-2 bg-[#1a1f35] border border-[#3d4659] rounded-md text-white hover:bg-[#2a3347] transition-colors flex items-center gap-2"
-                    >
-                      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5">
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M6.827 6.175A2.31 2.31 0 015.186 7.23c-.38.054-.757.112-1.134.175C2.999 7.58 2.25 8.507 2.25 9.574V18a2.25 2.25 0 002.25 2.25h15A2.25 2.25 0 0021.75 18V9.574c0-1.067-.75-1.994-1.802-2.169a47.865 47.865 0 00-1.134-.175 2.31 2.31 0 01-1.64-1.055l-.822-1.316a2.192 2.192 0 00-1.736-1.039 48.774 48.774 0 00-5.232 0 2.192 2.192 0 00-1.736 1.039l-.821 1.316z" />
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 12.75a4.5 4.5 0 11-9 0 4.5 4.5 0 019 0zM18.75 10.5h.008v.008h-.008V10.5z" />
-                      </svg>
-                      <span>Cámara</span>
-                    </button>
-                  </div>
-                  {formData.evidencia_01 instanceof File && (
-                    <p className="mt-2 text-sm text-gray-400">
-                      Archivo seleccionado: {formData.evidencia_01.name}
-                    </p>
-                  )}
-                </div>
-                <div className="space-y-2">
-                  <label className="block text-base font-semibold text-[#ff8c42]">Evidencia 2 (URL)</label>
-                  <div className="flex gap-4">
-                    <input
-                      ref={fileInputRef2}
-                      type="file"
-                      accept="image/*"
-                      className="hidden"
-                      onChange={(e) => {
-                        const file = e.target.files?.[0];
-                        if (file) {
-                          handleFileChange('evidencia_02', file);
-                        }
-                      }}
-                    />
-                    <input
-                      ref={cameraInputRef2}
-                      type="file"
-                      accept="image/*"
-                      capture="environment"
-                      className="hidden"
-                      onChange={(e) => {
-                        const file = e.target.files?.[0];
-                        if (file) {
-                          handleFileChange('evidencia_02', file);
-                        }
-                      }}
-                    />
-                    <button
-                      type="button"
-                      onClick={() => {
-                        if (fileInputRef2.current) {
-                          fileInputRef2.current.click();
-                        }
-                      }}
-                      className="px-4 py-2 bg-[#1a1f35] border border-[#3d4659] rounded-md text-white hover:bg-[#2a3347] transition-colors flex items-center gap-2"
-                    >
-                      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5">
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5" />
-                      </svg>
-                      <span>Galería</span>
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        if (cameraInputRef2.current) {
-                          cameraInputRef2.current.click();
-                        }
-                      }}
-                      className="px-4 py-2 bg-[#1a1f35] border border-[#3d4659] rounded-md text-white hover:bg-[#2a3347] transition-colors flex items-center gap-2"
-                    >
-                      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5">
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M6.827 6.175A2.31 2.31 0 015.186 7.23c-.38.054-.757.112-1.134.175C2.999 7.58 2.25 8.507 2.25 9.574V18a2.25 2.25 0 002.25 2.25h15A2.25 2.25 0 0021.75 18V9.574c0-1.067-.75-1.994-1.802-2.169a47.865 47.865 0 00-1.134-.175 2.31 2.31 0 01-1.64-1.055l-.822-1.316a2.192 2.192 0 00-1.736-1.039 48.774 48.774 0 00-5.232 0 2.192 2.192 0 00-1.736 1.039l-.821 1.316z" />
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 12.75a4.5 4.5 0 11-9 0 4.5 4.5 0 019 0zM18.75 10.5h.008v.008h-.008V10.5z" />
-                      </svg>
-                      <span>Cámara</span>
-                    </button>
-                  </div>
-                  {formData.evidencia_02 instanceof File && (
-                    <p className="mt-2 text-sm text-gray-400">
-                      Archivo seleccionado: {formData.evidencia_02.name}
-                    </p>
-                  )}
-                </div>
-                <div className="space-y-2">
-                  <label className="block text-base font-semibold text-[#ff8c42]">Evidencia 3 (URL)</label>
-                  <div className="flex gap-4">
-                    <input
-                      ref={fileInputRef3}
-                      type="file"
-                      accept="image/*"
-                      className="hidden"
-                      onChange={(e) => {
-                        const file = e.target.files?.[0];
-                        if (file) {
-                          handleFileChange('evidencia_03', file);
-                        }
-                      }}
-                    />
-                    <input
-                      ref={cameraInputRef3}
-                      type="file"
-                      accept="image/*"
-                      capture="environment"
-                      className="hidden"
-                      onChange={(e) => {
-                        const file = e.target.files?.[0];
-                        if (file) {
-                          handleFileChange('evidencia_03', file);
-                        }
-                      }}
-                    />
-                    <button
-                      type="button"
-                      onClick={() => {
-                        if (fileInputRef3.current) {
-                          fileInputRef3.current.click();
-                        }
-                      }}
-                      className="px-4 py-2 bg-[#1a1f35] border border-[#3d4659] rounded-md text-white hover:bg-[#2a3347] transition-colors flex items-center gap-2"
-                    >
-                      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5">
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5" />
-                      </svg>
-                      <span>Galería</span>
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        if (cameraInputRef3.current) {
-                          cameraInputRef3.current.click();
-                        }
-                      }}
-                      className="px-4 py-2 bg-[#1a1f35] border border-[#3d4659] rounded-md text-white hover:bg-[#2a3347] transition-colors flex items-center gap-2"
-                    >
-                      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5">
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M6.827 6.175A2.31 2.31 0 015.186 7.23c-.38.054-.757.112-1.134.175C2.999 7.58 2.25 8.507 2.25 9.574V18a2.25 2.25 0 002.25 2.25h15A2.25 2.25 0 0021.75 18V9.574c0-1.067-.75-1.994-1.802-2.169a47.865 47.865 0 00-1.134-.175 2.31 2.31 0 01-1.64-1.055l-.822-1.316a2.192 2.192 0 00-1.736-1.039 48.774 48.774 0 00-5.232 0 2.192 2.192 0 00-1.736 1.039l-.821 1.316z" />
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 12.75a4.5 4.5 0 11-9 0 4.5 4.5 0 019 0zM18.75 10.5h.008v.008h-.008V10.5z" />
-                      </svg>
-                      <span>Cámara</span>
-                    </button>
-                  </div>
-                  {formData.evidencia_03 instanceof File && (
-                    <p className="mt-2 text-sm text-gray-400">
-                      Archivo seleccionado: {formData.evidencia_03.name}
-                    </p>
-                  )}
-                </div>
-              </div>
-            )}
-
-            <div className="space-y-2">
-              <label className="block text-base font-semibold text-[#ff8c42]">Notas</label>
-              <textarea
-                className="w-full px-4 py-2 md:py-3 bg-[#1e2538] border border-[#3d4659] rounded-lg text-white focus:ring-2 focus:ring-[#c9a45c]"
-                value={formData.faltantes}
-                onChange={(e) => handleInputChange('faltantes', e.target.value)}
-                placeholder="Describe cualquier otro elemento faltante o comentario general..."
-                rows={3}
-              />
-            </div>
-
-            <div className="mt-8">
-              {error && (
-                <div className="mb-4 bg-red-500/10 border border-red-500 rounded-lg p-4">
-                  <p className="text-red-500 text-center font-semibold">{error}</p>
-                </div>
-              )}
-              {revisionId && (
-                <div className="mb-4">
-                  <UploadProgress revisionId={revisionId} />
-                </div>
-              )}
-              <button
-                type="submit"
-                disabled={loading}
-                className={`w-full ${loading ? 'bg-[#00ff00] text-white' : 'bg-gradient-to-br from-[#c9a45c] via-[#d4b06c] to-[#f0c987] text-[#1a1f35]'} font-bold px-8 py-3 md:py-4 rounded-xl transform hover:scale-[1.02] transition-all duration-200 shadow-[0_8px_16px_rgb(0_0_0/0.2)] hover:shadow-[0_12px_24px_rgb(0_0_0/0.3)] relative overflow-hidden before:absolute before:inset-0 before:bg-gradient-to-r before:from-transparent before:via-${loading ? '[#00ff00]/20' : 'white/40'} before:to-transparent before:translate-x-[-200%] before:animate-shimmer before:transition-transform before:duration-1000 after:absolute after:inset-0 after:bg-gradient-to-b after:from-${loading ? '[#00ff00]/10' : 'white/20'} after:to-transparent after:opacity-100 after:transition-opacity after:duration-300 border-2 border-white/40 hover:border-white/60 ${loading ? 'opacity-100 cursor-wait' : ''}`}
-              >
-                {loading ? 'Guardando...' : 'Guardar Revisión'}
-              </button>
-            </div>
-          </div>
+          <button
+            type="submit"
+            disabled={loading}
+            className={`w-full px-4 py-2 rounded text-white font-medium ${
+              loading
+                ? 'bg-gray-500 cursor-not-allowed'
+                : 'bg-[#c9a45c] hover:bg-[#b8934a]'
+            }`}
+          >
+            {loading ? 'Guardando...' : 'Guardar Revisión'}
+          </button>
         </form>
+
+        {revisionId && (
+          <div className="mt-8">
+            <UploadProgress />
+          </div>
+        )}
       </div>
-    </main>
+    </div>
   );
 } 
