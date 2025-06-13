@@ -1,26 +1,28 @@
 'use client';
 
-import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
+import { useEffect, useState } from 'react';
 import { useUpload } from '@/context/UploadContext';
-import { supabase } from '@/lib/supabase';
+import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
 
 interface Revision {
   id: string;
-  casita: string;
-  created_at: string;
-  evidencia_01: string | null;
-  evidencia_02: string | null;
-  evidencia_03: string | null;
+  nombre: string;
+  fecha: string;
+  estado: string;
+  evidencia_01?: string;
+  evidencia_02?: string;
+  evidencia_03?: string;
 }
 
 export default function EstadoSubidas() {
   const params = useParams();
   const router = useRouter();
-  const { getUploadsByRevision } = useUpload();
+  const { uploads } = useUpload();
   const [revision, setRevision] = useState<Revision | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const supabase = createClientComponentClient();
 
   useEffect(() => {
     const fetchRevision = async () => {
@@ -33,100 +35,96 @@ export default function EstadoSubidas() {
 
         if (error) throw error;
         setRevision(data);
-      } catch (error: any) {
-        setError(error.message);
+      } catch (err) {
+        setError('Error al cargar la revisión');
+        console.error('Error:', err);
       } finally {
         setLoading(false);
       }
     };
 
     fetchRevision();
-  }, [params.id]);
+  }, [params.id, supabase]);
 
-  const uploads = getUploadsByRevision(params.id as string);
+  // Filtrar las subidas relacionadas con esta revisión
+  const revisionUploads = uploads.filter(upload => upload.id.startsWith(params.id as string));
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-[#1a1f35] to-[#2d364c] flex items-center justify-center">
+      <div className="min-h-screen bg-[#1e2538] flex items-center justify-center">
         <div className="text-white">Cargando...</div>
       </div>
     );
   }
 
-  if (error) {
+  if (error || !revision) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-[#1a1f35] to-[#2d364c] flex items-center justify-center">
-        <div className="text-red-500">{error}</div>
+      <div className="min-h-screen bg-[#1e2538] flex items-center justify-center">
+        <div className="text-red-500">{error || 'Revisión no encontrada'}</div>
       </div>
     );
   }
 
   return (
-    <main className="min-h-screen bg-gradient-to-br from-[#1a1f35] to-[#2d364c] py-8 md:py-12">
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="bg-[#2a3347] rounded-xl shadow-2xl p-4 md:p-8 border border-[#3d4659]">
-          <div className="flex justify-between items-center mb-6 md:mb-8">
-            <h1 className="text-2xl md:text-3xl font-bold text-[#c9a45c]">
-              Estado de Subidas - Casita {revision?.casita}
-            </h1>
-            <button
-              onClick={() => router.push('/')}
-              className="px-3 py-1 md:px-4 md:py-2 text-sm text-[#1a1f35] bg-gradient-to-br from-[#c9a45c] via-[#d4b06c] to-[#f0c987] rounded-xl hover:from-[#d4b06c] hover:via-[#e0bc7c] hover:to-[#f7d498] transform hover:scale-[1.02] transition-all duration-200"
-            >
-              Volver
-            </button>
-          </div>
+    <div className="min-h-screen bg-[#1e2538] p-8">
+      <div className="max-w-4xl mx-auto">
+        <div className="flex justify-between items-center mb-8">
+          <h1 className="text-2xl font-bold text-white">Estado de Subidas - {revision.nombre}</h1>
+          <button
+            onClick={() => router.back()}
+            className="px-4 py-2 bg-[#c9a45c] text-white rounded hover:bg-[#b8934a] transition-colors"
+          >
+            Volver
+          </button>
+        </div>
 
-          <div className="space-y-4">
-            {uploads.map((upload) => (
-              <div
-                key={upload.id}
-                className="bg-[#1a1f35] rounded-lg p-4 border border-[#3d4659]"
-              >
-                <div className="flex justify-between items-center mb-2">
-                  <span className="text-white font-medium">{upload.fileName}</span>
-                  <span className={`px-2 py-1 rounded text-sm ${
-                    upload.status === 'completed' ? 'bg-green-500 text-white' :
-                    upload.status === 'error' ? 'bg-red-500 text-white' :
-                    'bg-yellow-500 text-white'
-                  }`}>
-                    {upload.status === 'completed' ? 'Completado' :
-                     upload.status === 'error' ? 'Error' :
-                     'En progreso'}
-                  </span>
-                </div>
-                {upload.status === 'pending' && (
-                  <div className="w-full bg-[#2d364c] rounded-full h-2.5">
-                    <div
-                      className="bg-[#c9a45c] h-2.5 rounded-full transition-all duration-300"
-                      style={{ width: `${upload.progress}%` }}
-                    />
-                  </div>
-                )}
-                {upload.error && (
-                  <p className="text-red-500 text-sm mt-2">{upload.error}</p>
-                )}
-                {upload.url && (
-                  <a
-                    href={upload.url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-[#c9a45c] hover:text-[#d4b06c] text-sm mt-2 inline-block"
-                  >
-                    Ver imagen
-                  </a>
-                )}
+        <div className="space-y-6">
+          {revisionUploads.map((upload) => (
+            <div key={upload.id} className="bg-[#2a3347] rounded-lg p-6 border border-[#3d4659]">
+              <div className="flex justify-between items-center mb-4">
+                <h3 className="text-lg font-semibold text-white">{upload.fileName}</h3>
+                <span className={`px-3 py-1 rounded-full text-sm ${
+                  upload.status === 'completed' ? 'bg-green-500/20 text-green-400' :
+                  upload.status === 'error' ? 'bg-red-500/20 text-red-400' :
+                  'bg-yellow-500/20 text-yellow-400'
+                }`}>
+                  {upload.status === 'completed' ? 'Completado' :
+                   upload.status === 'error' ? 'Error' :
+                   upload.status === 'pending' ? 'Pendiente' :
+                   upload.status === 'uploading' ? 'Subiendo...' :
+                   upload.status === 'processing' ? 'Procesando...' :
+                   upload.status === 'storing' ? 'Almacenando...' :
+                   upload.status === 'updating' ? 'Actualizando...' :
+                   'En progreso'}
+                </span>
               </div>
-            ))}
 
-            {uploads.length === 0 && (
-              <div className="text-white text-center py-8">
-                No hay subidas en progreso
+              <div className="w-full bg-[#1e2538] rounded-full h-2 mb-4">
+                <div
+                  className={`h-2 rounded-full transition-all duration-300 ${
+                    upload.status === 'error'
+                      ? 'bg-red-500'
+                      : upload.status === 'completed'
+                      ? 'bg-green-500'
+                      : 'bg-[#c9a45c]'
+                  }`}
+                  style={{ width: `${upload.progress}%` }}
+                />
               </div>
-            )}
-          </div>
+
+              {upload.message && (
+                <p className="text-sm text-gray-400">{upload.message}</p>
+              )}
+            </div>
+          ))}
+
+          {revisionUploads.length === 0 && (
+            <div className="text-center text-gray-400 py-8">
+              No hay subidas activas para esta revisión
+            </div>
+          )}
         </div>
       </div>
-    </main>
+    </div>
   );
 } 
