@@ -11,7 +11,7 @@ export const compressImage = async (file: File): Promise<File> => {
         let height = img.height;
         
         // Calcular nuevas dimensiones manteniendo la proporción
-        const maxSize = 1200;
+        const maxSize = 1280; // Priorizando calidad de imagen
         if (width > height && width > maxSize) {
           height = Math.round((height * maxSize) / width);
           width = maxSize;
@@ -38,7 +38,7 @@ export const compressImage = async (file: File): Promise<File> => {
             }
           },
           'image/jpeg',
-          0.8
+          0.7 // Calidad reducida para mejor rendimiento
         );
       };
     };

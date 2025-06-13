@@ -162,8 +162,8 @@ export default function NuevaRevision() {
         img.src = event.target?.result as string;
         img.onload = () => {
           const canvas = document.createElement('canvas');
-          const MAX_WIDTH = 1200;
-          const MAX_HEIGHT = 1200;
+          const MAX_WIDTH = 1280;
+          const MAX_HEIGHT = 1280;
           let width = img.width;
           let height = img.height;
 
@@ -197,7 +197,7 @@ export default function NuevaRevision() {
               }
             },
             'image/jpeg',
-            0.8
+            0.7
           );
         };
       };
@@ -765,7 +765,11 @@ export default function NuevaRevision() {
               <button
                 type="submit"
                 disabled={loading}
-                className={`w-full ${loading ? 'bg-[#00ff00] text-white' : 'bg-gradient-to-br from-[#c9a45c] via-[#d4b06c] to-[#f0c987] text-[#1a1f35]'} font-bold px-8 py-3 md:py-4 rounded-xl transform hover:scale-[1.02] transition-all duration-200 shadow-[0_8px_16px_rgb(0_0_0/0.2)] hover:shadow-[0_12px_24px_rgb(0_0_0/0.3)] relative overflow-hidden before:absolute before:inset-0 before:bg-gradient-to-r before:from-transparent before:via-${loading ? '[#00ff00]/20' : 'white/40'} before:to-transparent before:translate-x-[-200%] before:animate-shimmer before:transition-transform before:duration-1000 after:absolute after:inset-0 after:bg-gradient-to-b after:from-${loading ? '[#00ff00]/10' : 'white/20'} after:to-transparent after:opacity-100 after:transition-opacity after:duration-300 border-2 border-white/40 hover:border-white/60 ${loading ? 'opacity-100 cursor-wait' : ''}`}
+                className={`w-full ${
+                  loading 
+                    ? 'bg-[#00ff00] text-white animate-pulse border-2 border-[#00ff00] shadow-[0_0_15px_#00ff00]' 
+                    : 'bg-gradient-to-br from-[#c9a45c] via-[#d4b06c] to-[#f0c987] text-[#1a1f35]'
+                } font-bold px-8 py-3 md:py-4 rounded-xl transform hover:scale-[1.02] transition-all duration-200 shadow-[0_8px_16px_rgb(0_0_0/0.2)] hover:shadow-[0_12px_24px_rgb(0_0_0/0.3)] relative overflow-hidden before:absolute before:inset-0 before:bg-gradient-to-r before:from-transparent before:via-white/40 before:to-transparent before:translate-x-[-200%] hover:before:translate-x-[200%] before:transition-transform before:duration-1000 after:absolute after:inset-0 after:bg-gradient-to-b after:from-white/20 after:to-transparent after:opacity-0 hover:after:opacity-100 after:transition-opacity after:duration-300 border-2 border-white/40 hover:border-white/60 ${loading ? 'opacity-100 cursor-wait' : ''}`}
               >
                 {loading ? 'Guardando...' : 'Guardar Revisión'}
               </button>
