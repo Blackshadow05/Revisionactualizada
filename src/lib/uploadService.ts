@@ -1,7 +1,11 @@
 import { v4 as uuidv4 } from 'uuid';
 
 const CHUNK_SIZE = 1024 * 1024; // 1MB
-const RENDER_URL = process.env.NEXT_PUBLIC_RENDER_URL || 'http://localhost:10000';
+const RENDER_URL = process.env.NEXT_PUBLIC_RENDER_URL;
+
+if (!RENDER_URL) {
+  console.error('NEXT_PUBLIC_RENDER_URL no está configurada');
+}
 
 export interface UploadProgress {
   status: 'pending' | 'completed' | 'error';
@@ -25,6 +29,11 @@ const handleResponse = async (response: Response) => {
 
 const checkServerHealth = async () => {
   try {
+    if (!RENDER_URL) {
+      throw new Error('URL del servidor no configurada');
+    }
+
+    console.log('Verificando servidor en:', RENDER_URL);
     const response = await fetch(`${RENDER_URL}/health`, {
       method: 'GET',
       headers: {
@@ -48,6 +57,10 @@ export const uploadFileInChunks = async (
   file: File,
   onProgress: (progress: UploadProgress) => void
 ): Promise<string> => {
+  if (!RENDER_URL) {
+    throw new Error('URL del servidor no configurada');
+  }
+
   const totalChunks = Math.ceil(file.size / CHUNK_SIZE);
   const uploadId = uuidv4();
   let uploadedChunks = 0;
