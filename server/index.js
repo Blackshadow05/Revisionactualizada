@@ -147,6 +147,11 @@ app.post('/upload/finalize', async (req, res) => {
       writeStream.on('error', reject);
     });
 
+    // Verificar configuración de Cloudinary
+    if (!process.env.CLOUDINARY_CLOUD_NAME || !process.env.CLOUDINARY_API_KEY || !process.env.CLOUDINARY_API_SECRET) {
+      throw new Error('Faltan credenciales de Cloudinary');
+    }
+
     // Subir a Cloudinary
     const result = await cloudinary.uploader.upload(filePath, {
       resource_type: 'auto',
@@ -160,7 +165,15 @@ app.post('/upload/finalize', async (req, res) => {
     res.json({ url: result.secure_url });
   } catch (error) {
     console.error('Error al finalizar la subida:', error);
-    res.status(500).json({ error: 'Error al finalizar la subida' });
+    res.status(500).json({ 
+      error: 'Error al finalizar la subida',
+      details: error.message,
+      cloudinary: {
+        cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+        api_key: process.env.CLOUDINARY_API_KEY ? 'configurada' : 'no configurada',
+        api_secret: process.env.CLOUDINARY_API_SECRET ? 'configurada' : 'no configurada'
+      }
+    });
   }
 });
 
