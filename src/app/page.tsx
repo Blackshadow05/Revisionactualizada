@@ -94,32 +94,16 @@ export default function Home() {
   const fetchRevisiones = async () => {
     try {
       setLoading(true);
-      setError(null);
-
-      // Verificar la conexión con Supabase
-      const isConnected = await checkSupabaseConnection();
-      if (!isConnected) {
-        throw new Error('No se pudo conectar con la base de datos. Por favor, verifica tu conexión.');
-      }
-      
-      const { data: revisiones, error } = await supabase
+      const { data, error } = await supabase
         .from('revisiones_casitas')
         .select('*')
         .order('created_at', { ascending: false });
 
-      if (error) {
-        console.error('Error fetching data:', error);
-        throw new Error('Error al cargar los datos: ' + error.message);
-      }
-
-      if (!revisiones) {
-        throw new Error('No se encontraron datos');
-      }
-
-      setData(revisiones);
+      if (error) throw error;
+      setData(data || []);
     } catch (error: any) {
-      console.error('Error in fetchData:', error);
-      setError(error.message || 'Error al cargar los datos');
+      console.error('Error al cargar revisiones:', error);
+      setError(error.message);
     } finally {
       setLoading(false);
     }
