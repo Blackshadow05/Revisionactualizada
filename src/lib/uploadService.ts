@@ -1,25 +1,66 @@
 import { v4 as uuidv4 } from 'uuid';
 
-const CHUNK_SIZE = 1024 * 1024; // 1MB por chunk
-const RENDER_API_URL = process.env.NEXT_PUBLIC_RENDER_API_URL || 'https://tu-app.onrender.com';
+const CHUNK_SIZE = 1024 * 1024; // 1MB
+const RENDER_URL = process.env.NEXT_PUBLIC_RENDER_URL || 'http://localhost:10000';
 
-interface UploadProgress {
+export interface UploadProgress {
+  status: 'pending' | 'completed' | 'error';
   progress: number;
-  status: 'uploading' | 'processing' | 'completed' | 'error';
+  url?: string;
   error?: string;
 }
+
+const handleResponse = async (response: Response) => {
+  if (!response.ok) {
+    const errorText = await response.text();
+    try {
+      const errorJson = JSON.parse(errorText);
+      throw new Error(errorJson.error || 'Error en la respuesta del servidor');
+    } catch {
+      throw new Error(errorText || 'Error en la respuesta del servidor');
+    }
+  }
+  return response.json();
+};
+
+const checkServerHealth = async () => {
+  try {
+    const response = await fetch(`${RENDER_URL}/health`, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    });
+    
+    if (!response.ok) {
+      throw new Error('El servidor no está respondiendo correctamente');
+    }
+    
+    const data = await response.json();
+    return data.status === 'ok';
+  } catch (error) {
+    console.error('Error al verificar la salud del servidor:', error);
+    return false;
+  }
+};
 
 export const uploadFileInChunks = async (
   file: File,
   onProgress: (progress: UploadProgress) => void
 ): Promise<string> => {
-  const fileId = uuidv4();
   const totalChunks = Math.ceil(file.size / CHUNK_SIZE);
+  const uploadId = uuidv4();
   let uploadedChunks = 0;
 
   try {
+    // Verificar conexión con el servidor
+    const isServerHealthy = await checkServerHealth();
+    if (!isServerHealthy) {
+      throw new Error('El servidor no está disponible. Por favor, intenta más tarde.');
+    }
+
     // Iniciar la subida
-    const initResponse = await fetch(`${RENDER_API_URL}/api/upload/init`, {
+    const initResponse = await fetch(`${RENDER_URL}/upload/init`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -27,14 +68,11 @@ export const uploadFileInChunks = async (
       body: JSON.stringify({
         fileName: file.name,
         fileSize: file.size,
-        fileId,
-        totalChunks,
+        uploadId,
       }),
     });
 
-    if (!initResponse.ok) {
-      throw new Error('Error al inicializar la subida');
-    }
+    await handleResponse(initResponse);
 
     // Subir cada chunk
     for (let chunkIndex = 0; chunkIndex < totalChunks; chunkIndex++) {
@@ -44,54 +82,51 @@ export const uploadFileInChunks = async (
 
       const formData = new FormData();
       formData.append('chunk', chunk);
-      formData.append('fileId', fileId);
+      formData.append('uploadId', uploadId);
       formData.append('chunkIndex', chunkIndex.toString());
       formData.append('totalChunks', totalChunks.toString());
 
-      const uploadResponse = await fetch(`${RENDER_API_URL}/api/upload/chunk`, {
+      const uploadResponse = await fetch(`${RENDER_URL}/upload/chunk`, {
         method: 'POST',
         body: formData,
       });
 
-      if (!uploadResponse.ok) {
-        throw new Error(`Error al subir el chunk ${chunkIndex}`);
-      }
+      await handleResponse(uploadResponse);
 
       uploadedChunks++;
+      const progress = (uploadedChunks / totalChunks) * 100;
       onProgress({
-        progress: (uploadedChunks / totalChunks) * 100,
-        status: 'uploading',
+        status: 'pending',
+        progress,
       });
     }
 
     // Finalizar la subida
-    const finalizeResponse = await fetch(`${RENDER_API_URL}/api/upload/finalize`, {
+    const finalizeResponse = await fetch(`${RENDER_URL}/upload/finalize`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        fileId,
+        uploadId,
         fileName: file.name,
       }),
     });
 
-    if (!finalizeResponse.ok) {
-      throw new Error('Error al finalizar la subida');
-    }
-
-    const { url } = await finalizeResponse.json();
+    const { url } = await handleResponse(finalizeResponse);
     onProgress({
-      progress: 100,
       status: 'completed',
+      progress: 100,
+      url,
     });
 
     return url;
-  } catch (error) {
+  } catch (error: any) {
+    console.error('Error en la subida:', error);
     onProgress({
-      progress: 0,
       status: 'error',
-      error: error instanceof Error ? error.message : 'Error desconocido',
+      progress: 0,
+      error: error.message || 'Error desconocido en la subida',
     });
     throw error;
   }

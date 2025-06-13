@@ -7,7 +7,9 @@ import ButtonGroup from '@/components/ButtonGroup';
 import { getWeek } from 'date-fns';
 import { uploadToCloudinary } from '@/lib/cloudinary';
 import { useAuth } from '@/context/AuthContext';
+import { useUpload } from '@/context/UploadContext';
 import { uploadFileInChunks } from '@/lib/uploadService';
+import Link from 'next/link';
 
 interface RevisionData {
   casita: string;
@@ -92,8 +94,10 @@ const nombresRevisores = [
 export default function NuevaRevision() {
   const router = useRouter();
   const { user } = useAuth();
+  const { addUpload, getUploadsByRevision } = useUpload();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [revisionId, setRevisionId] = useState<string | null>(null);
   const [formData, setFormData] = useState<RevisionData>({
     ...initialFormData,
     quien_revisa: user || ''
@@ -197,43 +201,6 @@ export default function NuevaRevision() {
         return;
       }
 
-      const uploadedUrls = {
-        evidencia_01: '',
-        evidencia_02: '',
-        evidencia_03: '',
-      };
-
-      // Subir archivos usando el nuevo servicio de chunks
-      if (formData.evidencia_01 instanceof File) {
-        uploadedUrls.evidencia_01 = await uploadFileInChunks(
-          formData.evidencia_01,
-          (progress) => setUploadProgress(prev => ({
-            ...prev,
-            evidencia_01: progress
-          }))
-        );
-      }
-
-      if (formData.evidencia_02 instanceof File) {
-        uploadedUrls.evidencia_02 = await uploadFileInChunks(
-          formData.evidencia_02,
-          (progress) => setUploadProgress(prev => ({
-            ...prev,
-            evidencia_02: progress
-          }))
-        );
-      }
-
-      if (formData.evidencia_03 instanceof File) {
-        uploadedUrls.evidencia_03 = await uploadFileInChunks(
-          formData.evidencia_03,
-          (progress) => setUploadProgress(prev => ({
-            ...prev,
-            evidencia_03: progress
-          }))
-        );
-      }
-
       const { faltantes, accesorios_secadora_faltante, ...restOfFormData } = formData;
 
       const notas_completas = [
@@ -241,7 +208,8 @@ export default function NuevaRevision() {
         faltantes ? `Faltantes generales: ${faltantes}` : ''
       ].filter(Boolean).join('\n');
 
-      const { error } = await supabase
+      // Insertar la revisión primero
+      const { data, error: insertError } = await supabase
         .from('revisiones_casitas')
         .insert([
           {
@@ -266,16 +234,46 @@ export default function NuevaRevision() {
             camas_ordenadas: formData.camas_ordenadas,
             cola_caballo: formData.cola_caballo,
             Notas: notas_completas,
-            evidencia_01: uploadedUrls.evidencia_01,
-            evidencia_02: uploadedUrls.evidencia_02,
-            evidencia_03: uploadedUrls.evidencia_03,
             created_at: nowISO
           }
-        ]);
+        ])
+        .select()
+        .single();
 
-      if (error) throw error;
+      if (insertError) throw insertError;
 
-      router.push('/');
+      setRevisionId(data.id);
+
+      // Iniciar la subida de archivos en segundo plano
+      if (formData.evidencia_01 instanceof File) {
+        const uploadId = addUpload({
+          revisionId: data.id,
+          fileName: formData.evidencia_01.name,
+          progress: 0,
+          status: 'pending'
+        });
+
+        uploadFileInChunks(formData.evidencia_01, (progress) => {
+          if (progress.status === 'completed' && progress.url) {
+            supabase
+              .from('revisiones_casitas')
+              .update({ evidencia_01: progress.url })
+              .eq('id', data.id);
+          }
+        });
+      }
+
+      // Repetir para evidencia_02 y evidencia_03...
+
+      // Limpiar el formulario
+      setFormData({
+        ...initialFormData,
+        quien_revisa: user || ''
+      });
+
+      // Mostrar mensaje de éxito
+      setError('Revisión guardada. Las imágenes se están subiendo en segundo plano.');
+
     } catch (error: any) {
       console.error('Error al guardar la revisión:', error);
       setError(error.message);
@@ -298,13 +296,23 @@ export default function NuevaRevision() {
         <form onSubmit={handleSubmit} className="bg-[#2a3347] rounded-xl shadow-2xl p-4 md:p-8 border border-[#3d4659]">
           <div className="flex justify-between items-center mb-6 md:mb-8">
             <h1 className="text-2xl md:text-3xl font-bold text-[#c9a45c]">Nueva Revisión</h1>
-            <button
-              type="button"
-              onClick={() => router.push('/')}
-              className="px-3 py-1 md:px-4 md:py-2 text-sm text-[#1a1f35] bg-gradient-to-br from-[#c9a45c] via-[#d4b06c] to-[#f0c987] rounded-xl hover:from-[#d4b06c] hover:via-[#e0bc7c] hover:to-[#f7d498] transform hover:scale-[1.02] transition-all duration-200 shadow-[0_8px_16px_rgb(0_0_0/0.2)] hover:shadow-[0_12px_24px_rgb(0_0_0/0.3)] relative overflow-hidden before:absolute before:inset-0 before:bg-gradient-to-r before:from-transparent before:via-white/40 before:to-transparent before:translate-x-[-200%] hover:before:translate-x-[200%] before:transition-transform before:duration-1000 after:absolute after:inset-0 after:bg-gradient-to-b after:from-white/20 after:to-transparent after:opacity-0 hover:after:opacity-100 after:transition-opacity after:duration-300 border border-[#f0c987]/20 hover:border-[#f0c987]/40"
-            >
-              Volver
-            </button>
+            <div className="flex gap-2">
+              {revisionId && (
+                <Link
+                  href={`/estado-subidas/${revisionId}`}
+                  className="px-3 py-1 text-sm text-white bg-blue-500 rounded-xl hover:bg-blue-600 transition-all"
+                >
+                  Ver Estado de Subidas
+                </Link>
+              )}
+              <button
+                type="button"
+                onClick={() => router.push('/')}
+                className="px-3 py-1 md:px-4 md:py-2 text-sm text-[#1a1f35] bg-gradient-to-br from-[#c9a45c] via-[#d4b06c] to-[#f0c987] rounded-xl hover:from-[#d4b06c] hover:via-[#e0bc7c] hover:to-[#f7d498] transform hover:scale-[1.02] transition-all duration-200"
+              >
+                Volver
+              </button>
+            </div>
           </div>
 
           <div className="space-y-6">

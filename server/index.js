@@ -7,114 +7,160 @@ const path = require('path');
 const { promisify } = require('util');
 const writeFileAsync = promisify(fs.writeFile);
 const mkdirAsync = promisify(fs.mkdir);
-const readFileAsync = promisify(fs.readFile);
 const unlinkAsync = promisify(fs.unlink);
 
 const app = express();
-const upload = multer({ dest: 'uploads/' });
+const port = process.env.PORT || 10000;
 
 // Configuración de Cloudinary
 cloudinary.config({
   cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
   api_key: process.env.CLOUDINARY_API_KEY,
-  api_secret: process.env.CLOUDINARY_API_SECRET
+  api_secret: process.env.CLOUDINARY_API_SECRET,
 });
 
-// Middleware
-app.use(cors());
+// Configuración de CORS
+const corsOptions = {
+  origin: process.env.NEXT_PUBLIC_APP_URL || '*',
+  methods: ['GET', 'POST', 'OPTIONS'],
+  allowedHeaders: ['Content-Type'],
+  credentials: true,
+};
+
+app.use(cors(corsOptions));
 app.use(express.json());
 
-// Almacenamiento temporal de chunks
-const chunks = new Map();
+// Directorio temporal para los chunks
+const TEMP_DIR = path.join(__dirname, 'temp');
+if (!fs.existsSync(TEMP_DIR)) {
+  fs.mkdirSync(TEMP_DIR);
+}
 
-// Inicializar la subida
-app.post('/api/upload/init', (req, res) => {
-  const { fileId, fileName, fileSize, totalChunks } = req.body;
-  
-  chunks.set(fileId, {
-    fileName,
-    fileSize,
-    totalChunks,
-    receivedChunks: 0,
-    chunks: new Array(totalChunks)
-  });
+// Almacenamiento de información de subida
+const uploads = new Map();
 
-  res.json({ success: true });
+// Configuración de multer para los chunks
+const upload = multer({ dest: TEMP_DIR });
+
+// Endpoint de salud
+app.get('/health', (req, res) => {
+  res.json({ status: 'ok' });
 });
 
-// Subir chunk
-app.post('/api/upload/chunk', upload.single('chunk'), async (req, res) => {
+// Iniciar una nueva subida
+app.post('/upload/init', (req, res) => {
   try {
-    const { fileId, chunkIndex, totalChunks } = req.body;
-    const chunkData = chunks.get(fileId);
-
-    if (!chunkData) {
-      return res.status(404).json({ error: 'No se encontró la sesión de subida' });
+    const { uploadId, fileName, fileSize } = req.body;
+    
+    if (!uploadId || !fileName || !fileSize) {
+      return res.status(400).json({ error: 'Faltan campos requeridos' });
     }
 
-    // Guardar el chunk
-    const chunkPath = path.join('uploads', `${fileId}-${chunkIndex}`);
-    await writeFileAsync(chunkPath, req.file.buffer);
-    chunkData.chunks[chunkIndex] = chunkPath;
-    chunkData.receivedChunks++;
+    uploads.set(uploadId, {
+      fileName,
+      fileSize,
+      chunks: [],
+      uploadedSize: 0,
+      createdAt: Date.now(),
+    });
 
-    // Si todos los chunks han sido recibidos, procesar el archivo
-    if (chunkData.receivedChunks === parseInt(totalChunks)) {
-      // Combinar chunks
-      const tempFilePath = path.join('uploads', fileId);
-      const writeStream = fs.createWriteStream(tempFilePath);
+    res.json({ message: 'Subida iniciada' });
+  } catch (error) {
+    console.error('Error al iniciar subida:', error);
+    res.status(500).json({ error: 'Error al iniciar la subida' });
+  }
+});
 
-      for (let i = 0; i < chunkData.chunks.length; i++) {
-        const chunkContent = await readFileAsync(chunkData.chunks[i]);
-        writeStream.write(chunkContent);
-        await unlinkAsync(chunkData.chunks[i]); // Eliminar chunk individual
-      }
+// Subir un chunk
+app.post('/upload/chunk', upload.single('chunk'), async (req, res) => {
+  try {
+    const { uploadId, chunkIndex, totalChunks } = req.body;
+    const uploadInfo = uploads.get(uploadId);
 
-      writeStream.end();
-
-      // Subir a Cloudinary
-      const result = await cloudinary.uploader.upload(tempFilePath, {
-        folder: 'revisiones',
-        resource_type: 'auto'
-      });
-
-      // Limpiar
-      await unlinkAsync(tempFilePath);
-      chunks.delete(fileId);
-
-      res.json({ url: result.secure_url });
-    } else {
-      res.json({ success: true });
+    if (!uploadInfo) {
+      return res.status(404).json({ error: 'Subida no encontrada' });
     }
+
+    if (!req.file) {
+      return res.status(400).json({ error: 'No se recibió ningún chunk' });
+    }
+
+    // Mover el chunk al directorio temporal
+    const chunkPath = path.join(TEMP_DIR, `${uploadId}-${chunkIndex}`);
+    await writeFileAsync(chunkPath, fs.readFileSync(req.file.path));
+    await unlinkAsync(req.file.path);
+
+    uploadInfo.chunks[chunkIndex] = chunkPath;
+    uploadInfo.uploadedSize += req.file.size;
+
+    res.json({ message: 'Chunk recibido' });
   } catch (error) {
     console.error('Error al procesar chunk:', error);
     res.status(500).json({ error: 'Error al procesar el chunk' });
   }
 });
 
-// Finalizar subida
-app.post('/api/upload/finalize', (req, res) => {
-  const { fileId } = req.body;
-  const chunkData = chunks.get(fileId);
+// Finalizar la subida y subir a Cloudinary
+app.post('/upload/finalize', async (req, res) => {
+  try {
+    const { uploadId, fileName } = req.body;
+    const uploadInfo = uploads.get(uploadId);
 
-  if (!chunkData) {
-    return res.status(404).json({ error: 'No se encontró la sesión de subida' });
+    if (!uploadInfo) {
+      return res.status(404).json({ error: 'Subida no encontrada' });
+    }
+
+    // Verificar que todos los chunks estén presentes
+    const missingChunks = uploadInfo.chunks.findIndex(chunk => !chunk);
+    if (missingChunks !== -1) {
+      return res.status(400).json({ error: `Falta el chunk ${missingChunks}` });
+    }
+
+    // Crear el archivo completo
+    const filePath = path.join(TEMP_DIR, fileName);
+    const writeStream = fs.createWriteStream(filePath);
+
+    for (const chunkPath of uploadInfo.chunks) {
+      const chunkBuffer = fs.readFileSync(chunkPath);
+      writeStream.write(chunkBuffer);
+      await unlinkAsync(chunkPath);
+    }
+
+    writeStream.end();
+
+    // Esperar a que se complete la escritura
+    await new Promise((resolve, reject) => {
+      writeStream.on('finish', resolve);
+      writeStream.on('error', reject);
+    });
+
+    // Subir a Cloudinary
+    const result = await cloudinary.uploader.upload(filePath, {
+      resource_type: 'auto',
+      folder: 'revisiones',
+    });
+
+    // Limpiar
+    await unlinkAsync(filePath);
+    uploads.delete(uploadId);
+
+    res.json({ url: result.secure_url });
+  } catch (error) {
+    console.error('Error al finalizar la subida:', error);
+    res.status(500).json({ error: 'Error al finalizar la subida' });
   }
-
-  if (chunkData.receivedChunks !== chunkData.totalChunks) {
-    return res.status(400).json({ error: 'No se han recibido todos los chunks' });
-  }
-
-  res.json({ success: true });
 });
 
-// Crear directorio de uploads si no existe
-const uploadsDir = path.join(__dirname, 'uploads');
-if (!fs.existsSync(uploadsDir)) {
-  fs.mkdirSync(uploadsDir);
-}
+// Limpiar subidas antiguas periódicamente
+setInterval(() => {
+  const now = Date.now();
+  for (const [uploadId, uploadInfo] of uploads.entries()) {
+    if (now - uploadInfo.createdAt > 24 * 60 * 60 * 1000) { // 24 horas
+      uploads.delete(uploadId);
+    }
+  }
+}, 60 * 60 * 1000); // Cada hora
 
-const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => {
-  console.log(`Servidor corriendo en puerto ${PORT}`);
+app.listen(port, () => {
+  console.log(`Servidor escuchando en el puerto ${port}`);
 }); 
