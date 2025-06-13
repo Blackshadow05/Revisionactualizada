@@ -8,9 +8,10 @@ interface UploadStatus {
   revisionId: string;
   fileName: string;
   progress: number;
-  status: 'pending' | 'completed' | 'error';
+  status: 'pending' | 'uploading' | 'processing' | 'storing' | 'updating' | 'completed' | 'error';
   error?: string;
   url?: string;
+  message?: string;
 }
 
 interface UploadContextType {

@@ -10,6 +10,7 @@ import { useAuth } from '@/context/AuthContext';
 import { useUpload } from '@/context/UploadContext';
 import { uploadFileInChunks } from '@/lib/uploadService';
 import Link from 'next/link';
+import UploadProgress from '@/components/UploadProgress';
 
 interface RevisionData {
   casita: string;
@@ -781,6 +782,11 @@ export default function NuevaRevision() {
               {error && (
                 <div className="mb-4 bg-red-500/10 border border-red-500 rounded-lg p-4">
                   <p className="text-red-500 text-center font-semibold">{error}</p>
+                </div>
+              )}
+              {revisionId && (
+                <div className="mb-4">
+                  <UploadProgress revisionId={revisionId} />
                 </div>
               )}
               <button

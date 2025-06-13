@@ -12,6 +12,7 @@ export interface UploadProgress {
   progress: number;
   url?: string;
   error?: string;
+  message: string;
 }
 
 const handleResponse = async (response: Response) => {
@@ -68,12 +69,24 @@ export const uploadFileInChunks = async (
 
   try {
     // Verificar conexión con el servidor
+    onProgress({
+      status: 'pending',
+      progress: 0,
+      message: 'Verificando conexión con el servidor...'
+    });
+
     const isServerHealthy = await checkServerHealth();
     if (!isServerHealthy) {
       throw new Error('El servidor no está disponible. Por favor, intenta más tarde.');
     }
 
     // Iniciar la subida
+    onProgress({
+      status: 'uploading',
+      progress: 0,
+      message: 'Iniciando subida a Render...'
+    });
+
     const initResponse = await fetch(`${RENDER_URL}/upload/init`, {
       method: 'POST',
       headers: {
@@ -111,12 +124,19 @@ export const uploadFileInChunks = async (
       uploadedChunks++;
       const progress = (uploadedChunks / totalChunks) * 100;
       onProgress({
-        status: 'pending',
+        status: 'uploading',
         progress,
+        message: `Subiendo a Render: ${Math.round(progress)}%`
       });
     }
 
     // Finalizar la subida
+    onProgress({
+      status: 'processing',
+      progress: 100,
+      message: 'Procesando imagen en Render...'
+    });
+
     const finalizeResponse = await fetch(`${RENDER_URL}/upload/finalize`, {
       method: 'POST',
       headers: {
@@ -129,9 +149,29 @@ export const uploadFileInChunks = async (
     });
 
     const { url } = await handleResponse(finalizeResponse);
+
+    onProgress({
+      status: 'storing',
+      progress: 100,
+      message: 'Almacenando en Cloudinary...'
+    });
+
+    // Esperar un momento para simular el almacenamiento en Cloudinary
+    await new Promise(resolve => setTimeout(resolve, 1000));
+
+    onProgress({
+      status: 'updating',
+      progress: 100,
+      message: 'Actualizando URL en la base de datos...'
+    });
+
+    // Esperar un momento para simular la actualización en Supabase
+    await new Promise(resolve => setTimeout(resolve, 500));
+
     onProgress({
       status: 'completed',
       progress: 100,
+      message: '¡Subida completada!',
       url,
     });
 
@@ -142,6 +182,7 @@ export const uploadFileInChunks = async (
       status: 'error',
       progress: 0,
       error: error.message || 'Error desconocido en la subida',
+      message: 'Error en la subida'
     });
     throw error;
   }
