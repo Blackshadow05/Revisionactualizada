@@ -127,6 +127,15 @@ export default function NuevaRevision() {
   const cameraInputRef2 = useRef<HTMLInputElement>(null);
   const cameraInputRef3 = useRef<HTMLInputElement>(null);
 
+  // Estados para modal de imagen
+  const [modalOpen, setModalOpen] = useState(false);
+  const [modalImg, setModalImg] = useState<string | null>(null);
+  const [zoom, setZoom] = useState(1);
+  const [position, setPosition] = useState({ x: 0, y: 0 });
+  const [isDragging, setIsDragging] = useState(false);
+  const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
+  const imgRef = useRef<HTMLImageElement>(null);
+
   // Efecto para actualizar quien_revisa cuando cambie el usuario
   useEffect(() => {
     if (user) {
@@ -146,6 +155,27 @@ export default function NuevaRevision() {
     };
     initDeviceInfo();
   }, []);
+
+  // Efecto para cerrar modal con Escape y limpiar URLs
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && modalOpen) {
+        closeModal();
+      }
+    };
+
+    if (modalOpen) {
+      document.addEventListener('keydown', handleKeyDown);
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = 'unset';
+    }
+
+    return () => {
+      document.removeEventListener('keydown', handleKeyDown);
+      document.body.style.overflow = 'unset';
+    };
+  }, [modalOpen]);
 
   const showEvidenceFields = ['Check in', 'Upsell', 'Back to Back'].includes(formData.caja_fuerte);
 
@@ -184,58 +214,128 @@ export default function NuevaRevision() {
     setHighlightedField(nextEmptyField || null);
   };
 
+  // Funciones para modal de imagen
+  const openModal = (imageUrl: string) => {
+    setModalImg(imageUrl);
+    setModalOpen(true);
+    setZoom(1);
+    setPosition({ x: 0, y: 0 });
+  };
+
+  const closeModal = () => {
+    setModalOpen(false);
+    setModalImg(null);
+    setZoom(1);
+    setPosition({ x: 0, y: 0 });
+  };
+
+  const handleWheel = (e: React.WheelEvent) => {
+    e.preventDefault();
+    const newZoom = zoom + (e.deltaY > 0 ? -0.1 : 0.1);
+    setZoom(Math.max(0.5, Math.min(5, newZoom)));
+  };
+
+  const handleMouseDownImage = (e: React.MouseEvent) => {
+    if (zoom > 1) {
+      setIsDragging(true);
+      setDragStart({
+        x: e.clientX - position.x,
+        y: e.clientY - position.y
+      });
+    }
+  };
+
+  const handleMouseMoveImage = (e: React.MouseEvent) => {
+    if (isDragging && zoom > 1) {
+      setPosition({
+        x: e.clientX - dragStart.x,
+        y: e.clientY - dragStart.y
+      });
+    }
+  };
+
+  const handleMouseUpImage = () => {
+    setIsDragging(false);
+  };
+
+  // Función para comprimir imagen usando canvas (misma configuración que detalles)
+  const compressImage = (file: File, maxWidth = 1920, maxHeight = 1080, quality = 0.8): Promise<File> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.readAsDataURL(file);
+      reader.onload = (event) => {
+        const img = new Image();
+        img.src = event.target?.result as string;
+        img.onload = () => {
+          let width = img.width;
+          let height = img.height;
+
+          // Redimensionar manteniendo la proporción
+          if (width > height) {
+            if (width > maxWidth) {
+              height *= maxWidth / width;
+              width = maxWidth;
+            }
+          } else {
+            if (height > maxHeight) {
+              width *= maxHeight / height;
+              height = maxHeight;
+            }
+          }
+
+          const canvas = document.createElement('canvas');
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext('2d');
+          ctx?.drawImage(img, 0, 0, width, height);
+
+          // Convertir canvas a blob
+          canvas.toBlob((blob) => {
+            if (!blob) {
+              reject(new Error('No se pudo comprimir la imagen'));
+              return;
+            }
+            const compressedFile = new File([blob], file.name, {
+              type: file.type,
+              lastModified: Date.now()
+            });
+            resolve(compressedFile);
+          }, file.type, quality);
+        };
+        img.onerror = reject;
+      };
+      reader.onerror = reject;
+    });
+  };
+
   // Función para comprimir automáticamente en segundo plano
   const compressFileInBackground = async (field: keyof FileData, file: File) => {
-    const { OptimizedImageCompressor } = await import('@/lib/imageCompressionOptimized');
-    
-    // Verificar compatibilidad
-    const { canHandle, reason } = OptimizedImageCompressor.canHandleFile(file);
-    if (!canHandle) {
-      setCompressionStatus(prev => ({
-        ...prev,
-        [field]: { status: 'error', progress: 0, stage: '', error: reason }
-      }));
-      showError(`Error con ${field}: ${reason}`);
-      return;
-    }
-
     // Iniciar compresión
     setCompressionStatus(prev => ({
       ...prev,
-      [field]: { status: 'compressing', progress: 0, stage: 'Iniciando...' }
+      [field]: { status: 'compressing', progress: 50, stage: 'Comprimiendo imagen...' }
     }));
 
     try {
-      const result = await OptimizedImageCompressor.compressWithBreaks(
-        file,
-        (progress, stage) => {
-          setCompressionStatus(prev => ({
-            ...prev,
-            [field]: { status: 'compressing', progress, stage }
-          }));
-        }
-      );
+      const compressedFile = await compressImage(file);
+      
+      // Calcular porcentaje de compresión
+      const compressionRatio = Math.round((1 - compressedFile.size / file.size) * 100);
 
       // Guardar archivo comprimido
       setCompressedFiles(prev => ({
         ...prev,
-        [field]: result.file
+        [field]: compressedFile
       }));
-
-      // Mostrar información de calidad alta
-      const qualityInfo = result.imageAnalysis ? 
-        `${Math.round(result.imageAnalysis.recommendedQuality * 100)}% calidad` : '90% calidad';
 
       setCompressionStatus(prev => ({
         ...prev,
         [field]: { 
           status: 'completed', 
           progress: 100, 
-          stage: `Completado - ${result.compressionRatio}% compresión (${qualityInfo} ALTA)` 
+          stage: `Completado - ${compressionRatio}% compresión (Calidad 80% ALTA)` 
         }
       }));
-
-
 
     } catch (error) {
       setCompressionStatus(prev => ({
@@ -813,6 +913,37 @@ export default function NuevaRevision() {
                           </div>
                           <div>
                             <div className="text-white font-medium">Evidencia 1</div>
+                            {/* Indicador de estado de compresión */}
+                            {compressionStatus.evidencia_01.status !== 'idle' && (
+                              <div className="mt-1 text-xs text-gray-400">
+                                {compressionStatus.evidencia_01.status === 'compressing' && (
+                                  <span className="text-[#c9a45c]">🔄 Comprimiendo...</span>
+                                )}
+                                {compressionStatus.evidencia_01.status === 'completed' && (
+                                  <span className="text-green-400">✅ {compressionStatus.evidencia_01.stage}</span>
+                                )}
+                                {compressionStatus.evidencia_01.status === 'error' && (
+                                  <span className="text-red-400">❌ Error: {compressionStatus.evidencia_01.error}</span>
+                                )}
+                              </div>
+                            )}
+                            {/* Preview de imagen clickeable */}
+                            {formData.evidencia_01 instanceof File && (
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  const url = URL.createObjectURL(formData.evidencia_01 as File);
+                                  openModal(url);
+                                }}
+                                className="mt-2 text-xs text-blue-400 hover:text-blue-300 underline flex items-center gap-1"
+                              >
+                                <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                                </svg>
+                                Ver en pantalla completa
+                              </button>
+                            )}
                           </div>
                         </div>
                         <button
@@ -908,6 +1039,37 @@ export default function NuevaRevision() {
                           </div>
                           <div>
                             <div className="text-white font-medium">Evidencia 2</div>
+                            {/* Indicador de estado de compresión */}
+                            {compressionStatus.evidencia_02.status !== 'idle' && (
+                              <div className="mt-1 text-xs text-gray-400">
+                                {compressionStatus.evidencia_02.status === 'compressing' && (
+                                  <span className="text-[#c9a45c]">🔄 Comprimiendo...</span>
+                                )}
+                                {compressionStatus.evidencia_02.status === 'completed' && (
+                                  <span className="text-green-400">✅ {compressionStatus.evidencia_02.stage}</span>
+                                )}
+                                {compressionStatus.evidencia_02.status === 'error' && (
+                                  <span className="text-red-400">❌ Error: {compressionStatus.evidencia_02.error}</span>
+                                )}
+                              </div>
+                            )}
+                            {/* Preview de imagen clickeable */}
+                            {formData.evidencia_02 instanceof File && (
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  const url = URL.createObjectURL(formData.evidencia_02 as File);
+                                  openModal(url);
+                                }}
+                                className="mt-2 text-xs text-blue-400 hover:text-blue-300 underline flex items-center gap-1"
+                              >
+                                <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                                </svg>
+                                Ver en pantalla completa
+                              </button>
+                            )}
                           </div>
                         </div>
                         <button
@@ -1003,6 +1165,37 @@ export default function NuevaRevision() {
                           </div>
                           <div>
                             <div className="text-white font-medium">Evidencia 3</div>
+                            {/* Indicador de estado de compresión */}
+                            {compressionStatus.evidencia_03.status !== 'idle' && (
+                              <div className="mt-1 text-xs text-gray-400">
+                                {compressionStatus.evidencia_03.status === 'compressing' && (
+                                  <span className="text-[#c9a45c]">🔄 Comprimiendo...</span>
+                                )}
+                                {compressionStatus.evidencia_03.status === 'completed' && (
+                                  <span className="text-green-400">✅ {compressionStatus.evidencia_03.stage}</span>
+                                )}
+                                {compressionStatus.evidencia_03.status === 'error' && (
+                                  <span className="text-red-400">❌ Error: {compressionStatus.evidencia_03.error}</span>
+                                )}
+                              </div>
+                            )}
+                            {/* Preview de imagen clickeable */}
+                            {formData.evidencia_03 instanceof File && (
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  const url = URL.createObjectURL(formData.evidencia_03 as File);
+                                  openModal(url);
+                                }}
+                                className="mt-2 text-xs text-blue-400 hover:text-blue-300 underline flex items-center gap-1"
+                              >
+                                <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                                </svg>
+                                Ver en pantalla completa
+                              </button>
+                            )}
                           </div>
                         </div>
                         <button
@@ -1153,6 +1346,124 @@ export default function NuevaRevision() {
           </div>
         </form>
       </div>
+
+      {/* Modal de imagen en pantalla completa */}
+      {modalOpen && modalImg && (
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 overflow-hidden">
+          <div className="relative w-[90vw] h-[90vh] overflow-hidden bg-gradient-to-br from-[#1e2538]/20 to-[#2a3347]/20 backdrop-blur-md rounded-2xl border border-[#3d4659]/30">
+            {/* Botón de cerrar */}
+            <button
+              onClick={closeModal}
+              className="absolute top-4 right-4 z-10 w-10 h-10 bg-red-500/20 hover:bg-red-500/30 border border-red-500/50 hover:border-red-500/70 rounded-full flex items-center justify-center transition-all duration-200 backdrop-blur-sm"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+            
+            {/* Controles de zoom */}
+            <div className="absolute top-4 left-4 z-10 flex items-center gap-2 bg-black/50 backdrop-blur-sm rounded-lg px-3 py-2">
+              <button
+                onClick={() => setZoom(Math.max(0.5, zoom - 0.25))}
+                className="w-8 h-8 bg-white/10 hover:bg-white/20 rounded-lg flex items-center justify-center transition-colors"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 12H4" />
+                </svg>
+              </button>
+              <span className="text-white text-sm font-mono min-w-[3rem] text-center">
+                {Math.round(zoom * 100)}%
+              </span>
+              <button
+                onClick={() => setZoom(Math.min(5, zoom + 0.25))}
+                className="w-8 h-8 bg-white/10 hover:bg-white/20 rounded-lg flex items-center justify-center transition-colors"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                </svg>
+              </button>
+              <button
+                onClick={() => {
+                  setZoom(1);
+                  setPosition({ x: 0, y: 0 });
+                }}
+                className="ml-2 px-3 py-1 bg-white/10 hover:bg-white/20 rounded-lg text-white text-xs transition-colors"
+              >
+                Reset
+              </button>
+            </div>
+
+            <div className="w-full h-full flex items-center justify-center p-4">
+              <img
+                ref={imgRef}
+                src={modalImg}
+                alt="Evidencia"
+                className="max-w-full max-h-full object-contain rounded-xl shadow-2xl"
+                style={{
+                  transform: `scale(${zoom}) translate(${position.x}px, ${position.y}px)`,
+                  cursor: zoom > 1 ? (isDragging ? 'grabbing' : 'grab') : 'default',
+                  transition: isDragging ? 'none' : 'transform 0.1s ease-out',
+                  touchAction: 'none'
+                }}
+                onWheel={handleWheel}
+                onMouseDown={handleMouseDownImage}
+                onMouseMove={handleMouseMoveImage}
+                onMouseUp={handleMouseUpImage}
+                onMouseLeave={handleMouseUpImage}
+                onTouchStart={(e) => {
+                  if (e.touches.length === 2) {
+                    e.preventDefault();
+                    const touch1 = e.touches[0];
+                    const touch2 = e.touches[1];
+                    const initialDistance = Math.hypot(
+                      touch2.clientX - touch1.clientX,
+                      touch2.clientY - touch1.clientY
+                    );
+                    setDragStart({ x: initialDistance, y: 0 });
+                  } else if (e.touches.length === 1 && zoom > 1) {
+                    e.preventDefault();
+                    setIsDragging(true);
+                    setDragStart({
+                      x: e.touches[0].clientX - position.x,
+                      y: e.touches[0].clientY - position.y
+                    });
+                  }
+                }}
+                onTouchMove={(e) => {
+                  if (e.touches.length === 2) {
+                    e.preventDefault();
+                    const touch1 = e.touches[0];
+                    const touch2 = e.touches[1];
+                    const currentDistance = Math.hypot(
+                      touch2.clientX - touch1.clientX,
+                      touch2.clientY - touch1.clientY
+                    );
+                    const scaleChange = currentDistance / dragStart.x;
+                    setZoom(Math.max(0.5, Math.min(5, zoom * scaleChange)));
+                    setDragStart({ x: currentDistance, y: 0 });
+                  } else if (e.touches.length === 1 && isDragging && zoom > 1) {
+                    e.preventDefault();
+                    setPosition({
+                      x: e.touches[0].clientX - dragStart.x,
+                      y: e.touches[0].clientY - dragStart.y
+                    });
+                  }
+                }}
+                onTouchEnd={() => {
+                  setIsDragging(false);
+                }}
+              />
+            </div>
+
+            {/* Instrucciones */}
+            <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 bg-black/50 backdrop-blur-sm rounded-lg px-4 py-2">
+              <p className="text-white text-xs text-center">
+                🖱️ Rueda del ratón para zoom • 👆 Arrastra para mover • 📱 Pellizca para zoom
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
     </main>
   );
 } 

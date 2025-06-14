@@ -168,7 +168,9 @@ export default function NuevaNota() {
         }
 
         const data = await response.json();
-        evidenciaUrl = data.secure_url;
+        // Agregar optimizaciones automáticas f_auto,q_auto a la URL
+        const originalUrl = data.secure_url;
+        evidenciaUrl = originalUrl.replace('/upload/', '/upload/f_auto,q_auto/');
       }
 
       // Obtener fecha y hora local del dispositivo

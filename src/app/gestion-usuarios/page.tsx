@@ -96,16 +96,34 @@ export default function GestionUsuarios() {
 
     try {
       setIsSubmitting(true);
-      const { error } = await supabase
-        .from('Usuarios')
-        .insert([{
-          Usuario: nuevoUsuario.Usuario,
-          password_hash: nuevoUsuario.password_hash,
-          Rol: nuevoUsuario.Rol,
-          created_at: new Date().toISOString()
-        }]);
+      
+      if (isEditing && editingId) {
+        // Actualizar usuario existente
+        const { error } = await supabase
+          .from('Usuarios')
+          .update({
+            Usuario: nuevoUsuario.Usuario,
+            password_hash: nuevoUsuario.password_hash,
+            Rol: nuevoUsuario.Rol
+          })
+          .eq('id', editingId);
 
-      if (error) throw error;
+        if (error) throw error;
+        console.log('Usuario actualizado correctamente');
+      } else {
+        // Crear nuevo usuario
+        const { error } = await supabase
+          .from('Usuarios')
+          .insert([{
+            Usuario: nuevoUsuario.Usuario,
+            password_hash: nuevoUsuario.password_hash,
+            Rol: nuevoUsuario.Rol,
+            created_at: new Date().toISOString()
+          }]);
+
+        if (error) throw error;
+        console.log('Usuario creado correctamente');
+      }
 
       setNuevoUsuario({
         Usuario: '',
@@ -114,9 +132,10 @@ export default function GestionUsuarios() {
       });
       setIsEditing(false);
       setEditingId(null);
+      setError(null);
       await fetchUsuarios();
     } catch (error: any) {
-      console.error('Error al crear usuario:', error);
+      console.error('Error al procesar usuario:', error);
       setError(error.message);
     } finally {
       setIsSubmitting(false);
@@ -145,8 +164,6 @@ export default function GestionUsuarios() {
       setError('No se pudo conectar con la base de datos');
       return;
     }
-
-    if (!confirm('¿Estás seguro de que deseas eliminar este usuario?')) return;
 
     try {
       const { error } = await supabase
@@ -293,7 +310,7 @@ export default function GestionUsuarios() {
                 disabled={isSubmitting}
                 className="px-4 py-2 bg-[#c9a45c] text-white rounded-lg hover:bg-[#d4b06c] transition-all transform hover:scale-[1.02] shadow-[0_8px_16px_rgb(0_0_0/0.2)] hover:shadow-[0_12px_24px_rgb(0_0_0/0.3)] relative overflow-hidden border-2 border-white/40 hover:border-white/60"
               >
-                {isSubmitting ? 'Guardando...' : 'Guardar'}
+                {isSubmitting ? 'Guardando...' : (isEditing ? 'Actualizar Usuario' : 'Crear Usuario')}
               </button>
             </div>
           </form>

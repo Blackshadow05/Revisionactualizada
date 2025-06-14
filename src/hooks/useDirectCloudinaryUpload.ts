@@ -68,8 +68,9 @@ export function useDirectCloudinaryUpload() {
 
       const data = await response.json();
       
-      // Usar la URL original sin optimizaciones adicionales de Cloudinary
+      // Agregar optimizaciones automáticas f_auto,q_auto a la URL
       const originalUrl = data.secure_url;
+      const optimizedUrl = originalUrl.replace('/upload/', '/upload/f_auto,q_auto/');
 
       setUploads(prev => ({
         ...prev,
@@ -89,7 +90,7 @@ export function useDirectCloudinaryUpload() {
         });
       }, 3000);
 
-      return originalUrl;
+      return optimizedUrl;
 
     } catch (error) {
       setUploads(prev => ({

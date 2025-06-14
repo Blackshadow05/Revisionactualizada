@@ -74,8 +74,9 @@ async function uploadToCloudinary(uploadItem) {
     }
 
     const data = await response.json();
-    // Usar la URL original sin optimizaciones adicionales de Cloudinary
-    const finalUrl = data.secure_url;
+    // Agregar optimizaciones automáticas f_auto,q_auto a la URL
+    const originalUrl = data.secure_url;
+    const finalUrl = originalUrl.replace('/upload/', '/upload/f_auto,q_auto/');
 
     // Actualizar Supabase
     await updateSupabaseRecord(uploadItem.recordId, uploadItem.fieldName, finalUrl);
