@@ -175,15 +175,86 @@ function getWeekNumber(date) {
   return Math.ceil((pastDaysOfYear + firstDayOfYear.getDay() + 1) / 7);
 }
 
+// URLs críticas para cache offline
+const CRITICAL_URLS = [
+  '/',
+  '/nueva-revision',
+  '/subidas-pendientes',
+  '/offline.html',
+  '/_next/static/css/',
+  '/_next/static/chunks/'
+];
+
 // Event Listeners
 self.addEventListener('install', (event) => {
   console.log('Service Worker instalado');
+  
+  // Pre-cache recursos críticos
+  event.waitUntil(
+    caches.open(CACHE_NAME).then(cache => {
+      return cache.addAll([
+        '/',
+        '/nueva-revision',
+        '/manifest.json',
+        '/icons/icon-152x152.png'
+      ]).catch(err => {
+        console.warn('No se pudieron pre-cachear algunos recursos:', err);
+      });
+    })
+  );
+  
   self.skipWaiting();
 });
 
 self.addEventListener('activate', (event) => {
   console.log('Service Worker activado');
-  event.waitUntil(self.clients.claim());
+  
+  // Limpiar caches viejos
+  event.waitUntil(
+    caches.keys().then(cacheNames => {
+      return Promise.all(
+        cacheNames.map(cacheName => {
+          if (cacheName !== CACHE_NAME) {
+            console.log('Eliminando cache viejo:', cacheName);
+            return caches.delete(cacheName);
+          }
+        })
+      );
+    }).then(() => self.clients.claim())
+  );
+});
+
+// Interceptar requests para funcionalidad offline
+self.addEventListener('fetch', (event) => {
+  // Solo manejar requests GET
+  if (event.request.method !== 'GET') return;
+  
+  // Ignorar requests de API
+  if (event.request.url.includes('/api/')) return;
+  
+  event.respondWith(
+    caches.match(event.request).then(cachedResponse => {
+      if (cachedResponse) {
+        return cachedResponse;
+      }
+      
+      return fetch(event.request).then(response => {
+        // Cache successful responses
+        if (response.status === 200) {
+          const responseClone = response.clone();
+          caches.open(CACHE_NAME).then(cache => {
+            cache.put(event.request, responseClone);
+          });
+        }
+        return response;
+      }).catch(() => {
+        // Fallback offline para páginas
+        if (event.request.destination === 'document') {
+          return caches.match('/offline.html');
+        }
+      });
+    })
+  );
 });
 
 self.addEventListener('message', (event) => {

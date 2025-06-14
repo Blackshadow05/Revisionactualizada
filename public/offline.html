@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sin Conexión - Revision Casitas</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: linear-gradient(135deg, #1a1f35 0%, #2d364c 100%);
+            color: white;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            padding: 20px;
+        }
+        
+        .offline-container {
+            max-width: 500px;
+            padding: 40px;
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        
+        .icon {
+            font-size: 4rem;
+            margin-bottom: 20px;
+            opacity: 0.8;
+        }
+        
+        h1 {
+            font-size: 2rem;
+            margin-bottom: 15px;
+            color: #f8fafc;
+        }
+        
+        p {
+            font-size: 1.1rem;
+            margin-bottom: 25px;
+            opacity: 0.9;
+            line-height: 1.6;
+        }
+        
+        .retry-btn {
+            background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
+            color: white;
+            border: none;
+            padding: 12px 30px;
+            border-radius: 10px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+        
+        .retry-btn:hover {
+            transform: translateY(-2px);
+        }
+        
+        .features {
+            margin-top: 30px;
+            text-align: left;
+        }
+        
+        .feature {
+            margin: 10px 0;
+            opacity: 0.8;
+        }
+        
+        .feature::before {
+            content: "✓ ";
+            color: #10b981;
+            font-weight: bold;
+            margin-right: 8px;
+        }
+    </style>
+</head>
+<body>
+    <div class="offline-container">
+        <div class="icon">📱</div>
+        <h1>Sin Conexión</h1>
+        <p>No se puede conectar a internet en este momento. La aplicación seguirá funcionando con los datos guardados localmente.</p>
+        
+        <button class="retry-btn" onclick="window.location.reload()">
+            Reintentar Conexión
+        </button>
+        
+        <div class="features">
+            <h3 style="margin-bottom: 15px; color: #f1f5f9;">Funciones disponibles offline:</h3>
+            <div class="feature">Ver revisiones guardadas</div>
+            <div class="feature">Crear nuevas revisiones (se sincronizarán al conectar)</div>
+            <div class="feature">Las subidas pendientes continuarán automáticamente</div>
+        </div>
+    </div>
+
+    <script>
+        // Detectar cuando vuelve la conexión
+        window.addEventListener('online', function() {
+            window.location.reload();
+        });
+        
+        // Mostrar estado de conexión
+        function updateConnectionStatus() {
+            if (navigator.onLine) {
+                window.location.reload();
+            }
+        }
+        
+        // Verificar conexión cada 10 segundos
+        setInterval(updateConnectionStatus, 10000);
+    </script>
+</body>
+</html> 
