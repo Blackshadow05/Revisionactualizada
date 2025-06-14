@@ -12,12 +12,17 @@ const inter = Inter({ subsets: ['latin'] })
 export const metadata: Metadata = {
   title: 'Sistema de Revisión de Casitas',
   description: 'Sistema moderno para la gestión y control de revisiones',
-  themeColor: '#757575',
   appleWebApp: {
     capable: true,
     statusBarStyle: 'default',
     title: 'Revision Casitas',
   },
+}
+
+export const viewport = {
+  width: 'device-width',
+  initialScale: 1,
+  themeColor: '#757575',
 }
 
 export default function RootLayout({
