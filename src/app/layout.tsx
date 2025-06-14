@@ -26,6 +26,9 @@ export default function RootLayout({
           href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap"
           rel="stylesheet"
         />
+        <link rel="manifest" href="/manifest.json" />
+        <meta name="theme-color" content="#757575" />
+        <link rel="icon" type="image/png" sizes="152x152" href="/icons/icon-152x152.png" />
       </head>
       <body className={inter.className}>
         <AuthProvider>
