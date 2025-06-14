@@ -443,9 +443,48 @@ export default function Home() {
                 </div>
               )}
             </div>
-                        <h1 className="text-4xl md:text-6xl font-bold bg-gradient-to-r from-white via-[#c9a45c] to-[#f0c987] bg-clip-text text-transparent">
-              Revisión de Casitas
-            </h1>
+                        <div className="flex flex-col items-center gap-4">
+              <h1 className="text-4xl md:text-6xl font-bold bg-gradient-to-r from-white via-[#c9a45c] to-[#f0c987] bg-clip-text text-transparent">
+                Revisión de Casitas
+              </h1>
+              {/* Botón temporal de diagnóstico PWA */}
+              <button
+                onClick={() => {
+                  // Diagnóstico PWA
+                  console.log('=== DIAGNÓSTICO PWA ===');
+                  console.log('User Agent:', navigator.userAgent);
+                  console.log('Service Worker Support:', 'serviceWorker' in navigator);
+                  console.log('beforeinstallprompt Support:', 'onbeforeinstallprompt' in window);
+                  
+                  // Verificar manifest
+                  fetch('/manifest.json')
+                    .then(r => r.json())
+                    .then(manifest => {
+                      console.log('Manifest:', manifest);
+                      console.log('Icons:', manifest.icons);
+                      console.log('Display:', manifest.display);
+                      console.log('Start URL:', manifest.start_url);
+                    })
+                    .catch(e => console.error('Error cargando manifest:', e));
+                  
+                  // Verificar Service Worker
+                  if ('serviceWorker' in navigator) {
+                    navigator.serviceWorker.getRegistrations()
+                      .then(registrations => {
+                        console.log('Service Workers registrados:', registrations.length);
+                        registrations.forEach((reg, i) => {
+                          console.log(`SW ${i}:`, reg.scope, reg.active?.state);
+                        });
+                      });
+                  }
+                  
+                  alert('Revisa la consola del navegador para ver el diagnóstico PWA');
+                }}
+                className="px-4 py-2 bg-blue-500 text-white rounded-lg text-sm"
+              >
+                🔍 Diagnóstico PWA
+              </button>
+            </div>
           </div>
         </div>
 
