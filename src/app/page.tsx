@@ -112,18 +112,7 @@ export default function Home() {
     };
   }, [showMenuDropdown]);
 
-  // PWA Install Prompt Handler
-  useEffect(() => {
-    const handleBeforeInstallPrompt = (e: Event) => {
-      e.preventDefault();
-      (window as any).deferredPrompt = e;
-    };
 
-    if (typeof window !== 'undefined') {
-      window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
-      return () => window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
-    }
-  }, []);
 
   const fetchRevisiones = async () => {
     try {
@@ -433,47 +422,6 @@ export default function Home() {
               {showMenuDropdown && (
                 <div className="absolute top-14 left-0 w-64 bg-gradient-to-br from-[#1e2538]/95 to-[#2a3347]/95 backdrop-blur-md rounded-xl border border-[#3d4659]/50 shadow-2xl z-50">
                   <div className="p-2">
-                    <div className="px-3 py-2 text-xs font-medium text-[#c9a45c] uppercase tracking-wider border-b border-[#3d4659]/30 mb-2">
-                      Aplicación
-                    </div>
-                    <button
-                      onClick={() => {
-                        // PWA Install Logic
-                        if (typeof window !== 'undefined') {
-                          const beforeInstallPrompt = (window as any).deferredPrompt;
-                          if (beforeInstallPrompt) {
-                            beforeInstallPrompt.prompt();
-                            beforeInstallPrompt.userChoice.then((choiceResult: any) => {
-                              if (choiceResult.outcome === 'accepted') {
-                                console.log('Usuario aceptó instalar la PWA');
-                              } else {
-                                console.log('Usuario rechazó instalar la PWA');
-                              }
-                              (window as any).deferredPrompt = null;
-                            });
-                          } else {
-                            // Fallback para navegadores que no soportan beforeinstallprompt
-                            if (navigator.userAgent.includes('Chrome') || navigator.userAgent.includes('Edge')) {
-                              alert('Para instalar la aplicación:\n1. Haz clic en el menú de Chrome (⋮)\n2. Selecciona "Instalar Revisión de Casitas"\n3. Haz clic en "Instalar"');
-                            } else if (navigator.userAgent.includes('Firefox')) {
-                              alert('Firefox no soporta la instalación automática de PWA.\nPuedes añadir esta página a marcadores para acceso rápido.');
-                            } else if (navigator.userAgent.includes('Safari')) {
-                              alert('Para instalar en Safari:\n1. Haz clic en el botón de compartir\n2. Selecciona "Añadir a la pantalla de inicio"');
-                            } else {
-                              alert('Para instalar la aplicación, busca la opción "Instalar" o "Añadir a pantalla de inicio" en el menú de tu navegador.');
-                            }
-                          }
-                        }
-                        setShowMenuDropdown(false);
-                      }}
-                      className="w-full flex items-center gap-3 px-3 py-2.5 text-white hover:bg-[#3d4659]/30 rounded-lg transition-all duration-200 text-left mb-2"
-                    >
-                      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5 text-blue-400">
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" />
-                      </svg>
-                      📱 Instalar App
-                    </button>
-                    
                     <div className="px-3 py-2 text-xs font-medium text-[#c9a45c] uppercase tracking-wider border-b border-[#3d4659]/30 mb-2">
                       Reportes
                     </div>

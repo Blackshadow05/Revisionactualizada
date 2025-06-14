@@ -188,6 +188,7 @@ const CRITICAL_URLS = [
 // Event Listeners
 self.addEventListener('install', (event) => {
   console.log('Service Worker instalado');
+  self.skipWaiting(); // Activar inmediatamente
   
   // Pre-cache recursos críticos
   event.waitUntil(
@@ -196,7 +197,9 @@ self.addEventListener('install', (event) => {
         '/',
         '/nueva-revision',
         '/manifest.json',
-        '/icons/icon-152x152.png'
+        '/icons/icon-152x152.png',
+        '/icons/icon-192x192.png',
+        '/icons/icon-512x512.png'
       ]).catch(err => {
         console.warn('No se pudieron pre-cachear algunos recursos:', err);
       });
@@ -209,18 +212,22 @@ self.addEventListener('install', (event) => {
 self.addEventListener('activate', (event) => {
   console.log('Service Worker activado');
   
-  // Limpiar caches viejos
+  // Limpiar caches viejos y procesar cola
   event.waitUntil(
-    caches.keys().then(cacheNames => {
-      return Promise.all(
-        cacheNames.map(cacheName => {
-          if (cacheName !== CACHE_NAME) {
-            console.log('Eliminando cache viejo:', cacheName);
-            return caches.delete(cacheName);
-          }
-        })
-      );
-    }).then(() => self.clients.claim())
+    Promise.all([
+      caches.keys().then(cacheNames => {
+        return Promise.all(
+          cacheNames.map(cacheName => {
+            if (cacheName !== CACHE_NAME) {
+              console.log('Eliminando cache viejo:', cacheName);
+              return caches.delete(cacheName);
+            }
+          })
+        );
+      }),
+      self.clients.claim(),
+      processUploadQueue() // Procesar cola pendiente al activarse
+    ])
   );
 });
 
@@ -354,16 +361,7 @@ self.addEventListener('sync', (event) => {
   }
 });
 
-// Procesar cola cuando el SW se activa
-self.addEventListener('activate', (event) => {
-  console.log('Service Worker activado');
-  event.waitUntil(
-    Promise.all([
-      self.clients.claim(),
-      processUploadQueue() // Procesar cola pendiente al activarse
-    ])
-  );
-});
+// Procesar cola cuando el SW se activa (ya manejado arriba)
 
 // Mantener SW vivo con mensajes periódicos
 let keepAliveInterval;
