@@ -399,22 +399,71 @@ export default function DetallesRevision() {
     setEditedData({ ...editedData, [field]: value });
   };
 
-  if (loading) return <div className="min-h-screen bg-gradient-to-br from-[#1a1f35] to-[#2d364c] flex items-center justify-center text-white">Cargando...</div>;
-  if (error) return <div className="min-h-screen bg-gradient-to-br from-[#1a1f35] to-[#2d364c] flex items-center justify-center text-red-500">Error: {error}</div>;
-  if (!data) return <div className="min-h-screen bg-gradient-to-br from-[#1a1f35] to-[#2d364c] flex items-center justify-center text-white">No se encontraron datos</div>;
+  if (loading) return (
+    <div className="min-h-screen bg-gradient-to-br from-[#0f1419] via-[#1a1f35] to-[#1e2538] flex items-center justify-center relative overflow-hidden">
+      <div className="absolute inset-0 bg-[url('data:image/svg+xml,%3Csvg%20width%3D%2260%22%20height%3D%2260%22%20viewBox%3D%220%200%2060%2060%22%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%3E%3Cg%20fill%3D%22none%22%20fill-rule%3D%22evenodd%22%3E%3Cg%20fill%3D%22%23c9a45c%22%20fill-opacity%3D%220.03%22%3E%3Ccircle%20cx%3D%2230%22%20cy%3D%2230%22%20r%3D%222%22/%3E%3C/g%3E%3C/g%3E%3C/svg%3E')] opacity-50"></div>
+      <div className="relative z-10 flex flex-col items-center gap-4">
+        <div className="w-12 h-12 border-4 border-[#c9a45c]/30 border-t-[#c9a45c] rounded-full animate-spin"></div>
+        <p className="text-white text-lg font-medium">Cargando detalles...</p>
+      </div>
+    </div>
+  );
+  
+  if (error) return (
+    <div className="min-h-screen bg-gradient-to-br from-[#0f1419] via-[#1a1f35] to-[#1e2538] flex items-center justify-center relative overflow-hidden">
+      <div className="absolute inset-0 bg-[url('data:image/svg+xml,%3Csvg%20width%3D%2260%22%20height%3D%2260%22%20viewBox%3D%220%200%2060%2060%22%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%3E%3Cg%20fill%3D%22none%22%20fill-rule%3D%22evenodd%22%3E%3Cg%20fill%3D%22%23c9a45c%22%20fill-opacity%3D%220.03%22%3E%3Ccircle%20cx%3D%2230%22%20cy%3D%2230%22%20r%3D%222%22/%3E%3C/g%3E%3C/g%3E%3C/svg%3E')] opacity-50"></div>
+      <div className="relative z-10 bg-gradient-to-br from-red-500/10 to-red-600/10 backdrop-blur-md rounded-2xl p-8 border border-red-500/20 max-w-md mx-4">
+        <div className="flex items-center gap-3 mb-4">
+          <div className="w-12 h-12 bg-red-500/20 rounded-full flex items-center justify-center">
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z" />
+            </svg>
+          </div>
+          <h2 className="text-xl font-bold text-red-400">Error</h2>
+        </div>
+        <p className="text-red-300">{error}</p>
+      </div>
+    </div>
+  );
+  
+  if (!data) return (
+    <div className="min-h-screen bg-gradient-to-br from-[#0f1419] via-[#1a1f35] to-[#1e2538] flex items-center justify-center relative overflow-hidden">
+      <div className="absolute inset-0 bg-[url('data:image/svg+xml,%3Csvg%20width%3D%2260%22%20height%3D%2260%22%20viewBox%3D%220%200%2060%2060%22%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%3E%3Cg%20fill%3D%22none%22%20fill-rule%3D%22evenodd%22%3E%3Cg%20fill%3D%22%23c9a45c%22%20fill-opacity%3D%220.03%22%3E%3Ccircle%20cx%3D%2230%22%20cy%3D%2230%22%20r%3D%222%22/%3E%3C/g%3E%3C/g%3E%3C/svg%3E')] opacity-50"></div>
+      <div className="relative z-10 bg-gradient-to-br from-[#1e2538]/80 to-[#2a3347]/80 backdrop-blur-md rounded-2xl p-8 border border-[#3d4659]/50 max-w-md mx-4">
+        <div className="flex items-center gap-3 mb-4">
+          <div className="w-12 h-12 bg-[#c9a45c]/20 rounded-full flex items-center justify-center">
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-[#c9a45c]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.172 16.172a4 4 0 015.656 0M9 12h6m-6-4h6m2 5.291A7.962 7.962 0 0112 20c-4.411 0-8-3.589-8-8s3.589-8 8-8 8 3.589 8 8c0 1.913-.67 3.669-1.791 5.043L19.5 20.5 17 18" />
+            </svg>
+          </div>
+          <h2 className="text-xl font-bold text-[#c9a45c]">Sin Datos</h2>
+        </div>
+        <p className="text-gray-300">No se encontraron datos para esta revisión</p>
+      </div>
+    </div>
+  );
 
   return (
-    <main className="min-h-screen bg-gradient-to-br from-[#1a1f35] to-[#2d364c]">
+    <main className="min-h-screen bg-gradient-to-br from-[#0f1419] via-[#1a1f35] to-[#1e2538] relative overflow-hidden">
+      {/* Efectos de fondo */}
+      <div className="absolute inset-0 bg-[url('data:image/svg+xml,%3Csvg%20width%3D%2260%22%20height%3D%2260%22%20viewBox%3D%220%200%2060%2060%22%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%3E%3Cg%20fill%3D%22none%22%20fill-rule%3D%22evenodd%22%3E%3Cg%20fill%3D%22%23c9a45c%22%20fill-opacity%3D%220.03%22%3E%3Ccircle%20cx%3D%2230%22%20cy%3D%2230%22%20r%3D%222%22/%3E%3C/g%3E%3C/g%3E%3C/svg%3E')] opacity-50"></div>
+      <div className="absolute top-0 left-0 w-full h-full bg-gradient-to-b from-transparent via-transparent to-[#0f1419]/20"></div>
+      
+      {/* Orbes decorativos */}
+      <div className="absolute top-20 left-10 w-32 h-32 bg-[#c9a45c]/10 rounded-full blur-3xl animate-pulse"></div>
+      <div className="absolute bottom-20 right-10 w-40 h-40 bg-[#f0c987]/10 rounded-full blur-3xl animate-pulse delay-1000"></div>
+      <div className="absolute top-1/2 left-1/4 w-24 h-24 bg-[#c9a45c]/5 rounded-full blur-2xl animate-pulse delay-500"></div>
+
       {/* Modal de imagen */}
       {modalOpen && modalImg && (
-        <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 overflow-hidden">
-          <div className="relative w-[90vw] h-[90vh] overflow-hidden">
-            <div className="w-full h-full flex items-center justify-center">
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 overflow-hidden">
+          <div className="relative w-[90vw] h-[90vh] overflow-hidden bg-gradient-to-br from-[#1e2538]/20 to-[#2a3347]/20 backdrop-blur-md rounded-2xl border border-[#3d4659]/30">
+            <div className="w-full h-full flex items-center justify-center p-4">
               <img
                 ref={imgRef}
                 src={modalImg}
                 alt="Evidencia"
-                className="max-w-full max-h-full object-contain"
+                className="max-w-full max-h-full object-contain rounded-xl shadow-2xl"
                 style={{
                   transform: `scale(${zoom}) translate(${position.x}px, ${position.y}px)`,
                   cursor: zoom > 1 ? 'grab' : 'default',
@@ -488,25 +537,25 @@ export default function DetallesRevision() {
             <div className="absolute top-4 right-4 flex gap-2">
               <button
                 onClick={handleZoomIn}
-                className="text-white bg-black bg-opacity-50 rounded-full p-2 hover:bg-opacity-75 transition-all"
+                className="w-12 h-12 bg-gradient-to-br from-[#1e2538]/80 to-[#2a3347]/80 backdrop-blur-md border border-[#3d4659]/50 rounded-xl flex items-center justify-center text-white hover:from-[#2a3347]/80 hover:to-[#3d4659]/80 transition-all duration-300 transform hover:scale-110 shadow-lg hover:shadow-xl"
               >
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
                 </svg>
               </button>
               <button
                 onClick={handleZoomOut}
-                className="text-white bg-black bg-opacity-50 rounded-full p-2 hover:bg-opacity-75 transition-all"
+                className="w-12 h-12 bg-gradient-to-br from-[#1e2538]/80 to-[#2a3347]/80 backdrop-blur-md border border-[#3d4659]/50 rounded-xl flex items-center justify-center text-white hover:from-[#2a3347]/80 hover:to-[#3d4659]/80 transition-all duration-300 transform hover:scale-110 shadow-lg hover:shadow-xl"
               >
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 12H4" />
                 </svg>
               </button>
               <button
                 onClick={closeModal}
-                className="text-white bg-black bg-opacity-50 rounded-full p-2 hover:bg-opacity-75 transition-all"
+                className="w-12 h-12 bg-gradient-to-br from-red-500/80 to-red-600/80 backdrop-blur-md border border-red-500/50 rounded-xl flex items-center justify-center text-white hover:from-red-600/80 hover:to-red-700/80 transition-all duration-300 transform hover:scale-110 shadow-lg hover:shadow-xl"
               >
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                 </svg>
               </button>
@@ -515,70 +564,140 @@ export default function DetallesRevision() {
         </div>
       )}
 
-      <div className="max-w-4xl mx-auto px-4 py-8">
-        <div className="bg-[#1e2538] rounded-lg shadow-xl p-6">
-          <div className="flex justify-between items-center mb-6">
-            <h1 className="text-3xl font-bold text-white">Detalles de la Revisión</h1>
-            <div className="flex gap-4">
-              {!isEditing ? (
-                (userRole === 'admin' || userRole === 'SuperAdmin') && (
-                  <button
-                    onClick={handleEdit}
-                    className="px-4 py-2 bg-[#c9a45c] text-white rounded-lg hover:bg-[#d4b06c] transition-all transform hover:scale-[1.02] shadow-[0_8px_16px_rgb(0_0_0/0.2)] hover:shadow-[0_12px_24px_rgb(0_0_0/0.3)] relative overflow-hidden border-2 border-white/40 hover:border-white/60"
-                  >
-                    Editar
-                  </button>
-                )
-              ) : (
-                <>
-                  <button
-                    onClick={handleSaveEdit}
-                    disabled={isSubmitting}
-                    className="px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-all transform hover:scale-[1.02] shadow-[0_8px_16px_rgb(0_0_0/0.2)] hover:shadow-[0_12px_24px_rgb(0_0_0/0.3)] relative overflow-hidden border-2 border-white/40 hover:border-white/60"
-                  >
-                    {isSubmitting ? 'Guardando...' : 'Guardar'}
-                  </button>
-                  <button
-                    onClick={handleCancelEdit}
-                    className="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-all transform hover:scale-[1.02] shadow-[0_8px_16px_rgb(0_0_0/0.2)] hover:shadow-[0_12px_24px_rgb(0_0_0/0.3)] relative overflow-hidden border-2 border-white/40 hover:border-white/60"
-                  >
-                    Cancelar
-                  </button>
-                </>
-              )}
-              <button
-                onClick={() => router.back()}
-                className="px-4 py-2 text-[#1a1f35] bg-gradient-to-br from-[#c9a45c] via-[#d4b06c] to-[#f0c987] rounded-xl hover:from-[#d4b06c] hover:via-[#e0bc7c] hover:to-[#f7d498] transform hover:scale-[1.02] transition-all duration-200 shadow-[0_8px_16px_rgb(0_0_0/0.2)] hover:shadow-[0_12px_24px_rgb(0_0_0/0.3)] relative overflow-hidden before:absolute before:inset-0 before:bg-gradient-to-r before:from-transparent before:via-white/40 before:to-transparent before:translate-x-[-200%] hover:before:translate-x-[200%] before:transition-transform before:duration-1000 after:absolute after:inset-0 after:bg-gradient-to-b after:from-white/20 after:to-transparent after:opacity-0 hover:after:opacity-100 after:transition-opacity after:duration-300 border border-[#f0c987]/20 hover:border-[#f0c987]/40 min-w-[100px] whitespace-nowrap"
-              >
-                Volver
-              </button>
+      <div className="relative z-10 max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
+        <div className="bg-gradient-to-br from-[#1e2538]/80 to-[#2a3347]/80 backdrop-blur-md rounded-2xl shadow-2xl border border-[#3d4659]/50 overflow-hidden">
+          {/* Header con gradiente y efectos */}
+          <div className="bg-gradient-to-r from-[#c9a45c]/10 to-[#f0c987]/10 border-b border-[#3d4659]/30 p-4 sm:p-6">
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+              <div className="flex items-center gap-3">
+                <div className="w-12 h-12 bg-gradient-to-br from-[#c9a45c] to-[#f0c987] rounded-xl flex items-center justify-center shadow-lg">
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-[#1a1f35]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5.291A7.962 7.962 0 0112 20c-4.411 0-8-3.589-8-8s3.589-8 8-8 8 3.589 8 8c0 1.913-.67 3.669-1.791 5.043L19.5 20.5 17 18" />
+                  </svg>
+                </div>
+                <div>
+                  <h1 className="text-2xl sm:text-3xl font-bold bg-gradient-to-r from-white via-[#c9a45c] to-[#f0c987] bg-clip-text text-transparent">
+                    Detalles de la Revisión
+                  </h1>
+                  <p className="text-gray-400 text-sm mt-1">Casita {data?.casita}</p>
+                </div>
+              </div>
+              
+              <div className="flex flex-wrap gap-2 sm:gap-3 w-full sm:w-auto">
+                {!isEditing ? (
+                  (userRole === 'admin' || userRole === 'SuperAdmin') && (
+                    <button
+                      onClick={handleEdit}
+                      className="flex-1 sm:flex-none px-4 py-2.5 bg-gradient-to-r from-[#c9a45c] to-[#f0c987] text-[#1a1f35] rounded-xl hover:from-[#d4b06c] hover:to-[#f7d498] transition-all duration-300 transform hover:scale-[1.02] shadow-lg hover:shadow-xl font-medium flex items-center justify-center gap-2 border border-[#f0c987]/20"
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                      </svg>
+                      Editar
+                    </button>
+                  )
+                ) : (
+                  <>
+                    <button
+                      onClick={handleSaveEdit}
+                      disabled={isSubmitting}
+                      className="flex-1 sm:flex-none px-4 py-2.5 bg-gradient-to-r from-green-500 to-green-600 text-white rounded-xl hover:from-green-600 hover:to-green-700 transition-all duration-300 transform hover:scale-[1.02] shadow-lg hover:shadow-xl font-medium flex items-center justify-center gap-2 border border-green-500/20 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      {isSubmitting ? (
+                        <>
+                          <svg className="animate-spin h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                          </svg>
+                          Guardando...
+                        </>
+                      ) : (
+                        <>
+                          <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                          </svg>
+                          Guardar
+                        </>
+                      )}
+                    </button>
+                    <button
+                      onClick={handleCancelEdit}
+                      className="flex-1 sm:flex-none px-4 py-2.5 bg-gradient-to-r from-red-500 to-red-600 text-white rounded-xl hover:from-red-600 hover:to-red-700 transition-all duration-300 transform hover:scale-[1.02] shadow-lg hover:shadow-xl font-medium flex items-center justify-center gap-2 border border-red-500/20"
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                      </svg>
+                      Cancelar
+                    </button>
+                  </>
+                )}
+                <button
+                  onClick={() => router.back()}
+                  className="flex-1 sm:flex-none px-4 py-2.5 bg-gradient-to-r from-gray-600 to-gray-700 text-white rounded-xl hover:from-gray-700 hover:to-gray-800 transition-all duration-300 transform hover:scale-[1.02] shadow-lg hover:shadow-xl font-medium flex items-center justify-center gap-2 border border-gray-600/20"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+                  </svg>
+                  Volver
+                </button>
+              </div>
             </div>
           </div>
 
           <div className="space-y-6">
-            <div>
-              <h2 className="text-xl md:text-2xl text-[#c9a45c] font-semibold mb-4">Información General</h2>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div className="space-y-3">
-                  <p className="text-base md:text-lg text-gray-300">
-                    <span className="text-gray-400">Casita:</span>{' '}
-                    <span className="text-green-500 font-semibold">{data?.casita}</span>
-                  </p>
-                  <p className="text-base md:text-lg text-gray-300">
-                    <span className="text-gray-400">Fecha:</span>{' '}
-                    {data?.created_at.split('.')[0].replace('T', ' ')}
-                  </p>
-                  <p className="text-base md:text-lg text-gray-300">
-                    <span className="text-gray-400">Revisado por:</span>{' '}
-                    {data?.quien_revisa}
-                  </p>
-                  <p className="text-base md:text-lg text-gray-300">
-                    <span className="text-gray-400">Caja fuerte:</span>{' '}
+            {/* Información General */}
+            <div className="bg-gradient-to-br from-[#2a3347]/60 to-[#1e2538]/60 backdrop-blur-sm rounded-xl p-4 sm:p-6 border border-[#3d4659]/30 shadow-lg">
+              <div className="flex items-center gap-3 mb-4 sm:mb-6">
+                <div className="w-10 h-10 bg-gradient-to-br from-[#c9a45c] to-[#f0c987] rounded-lg flex items-center justify-center">
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-[#1a1f35]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                </div>
+                <h2 className="text-xl sm:text-2xl font-bold bg-gradient-to-r from-white via-[#c9a45c] to-[#f0c987] bg-clip-text text-transparent">
+                  Información General
+                </h2>
+              </div>
+              
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
+                <div className="space-y-4">
+                  <div className="bg-gradient-to-r from-[#1e2538]/40 to-[#2a3347]/40 rounded-lg p-4 border border-[#3d4659]/20">
+                    <div className="flex items-center gap-2 mb-2">
+                      <div className="w-2 h-2 bg-[#c9a45c] rounded-full"></div>
+                      <span className="text-gray-400 text-sm font-medium">Casita</span>
+                    </div>
+                    <p className="text-lg sm:text-xl font-bold text-[#c9a45c]">{data?.casita}</p>
+                  </div>
+                  
+                  <div className="bg-gradient-to-r from-[#1e2538]/40 to-[#2a3347]/40 rounded-lg p-4 border border-[#3d4659]/20">
+                    <div className="flex items-center gap-2 mb-2">
+                      <div className="w-2 h-2 bg-blue-400 rounded-full"></div>
+                      <span className="text-gray-400 text-sm font-medium">Fecha de Revisión</span>
+                    </div>
+                    <p className="text-base sm:text-lg text-white font-medium">
+                      {data?.created_at.split('.')[0].replace('T', ' ')}
+                    </p>
+                  </div>
+                </div>
+                
+                <div className="space-y-4">
+                  <div className="bg-gradient-to-r from-[#1e2538]/40 to-[#2a3347]/40 rounded-lg p-4 border border-[#3d4659]/20">
+                    <div className="flex items-center gap-2 mb-2">
+                      <div className="w-2 h-2 bg-green-400 rounded-full"></div>
+                      <span className="text-gray-400 text-sm font-medium">Revisado por</span>
+                    </div>
+                    <p className="text-base sm:text-lg text-white font-medium">{data?.quien_revisa}</p>
+                  </div>
+                  
+                  <div className="bg-gradient-to-r from-[#1e2538]/40 to-[#2a3347]/40 rounded-lg p-4 border border-[#3d4659]/20">
+                    <div className="flex items-center gap-2 mb-2">
+                      <div className="w-2 h-2 bg-purple-400 rounded-full"></div>
+                      <span className="text-gray-400 text-sm font-medium">Caja Fuerte</span>
+                    </div>
                     {isEditing ? (
                       <select
                         value={editedData?.caja_fuerte}
                         onChange={(e) => handleInputChange('caja_fuerte', e.target.value)}
-                        className="ml-2 px-2 py-1 bg-[#2a3347] border border-[#3d4659] rounded-md text-white"
+                        className="w-full px-3 py-2 bg-[#1e2538] border border-[#3d4659] rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-[#c9a45c]/50 focus:border-[#c9a45c]/50 transition-all"
                       >
                         <option value="Si">Si</option>
                         <option value="No">No</option>
@@ -590,16 +709,27 @@ export default function DetallesRevision() {
                         <option value="Show Room">Show Room</option>
                       </select>
                     ) : (
-                      data?.caja_fuerte
+                      <p className="text-base sm:text-lg text-white font-medium">{data?.caja_fuerte}</p>
                     )}
-                  </p>
+                  </div>
                 </div>
               </div>
             </div>
 
-            <div>
-              <h2 className="text-xl md:text-2xl text-[#c9a45c] font-semibold mb-4">Accesorios</h2>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {/* Accesorios */}
+            <div className="bg-gradient-to-br from-[#2a3347]/60 to-[#1e2538]/60 backdrop-blur-sm rounded-xl p-4 sm:p-6 border border-[#3d4659]/30 shadow-lg">
+              <div className="flex items-center gap-3 mb-4 sm:mb-6">
+                <div className="w-10 h-10 bg-gradient-to-br from-orange-500 to-orange-600 rounded-lg flex items-center justify-center">
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+                  </svg>
+                </div>
+                <h2 className="text-xl sm:text-2xl font-bold bg-gradient-to-r from-orange-400 to-orange-500 bg-clip-text text-transparent">
+                  Accesorios y Estado
+                </h2>
+              </div>
+              
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                 {Object.entries(data || {}).map(([key, value]) => {
                   if (key === 'id' || key === 'created_at' || key === 'casita' || 
                       key === 'quien_revisa' || key === 'caja_fuerte' || 
@@ -615,17 +745,20 @@ export default function DetallesRevision() {
                   ).join(' ');
 
                   return (
-                    <div key={key}>
-                      <h3 className="text-lg md:text-xl text-[#ff8c42] font-semibold mb-3">{label}</h3>
+                    <div key={key} className="bg-gradient-to-br from-[#1e2538]/50 to-[#2a3347]/50 rounded-lg p-4 border border-[#3d4659]/20 hover:border-[#c9a45c]/30 transition-all duration-300 hover:shadow-lg">
+                      <div className="flex items-center gap-2 mb-3">
+                        <div className="w-2 h-2 bg-orange-400 rounded-full"></div>
+                        <h3 className="text-sm font-semibold text-orange-400 uppercase tracking-wide">{label}</h3>
+                      </div>
                       {isEditing ? (
                         <input
                           type="text"
                           value={editedData?.[key as keyof RevisionData] || ''}
                           onChange={(e) => handleInputChange(key as keyof RevisionData, e.target.value)}
-                          className="w-full px-4 py-2 bg-[#2a3347] border border-[#3d4659] rounded-md text-white"
+                          className="w-full px-3 py-2 bg-[#1e2538] border border-[#3d4659] rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-[#c9a45c]/50 focus:border-[#c9a45c]/50 transition-all text-sm"
                         />
                       ) : (
-                        <p className="text-base md:text-lg text-gray-300">{value}</p>
+                        <p className="text-white font-medium text-sm sm:text-base break-words">{value}</p>
                       )}
                     </div>
                   );
@@ -633,102 +766,214 @@ export default function DetallesRevision() {
               </div>
             </div>
 
+            {/* Evidencias */}
             {(data.evidencia_01 || data.evidencia_02 || data.evidencia_03) && (
-              <div>
-                <h2 className="text-[#c9a45c] font-semibold mb-4">Evidencias</h2>
-                <div className="bg-[#2a3347] rounded p-4">
-                  <div className="flex gap-4">
-                    {data.evidencia_01 && (
+              <div className="bg-gradient-to-br from-[#2a3347]/60 to-[#1e2538]/60 backdrop-blur-sm rounded-xl p-4 sm:p-6 border border-[#3d4659]/30 shadow-lg">
+                <div className="flex items-center gap-3 mb-4 sm:mb-6">
+                  <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-blue-600 rounded-lg flex items-center justify-center">
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                    </svg>
+                  </div>
+                  <h2 className="text-xl sm:text-2xl font-bold bg-gradient-to-r from-blue-400 to-blue-500 bg-clip-text text-transparent">
+                    Evidencias Fotográficas
+                  </h2>
+                </div>
+                
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {data.evidencia_01 && (
+                    <div className="bg-gradient-to-br from-[#1e2538]/50 to-[#2a3347]/50 rounded-lg p-4 border border-[#3d4659]/20 hover:border-blue-400/30 transition-all duration-300 hover:shadow-lg group">
+                      <div className="flex items-center justify-between mb-3">
+                        <div className="flex items-center gap-2">
+                          <div className="w-2 h-2 bg-blue-400 rounded-full"></div>
+                          <span className="text-blue-400 font-semibold text-sm">Evidencia 1</span>
+                        </div>
+                        <div className="w-6 h-6 bg-blue-500/20 rounded-full flex items-center justify-center">
+                          <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 text-blue-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                          </svg>
+                        </div>
+                      </div>
                       <button
                         onClick={() => openModal(data.evidencia_01)}
-                        className="bg-[#c9a45c] text-white px-3 py-1.5 text-sm rounded hover:bg-[#d4b06c] transition-all transform hover:scale-[1.02] shadow-[0_4px_8px_rgb(0_0_0/0.2)] hover:shadow-[0_6px_12px_rgb(0_0_0/0.3)] relative overflow-hidden border border-white/20 hover:border-white/40"
+                        className="w-full px-4 py-3 bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-lg hover:from-blue-600 hover:to-blue-700 transition-all duration-300 transform hover:scale-[1.02] shadow-lg hover:shadow-xl font-medium flex items-center justify-center gap-2 group-hover:shadow-blue-500/25"
                       >
-                        Ver
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                        </svg>
+                        Ver Imagen
                       </button>
-                    )}
-                    {data.evidencia_02 && (
+                    </div>
+                  )}
+                  
+                  {data.evidencia_02 && (
+                    <div className="bg-gradient-to-br from-[#1e2538]/50 to-[#2a3347]/50 rounded-lg p-4 border border-[#3d4659]/20 hover:border-blue-400/30 transition-all duration-300 hover:shadow-lg group">
+                      <div className="flex items-center justify-between mb-3">
+                        <div className="flex items-center gap-2">
+                          <div className="w-2 h-2 bg-blue-400 rounded-full"></div>
+                          <span className="text-blue-400 font-semibold text-sm">Evidencia 2</span>
+                        </div>
+                        <div className="w-6 h-6 bg-blue-500/20 rounded-full flex items-center justify-center">
+                          <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 text-blue-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                          </svg>
+                        </div>
+                      </div>
                       <button
                         onClick={() => openModal(data.evidencia_02)}
-                        className="bg-[#c9a45c] text-white px-3 py-1.5 text-sm rounded hover:bg-[#d4b06c] transition-all transform hover:scale-[1.02] shadow-[0_4px_8px_rgb(0_0_0/0.2)] hover:shadow-[0_6px_12px_rgb(0_0_0/0.3)] relative overflow-hidden border border-white/20 hover:border-white/40"
+                        className="w-full px-4 py-3 bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-lg hover:from-blue-600 hover:to-blue-700 transition-all duration-300 transform hover:scale-[1.02] shadow-lg hover:shadow-xl font-medium flex items-center justify-center gap-2 group-hover:shadow-blue-500/25"
                       >
-                        Ver
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                        </svg>
+                        Ver Imagen
                       </button>
-                    )}
-                    {data.evidencia_03 && (
+                    </div>
+                  )}
+                  
+                  {data.evidencia_03 && (
+                    <div className="bg-gradient-to-br from-[#1e2538]/50 to-[#2a3347]/50 rounded-lg p-4 border border-[#3d4659]/20 hover:border-blue-400/30 transition-all duration-300 hover:shadow-lg group">
+                      <div className="flex items-center justify-between mb-3">
+                        <div className="flex items-center gap-2">
+                          <div className="w-2 h-2 bg-blue-400 rounded-full"></div>
+                          <span className="text-blue-400 font-semibold text-sm">Evidencia 3</span>
+                        </div>
+                        <div className="w-6 h-6 bg-blue-500/20 rounded-full flex items-center justify-center">
+                          <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 text-blue-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                          </svg>
+                        </div>
+                      </div>
                       <button
                         onClick={() => openModal(data.evidencia_03)}
-                        className="bg-[#c9a45c] text-white px-3 py-1.5 text-sm rounded hover:bg-[#d4b06c] transition-all transform hover:scale-[1.02] shadow-[0_4px_8px_rgb(0_0_0/0.2)] hover:shadow-[0_6px_12px_rgb(0_0_0/0.3)] relative overflow-hidden border border-white/20 hover:border-white/40"
+                        className="w-full px-4 py-3 bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-lg hover:from-blue-600 hover:to-blue-700 transition-all duration-300 transform hover:scale-[1.02] shadow-lg hover:shadow-xl font-medium flex items-center justify-center gap-2 group-hover:shadow-blue-500/25"
                       >
-                        Ver
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                        </svg>
+                        Ver Imagen
                       </button>
-                    )}
-                  </div>
+                    </div>
+                  )}
                 </div>
               </div>
             )}
 
-            <div>
-              <div className="flex justify-between items-center mb-4">
-                <h2 className="text-[#ff4d4d] font-semibold">Notas</h2>
+            {/* Notas */}
+            <div className="bg-gradient-to-br from-[#2a3347]/60 to-[#1e2538]/60 backdrop-blur-sm rounded-xl p-4 sm:p-6 border border-[#3d4659]/30 shadow-lg">
+              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-4 sm:mb-6">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 bg-gradient-to-br from-purple-500 to-purple-600 rounded-lg flex items-center justify-center">
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                    </svg>
+                  </div>
+                  <div>
+                    <h2 className="text-xl sm:text-2xl font-bold bg-gradient-to-r from-purple-400 to-purple-500 bg-clip-text text-transparent">
+                      Notas y Observaciones
+                    </h2>
+                    <p className="text-gray-400 text-sm mt-1">{notas.length} nota{notas.length !== 1 ? 's' : ''} registrada{notas.length !== 1 ? 's' : ''}</p>
+                  </div>
+                </div>
+                
                 <button
                   onClick={() => setShowNotaForm(true)}
-                  className="px-4 py-2 bg-[#ff4d4d] text-white rounded-lg hover:bg-[#ff6b6b] transition-all transform hover:scale-[1.02] shadow-[0_8px_16px_rgb(0_0_0/0.2)] hover:shadow-[0_12px_24px_rgb(0_0_0/0.3)] relative overflow-hidden border-2 border-white/40 hover:border-white/60 animate-shimmer-mobile md:animate-none"
+                  className="w-full sm:w-auto px-4 py-2.5 bg-gradient-to-r from-purple-500 to-purple-600 text-white rounded-xl hover:from-purple-600 hover:to-purple-700 transition-all duration-300 transform hover:scale-[1.02] shadow-lg hover:shadow-xl font-medium flex items-center justify-center gap-2 border border-purple-500/20"
                 >
-                  + Agregar Nota
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                  </svg>
+                  Agregar Nota
                 </button>
               </div>
 
               {showNotaForm && (
-                <div className="bg-[#1e2538] rounded-lg p-4 mb-4">
+                <div className="bg-gradient-to-br from-[#1e2538]/80 to-[#2a3347]/80 backdrop-blur-sm rounded-xl p-4 sm:p-6 border border-[#3d4659]/40 mb-6 shadow-lg">
+                  <div className="flex items-center gap-3 mb-4">
+                    <div className="w-8 h-8 bg-gradient-to-br from-purple-500 to-purple-600 rounded-lg flex items-center justify-center">
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                      </svg>
+                    </div>
+                    <h3 className="text-lg font-bold text-purple-400">Nueva Nota</h3>
+                  </div>
+                  
                   <form onSubmit={handleSubmitNota} className="space-y-4">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-300 mb-1">Usuario</label>
-                      <select
-                        required
-                        className="w-full px-4 py-2 bg-[#2a3347] border border-[#3d4659] rounded-md text-white"
-                        value={nuevaNota.Usuario}
-                        onChange={(e) => setNuevaNota({ ...nuevaNota, Usuario: e.target.value })}
-                      >
-                        <option value="">Seleccionar usuario</option>
-                        {nombresRevisores.map(nombre => (
-                          <option key={nombre} value={nombre}>{nombre}</option>
-                        ))}
-                      </select>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-sm font-semibold text-gray-300 mb-2 flex items-center gap-2">
+                          <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-purple-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                          </svg>
+                          Usuario
+                        </label>
+                        <select
+                          required
+                          className="w-full px-4 py-3 bg-gradient-to-r from-[#1e2538] to-[#2a3347] border border-[#3d4659] rounded-xl text-white focus:outline-none focus:ring-2 focus:ring-purple-500/50 focus:border-purple-500/50 transition-all"
+                          value={nuevaNota.Usuario}
+                          onChange={(e) => setNuevaNota({ ...nuevaNota, Usuario: e.target.value })}
+                        >
+                          <option value="">Seleccionar usuario</option>
+                          {nombresRevisores.map(nombre => (
+                            <option key={nombre} value={nombre}>{nombre}</option>
+                          ))}
+                        </select>
+                      </div>
+                      
+                      <div>
+                        <label className="block text-sm font-semibold text-gray-300 mb-2 flex items-center gap-2">
+                          <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-purple-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                          </svg>
+                          Evidencia (Opcional)
+                        </label>
+                        <input
+                          type="file"
+                          accept="image/*"
+                          className="w-full text-sm text-gray-400 file:mr-4 file:py-3 file:px-4 file:rounded-xl file:border-0 file:text-sm file:font-semibold file:bg-purple-500/20 file:text-purple-400 hover:file:bg-purple-500/30"
+                          onChange={(e) => setNuevaNota({ ...nuevaNota, evidencia: e.target.files?.[0] || null })}
+                        />
+                      </div>
                     </div>
 
                     <div>
-                      <label className="block text-sm font-medium text-gray-300 mb-1">Nota</label>
+                      <label className="block text-sm font-semibold text-gray-300 mb-2 flex items-center gap-2">
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-purple-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                        </svg>
+                        Nota
+                      </label>
                       <textarea
                         required
-                        className="w-full px-4 py-2 bg-[#2a3347] border border-[#3d4659] rounded-md text-white"
-                        rows={3}
+                        className="w-full px-4 py-3 bg-gradient-to-r from-[#1e2538] to-[#2a3347] border border-[#3d4659] rounded-xl text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500/50 focus:border-purple-500/50 transition-all resize-none"
+                        rows={4}
+                        placeholder="Escribe tu observación aquí..."
                         value={nuevaNota.nota}
                         onChange={(e) => setNuevaNota({ ...nuevaNota, nota: e.target.value })}
                       />
                     </div>
 
-                    <div>
-                      <label className="block text-sm font-medium text-gray-300 mb-1">Evidencia</label>
-                      <input
-                        type="file"
-                        accept="image/*"
-                        className="w-full text-sm text-gray-400 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-[#c9a45c]/20 file:text-[#c9a45c] hover:file:bg-[#c9a45c]/30"
-                        onChange={(e) => setNuevaNota({ ...nuevaNota, evidencia: e.target.files?.[0] || null })}
-                      />
-                    </div>
-
-                    <div className="flex justify-end gap-2">
+                    <div className="flex flex-col sm:flex-row justify-end gap-3 pt-2">
                       <button
                         type="button"
                         onClick={() => setShowNotaForm(false)}
-                        className="px-4 py-2 bg-[#3d4659] text-gray-300 rounded-lg hover:bg-[#4a5568] transition-all transform hover:scale-[1.02] shadow-[0_8px_16px_rgb(0_0_0/0.2)] hover:shadow-[0_12px_24px_rgb(0_0_0/0.3)] relative overflow-hidden border border-[#4a5568]/20 hover:border-[#4a5568]/40 animate-shimmer-mobile md:animate-none"
+                        className="w-full sm:w-auto px-4 py-2.5 bg-gradient-to-r from-gray-600 to-gray-700 text-white rounded-xl hover:from-gray-700 hover:to-gray-800 transition-all duration-300 transform hover:scale-[1.02] shadow-lg hover:shadow-xl font-medium flex items-center justify-center gap-2"
                       >
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                        </svg>
                         Cancelar
                       </button>
                       <button
                         type="submit"
                         disabled={isSubmitting}
-                        className={`px-4 py-2 text-sm font-medium text-[#1a1f35] ${isSubmitting ? 'bg-[#22c55e] hover:bg-[#22c55e]' : 'bg-[#f0c987] hover:bg-[#f7d498]'} rounded-xl transition-all transform hover:scale-[1.02] shadow-[0_8px_16px_rgb(0_0_0/0.2)] hover:shadow-[0_12px_24px_rgb(0_0_0/0.3)] relative overflow-hidden border-2 border-white/40 hover:border-white/60 disabled:opacity-50 flex items-center justify-center gap-2 min-w-[120px] animate-shimmer-mobile md:animate-none`}
+                        className="w-full sm:w-auto px-6 py-2.5 bg-gradient-to-r from-purple-500 to-purple-600 text-white rounded-xl hover:from-purple-600 hover:to-purple-700 transition-all duration-300 transform hover:scale-[1.02] shadow-lg hover:shadow-xl font-medium flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed min-w-[140px]"
                       >
                         {isSubmitting ? (
                           <>
@@ -736,14 +981,14 @@ export default function DetallesRevision() {
                               <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                               <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                             </svg>
-                            <span>Guardando...</span>
+                            Guardando...
                           </>
                         ) : (
                           <>
                             <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
                               <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
                             </svg>
-                            <span>Guardar Nota</span>
+                            Guardar Nota
                           </>
                         )}
                       </button>
@@ -753,62 +998,128 @@ export default function DetallesRevision() {
               )}
 
               <div className="space-y-4">
-                {notas.map((nota) => (
-                  <div key={nota.id} className="bg-[#1e2538] rounded-lg p-4">
-                    <div className="flex justify-between items-start mb-2">
-                      <div>
-                        <p className="text-[#ff4d4d] font-medium">
-                          {nota.fecha.split('.')[0].replace('T', ' ')}
-                        </p>
-                        <p className="text-gray-400 text-sm">Por: {nota.Usuario}</p>
+                {notas.length > 0 ? (
+                  notas.map((nota) => (
+                    <div key={nota.id} className="bg-gradient-to-br from-[#1e2538]/50 to-[#2a3347]/50 rounded-xl p-4 sm:p-5 border border-[#3d4659]/20 hover:border-purple-400/30 transition-all duration-300 hover:shadow-lg">
+                      <div className="flex flex-col sm:flex-row justify-between items-start gap-3 mb-3">
+                        <div className="flex items-center gap-3">
+                          <div className="w-8 h-8 bg-purple-500/20 rounded-lg flex items-center justify-center">
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-purple-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                            </svg>
+                          </div>
+                          <div>
+                            <p className="text-purple-400 font-semibold text-sm">
+                              {nota.Usuario}
+                            </p>
+                            <p className="text-gray-400 text-xs">
+                              {nota.fecha.split('.')[0].replace('T', ' ')}
+                            </p>
+                          </div>
+                        </div>
+                        
+                        {nota.Evidencia && (
+                          <button
+                            onClick={() => openModal(nota.Evidencia)}
+                            className="px-3 py-1.5 bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-lg hover:from-blue-600 hover:to-blue-700 transition-all duration-300 transform hover:scale-[1.02] shadow-md hover:shadow-lg font-medium text-xs flex items-center gap-2"
+                          >
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                            </svg>
+                            Ver Evidencia
+                          </button>
+                        )}
+                      </div>
+                      
+                      <div className="bg-gradient-to-r from-[#1e2538]/30 to-[#2a3347]/30 rounded-lg p-3 border border-[#3d4659]/10">
+                        <p className="text-gray-300 leading-relaxed text-sm sm:text-base">{nota.nota}</p>
                       </div>
                     </div>
-                    <p className="text-gray-300 mb-2">{nota.nota}</p>
-                    {nota.Evidencia && (
-                      <button
-                        onClick={() => openModal(nota.Evidencia)}
-                        className="text-[#ff4d4d] hover:text-[#ff6b6b] transition-colors"
-                      >
-                        Ver evidencia
-                      </button>
-                    )}
+                  ))
+                ) : (
+                  <div className="text-center py-8">
+                    <div className="w-16 h-16 bg-purple-500/20 rounded-full flex items-center justify-center mx-auto mb-4">
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8 text-purple-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                      </svg>
+                    </div>
+                    <p className="text-gray-400 text-lg font-medium">No hay notas registradas</p>
+                    <p className="text-gray-500 text-sm mt-1">Agrega la primera nota para esta casita</p>
                   </div>
-                ))}
+                )}
               </div>
             </div>
 
-            {/* Nueva sección para el historial de ediciones */}
-            <div className="mt-8">
-              <h2 className="text-[#c9a45c] font-semibold mb-4">Historial de Ediciones</h2>
+            {/* Historial de Ediciones */}
+            <div className="bg-gradient-to-br from-[#2a3347]/60 to-[#1e2538]/60 backdrop-blur-sm rounded-xl p-4 sm:p-6 border border-[#3d4659]/30 shadow-lg">
+              <div className="flex items-center gap-3 mb-4 sm:mb-6">
+                <div className="w-10 h-10 bg-gradient-to-br from-amber-500 to-amber-600 rounded-lg flex items-center justify-center">
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                </div>
+                <div>
+                  <h2 className="text-xl sm:text-2xl font-bold bg-gradient-to-r from-amber-400 to-amber-500 bg-clip-text text-transparent">
+                    Historial de Ediciones
+                  </h2>
+                  <p className="text-gray-400 text-sm mt-1">{registroEdiciones.length} edición{registroEdiciones.length !== 1 ? 'es' : ''} registrada{registroEdiciones.length !== 1 ? 's' : ''}</p>
+                </div>
+              </div>
+              
               <div className="space-y-4">
-                {registroEdiciones.map((edicion, index) => (
-                  <div key={index} className="bg-[#1e2538] rounded-lg p-4">
-                    <div className="flex justify-between items-start mb-2">
-                      <div>
-                        <p className="text-[#c9a45c] font-medium">
-                          {edicion.created_at ? edicion.created_at.split('+')[0].replace('T', ' ') : ''}
-                        </p>
-                        <p className="text-gray-400 text-sm">Editado por: {edicion["Usuario que Edito"]}</p>
+                {registroEdiciones.length > 0 ? (
+                  registroEdiciones.map((edicion, index) => (
+                    <div key={index} className="bg-gradient-to-br from-[#1e2538]/50 to-[#2a3347]/50 rounded-xl p-4 sm:p-5 border border-[#3d4659]/20 hover:border-amber-400/30 transition-all duration-300 hover:shadow-lg">
+                      <div className="flex items-center gap-3 mb-4">
+                        <div className="w-8 h-8 bg-amber-500/20 rounded-lg flex items-center justify-center">
+                          <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-amber-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                          </svg>
+                        </div>
+                        <div>
+                          <p className="text-amber-400 font-semibold text-sm">
+                            {edicion["Usuario que Edito"]}
+                          </p>
+                          <p className="text-gray-400 text-xs">
+                            {edicion.created_at ? edicion.created_at.split('+')[0].replace('T', ' ') : ''}
+                          </p>
+                        </div>
+                      </div>
+                      
+                      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                        <div className="bg-gradient-to-r from-red-500/10 to-red-600/10 rounded-lg p-4 border border-red-500/20">
+                          <div className="flex items-center gap-2 mb-2">
+                            <div className="w-2 h-2 bg-red-400 rounded-full"></div>
+                            <span className="text-red-400 font-semibold text-sm">Dato Anterior</span>
+                          </div>
+                          <p className="text-gray-300 text-sm leading-relaxed break-words">
+                            {edicion.Dato_anterior.split(': ').slice(1).join(': ')}
+                          </p>
+                        </div>
+                        
+                        <div className="bg-gradient-to-r from-green-500/10 to-green-600/10 rounded-lg p-4 border border-green-500/20">
+                          <div className="flex items-center gap-2 mb-2">
+                            <div className="w-2 h-2 bg-green-400 rounded-full"></div>
+                            <span className="text-green-400 font-semibold text-sm">Dato Nuevo</span>
+                          </div>
+                          <p className="text-gray-300 text-sm leading-relaxed break-words">
+                            {edicion.Dato_nuevo.split(': ').slice(1).join(': ')}
+                          </p>
+                        </div>
                       </div>
                     </div>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-2">
-                      <div className="bg-[#2a3347] p-3 rounded">
-                        <p className="text-gray-400 text-sm mb-1">Dato Anterior:</p>
-                        <p className="text-gray-300">
-                          {edicion.Dato_anterior.split(': ').slice(1).join(': ')}
-                        </p>
-                      </div>
-                      <div className="bg-[#2a3347] p-3 rounded">
-                        <p className="text-gray-400 text-sm mb-1">Dato Nuevo:</p>
-                        <p className="text-gray-300">
-                          {edicion.Dato_nuevo.split(': ').slice(1).join(': ')}
-                        </p>
-                      </div>
+                  ))
+                ) : (
+                  <div className="text-center py-8">
+                    <div className="w-16 h-16 bg-amber-500/20 rounded-full flex items-center justify-center mx-auto mb-4">
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8 text-amber-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      </svg>
                     </div>
+                    <p className="text-gray-400 text-lg font-medium">No hay ediciones registradas</p>
+                    <p className="text-gray-500 text-sm mt-1">Los cambios futuros aparecerán aquí</p>
                   </div>
-                ))}
-                {registroEdiciones.length === 0 && (
-                  <p className="text-gray-400 text-center py-4">No hay ediciones registradas</p>
                 )}
               </div>
             </div>

@@ -9,6 +9,8 @@ const nextConfig = {
   env: {
     NEXT_PUBLIC_SUPABASE_URL: process.env.NEXT_PUBLIC_SUPABASE_URL || '',
     NEXT_PUBLIC_SUPABASE_ANON_KEY: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '',
+    GOOGLE_SHEETS_CLIENT_EMAIL: process.env.GOOGLE_SHEETS_CLIENT_EMAIL,
+    GOOGLE_SHEETS_PRIVATE_KEY: process.env.GOOGLE_SHEETS_PRIVATE_KEY
   },
   // Server Actions están habilitadas por defecto en Next.js 14
   // appDir también está habilitado por defecto
@@ -53,6 +55,10 @@ const nextConfig = {
   poweredByHeader: false,
   generateEtags: true,
   compress: true,
-}
+  experimental: {
+    serverActions: true,
+    appDir: true
+  }
+};
 
-module.exports = nextConfig 
+module.exports = nextConfig; 
