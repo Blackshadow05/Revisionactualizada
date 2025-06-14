@@ -49,6 +49,7 @@ interface Nota {
   id: string;
   fecha: string;
   Casita: string;
+  revision_id: string;
   nota: string;
   Evidencia: string;
   Usuario: string;
@@ -103,6 +104,9 @@ export default function DetallesRevision() {
         throw new Error('No se pudo conectar con la base de datos');
       }
 
+      console.log('🆔 ID de la revisión (params.id):', params.id);
+      console.log('🆔 Tipo de params.id:', typeof params.id);
+
       const { data: revisionData, error: revisionError } = await supabase
         .from('revisiones_casitas')
         .select('*')
@@ -112,12 +116,26 @@ export default function DetallesRevision() {
       if (revisionError) throw revisionError;
       setData(revisionData);
 
-      // Obtener notas asociadas a esta casita
+      // Obtener notas asociadas a esta revisión específica
+      console.log('🔍 Buscando notas para revision_id:', params.id);
+      
       const { data: notasData, error: notasError } = await supabase
+        .from('Notas')
+        .select('*')
+        .eq('revision_id', String(params.id)) // Convertir a string para la búsqueda
+        .order('id', { ascending: false });
+      
+      console.log('📝 Notas encontradas:', notasData);
+      console.log('📝 Cantidad de notas:', notasData?.length || 0);
+      
+      // También vamos a verificar todas las notas de esta casita para debug
+      const { data: todasLasNotas } = await supabase
         .from('Notas')
         .select('*')
         .eq('Casita', revisionData.casita)
         .order('id', { ascending: false });
+      
+      console.log('🏠 Todas las notas de casita', revisionData.casita + ':', todasLasNotas);
 
       if (notasError) throw notasError;
       setNotas(notasData || []);
@@ -192,17 +210,25 @@ export default function DetallesRevision() {
       const now = new Date();
       const fechaLocal = new Date(now.getTime() - (now.getTimezoneOffset() * 60000));
       
-      const { error } = await supabase
+      const notaData = {
+        fecha: fechaLocal.toISOString(),
+        Casita: data.casita,
+        revision_id: String(params.id), // Convertir explícitamente a string
+        Usuario: nuevaNota.Usuario,
+        nota: nuevaNota.nota,
+        Evidencia: evidenciaUrl
+      };
+      
+      console.log('💾 Insertando nota con datos:', notaData);
+      console.log('💾 revision_id que se va a insertar:', params.id, 'tipo:', typeof params.id);
+      
+      const { data: insertResult, error } = await supabase
         .from('Notas')
-        .insert([
-          {
-            fecha: fechaLocal.toISOString(),
-            Casita: data.casita,
-            Usuario: nuevaNota.Usuario,
-            nota: nuevaNota.nota,
-            Evidencia: evidenciaUrl
-          }
-        ]);
+        .insert([notaData])
+        .select();
+      
+      console.log('✅ Resultado de inserción:', insertResult);
+      console.log('❌ Error de inserción:', error);
 
       if (error) throw error;
 

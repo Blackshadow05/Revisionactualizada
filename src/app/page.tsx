@@ -6,7 +6,7 @@ import { es } from 'date-fns/locale';
 import { supabase, checkSupabaseConnection } from '@/lib/supabase';
 import { useRouter } from 'next/navigation';
 import { MagnifyingGlassIcon } from '@heroicons/react/24/outline';
-import NotasForm from '@/components/NotasForm';
+
 import Link from 'next/link';
 import { useAuth } from '@/context/AuthContext';
 
@@ -81,7 +81,7 @@ export default function Home() {
     'Si', 'No', 'Check in', 'Check out', 'Upsell', 'Guardar Upsell', 'Back to Back', 'Show Room'
   ];
 
-  const [showNotasForm, setShowNotasForm] = useState(false);
+
   const searchInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -714,9 +714,7 @@ export default function Home() {
           </div>
         )}
 
-        {showNotasForm && (
-          <NotasForm onClose={() => setShowNotasForm(false)} />
-        )}
+
 
         {/* Modal de imagen */}
         {modalOpen && modalImg && (

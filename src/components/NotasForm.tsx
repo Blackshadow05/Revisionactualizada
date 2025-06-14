@@ -12,12 +12,14 @@ interface FormData {
 
 interface NotasFormProps {
   onClose: () => void;
+  revisionId?: string;
+  casita?: string;
 }
 
-export default function NotasForm({ onClose }: NotasFormProps) {
+export default function NotasForm({ onClose, revisionId, casita }: NotasFormProps) {
   const [formData, setFormData] = useState<FormData>({
     fecha: new Date().toISOString().split('T')[0],
-    casita: '',
+    casita: casita || '',
     Usuario: '',
     nota: '',
     evidencia: null
@@ -56,6 +58,7 @@ export default function NotasForm({ onClose }: NotasFormProps) {
           {
             fecha: formData.fecha,
             Casita: formData.casita,
+            revision_id: revisionId,
             Usuario: formData.Usuario,
             nota: formData.nota,
             Evidencia: evidenciaUrl
