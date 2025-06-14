@@ -6,6 +6,8 @@ import { UploadProvider } from '@/context/UploadContext'
 import { ToastProvider } from '@/context/ToastContext'
 import UploadIndicator from '@/components/UploadIndicator'
 import UploadRecovery from '@/components/UploadRecovery'
+import InstallButton from '@/components/InstallButton'
+import PWADiagnostic from '@/components/PWADiagnostic'
 
 const inter = Inter({ subsets: ['latin'] })
 
@@ -44,11 +46,13 @@ export default function RootLayout({
       <body className={inter.className}>
         <AuthProvider>
           <ToastProvider>
-                      <UploadProvider>
-            {children}
-            <UploadIndicator />
-            <UploadRecovery />
-          </UploadProvider>
+            <UploadProvider>
+              {children}
+              <UploadIndicator />
+              <UploadRecovery />
+              <InstallButton />
+              <PWADiagnostic />
+            </UploadProvider>
           </ToastProvider>
         </AuthProvider>
       </body>
