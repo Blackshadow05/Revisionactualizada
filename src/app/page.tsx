@@ -456,9 +456,31 @@ export default function Home() {
                 </div>
               )}
             </div>
-            <h1 className="text-4xl md:text-5xl font-bold bg-gradient-to-r from-white via-[#c9a45c] to-[#f0c987] bg-clip-text text-transparent">
-              Revisión de Casitas
-            </h1>
+            <div className="relative">
+              {/* Efecto de resplandor de fondo */}
+              <div className="absolute inset-0 bg-gradient-to-r from-[#c9a45c]/20 via-[#f0c987]/20 to-[#c9a45c]/20 blur-3xl rounded-full transform scale-150"></div>
+              
+              {/* Título principal con efectos modernos */}
+              <h1 className="relative text-4xl md:text-6xl lg:text-7xl font-black tracking-tight">
+                <span className="block bg-gradient-to-r from-white via-[#f0c987] to-[#c9a45c] bg-clip-text text-transparent drop-shadow-2xl">
+                  Revisión
+                </span>
+                <span className="block bg-gradient-to-r from-[#c9a45c] via-[#f0c987] to-white bg-clip-text text-transparent mt-2 transform -translate-x-2">
+                  de Casitas
+                </span>
+              </h1>
+              
+              {/* Línea decorativa animada */}
+              <div className="relative mt-6 h-1 w-32 mx-auto">
+                <div className="absolute inset-0 bg-gradient-to-r from-transparent via-[#c9a45c] to-transparent rounded-full"></div>
+                <div className="absolute inset-0 bg-gradient-to-r from-transparent via-[#f0c987] to-transparent rounded-full animate-pulse"></div>
+              </div>
+              
+              {/* Subtítulo elegante */}
+              <p className="relative mt-4 text-lg md:text-xl text-gray-300 font-light tracking-wide">
+                Sistema de gestión y control de calidad
+              </p>
+            </div>
           </div>
         </div>
 

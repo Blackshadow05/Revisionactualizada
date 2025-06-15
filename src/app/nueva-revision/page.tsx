@@ -550,7 +550,25 @@ export default function NuevaRevision() {
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
         <form onSubmit={handleSubmit} className="bg-[#2a3347] rounded-xl shadow-2xl p-4 md:p-8 border border-[#3d4659]">
           <div className="flex justify-between items-center mb-6 md:mb-8">
-            <h1 className="text-2xl md:text-3xl font-bold text-[#c9a45c]">Nueva Revisión</h1>
+            <div className="relative">
+              {/* Efecto de resplandor sutil */}
+              <div className="absolute -inset-1 bg-gradient-to-r from-[#c9a45c]/20 via-[#f0c987]/20 to-[#c9a45c]/20 blur-lg rounded-xl"></div>
+              
+              <h1 className="relative text-2xl md:text-4xl lg:text-5xl font-black tracking-tight">
+                <span className="block bg-gradient-to-r from-[#c9a45c] via-[#f0c987] to-[#ff8c42] bg-clip-text text-transparent drop-shadow-lg">
+                  Nueva
+                </span>
+                <span className="block bg-gradient-to-r from-[#f0c987] via-[#c9a45c] to-[#ff8c42] bg-clip-text text-transparent mt-1 transform translate-x-1">
+                  Revisión
+                </span>
+              </h1>
+              
+              {/* Línea decorativa animada */}
+              <div className="relative mt-2 h-0.5 w-20">
+                <div className="absolute inset-0 bg-gradient-to-r from-transparent via-[#c9a45c] to-transparent rounded-full"></div>
+                <div className="absolute inset-0 bg-gradient-to-r from-transparent via-[#f0c987] to-transparent rounded-full animate-pulse"></div>
+              </div>
+            </div>
             <button
               type="button"
               onClick={() => router.push('/')}

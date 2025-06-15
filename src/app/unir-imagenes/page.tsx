@@ -330,9 +330,31 @@ export default function UnirImagenes() {
             <span className="font-medium">Volver al inicio</span>
           </Link>
           
-          <h1 className="text-3xl md:text-4xl font-bold bg-gradient-to-r from-white via-[#c9a45c] to-[#f0c987] bg-clip-text text-transparent text-center">
-            Unir Imagenes
-          </h1>
+          <div className="relative text-center">
+            {/* Efecto de resplandor de fondo */}
+            <div className="absolute inset-0 bg-gradient-to-r from-[#c9a45c]/15 via-[#f0c987]/15 to-[#c9a45c]/15 blur-2xl rounded-full transform scale-125"></div>
+            
+            {/* Título principal con efectos modernos */}
+            <h1 className="relative text-3xl md:text-5xl lg:text-6xl font-black tracking-tight">
+              <span className="block bg-gradient-to-r from-white via-[#f0c987] to-[#c9a45c] bg-clip-text text-transparent drop-shadow-xl">
+                Unir
+              </span>
+              <span className="block bg-gradient-to-r from-[#c9a45c] via-[#f0c987] to-white bg-clip-text text-transparent mt-1 transform translate-x-1">
+                Imágenes
+              </span>
+            </h1>
+            
+            {/* Línea decorativa animada */}
+            <div className="relative mt-4 h-0.5 w-24 mx-auto">
+              <div className="absolute inset-0 bg-gradient-to-r from-transparent via-[#c9a45c] to-transparent rounded-full"></div>
+              <div className="absolute inset-0 bg-gradient-to-r from-transparent via-[#f0c987] to-transparent rounded-full animate-pulse"></div>
+            </div>
+            
+            {/* Subtítulo elegante */}
+            <p className="relative mt-3 text-sm md:text-base text-gray-300 font-light tracking-wide">
+              Combina tus imágenes de forma profesional
+            </p>
+          </div>
           <div className="w-32"></div>
         </div>
 

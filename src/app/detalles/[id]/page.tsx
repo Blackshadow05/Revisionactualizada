@@ -97,6 +97,56 @@ export default function DetallesRevision() {
     'Cristopher G', 'Emerson S', 'Joseph R'
   ];
 
+  // Mapeo de nombres de campos técnicos a nombres legibles
+  const fieldLabels: Record<string, string> = {
+    casita: 'Casita',
+    quien_revisa: 'Quien revisa',
+    caja_fuerte: 'Caja fuerte',
+    puertas_ventanas: 'Puertas y ventanas',
+    chromecast: 'Chromecast',
+    binoculares: 'Binoculares',
+    trapo_binoculares: 'Trapo binoculares',
+    speaker: 'Speaker',
+    usb_speaker: 'USB Speaker',
+    controles_tv: 'Controles TV',
+    secadora: 'Secadora',
+    accesorios_secadora: 'Accesorios secadora',
+    accesorios_secadora_faltante: 'Accesorios secadora faltante',
+    steamer: 'Steamer',
+    bolsa_vapor: 'Bolsa vapor',
+    plancha_cabello: 'Plancha cabello',
+    bulto: 'Bulto',
+    sombrero: 'Sombrero',
+    bolso_yute: 'Bolso yute',
+    camas_ordenadas: 'Camas ordenadas',
+    cola_caballo: 'Cola caballo',
+    evidencia_01: 'Evidencia 1',
+    evidencia_02: 'Evidencia 2',
+    evidencia_03: 'Evidencia 3',
+    faltantes: 'Faltantes',
+    Notas: 'Notas'
+  };
+
+  // Función para extraer el nombre del campo y valor de los datos de edición
+  const parseEditData = (dataString: string) => {
+    // Formato: [UUID] campo: valor
+    const match = dataString.match(/^\[([a-f0-9-]+)\]\s+([^:]+):\s*(.*)$/);
+    if (match) {
+      const [, id, fieldName, value] = match;
+      const displayName = fieldLabels[fieldName.trim()] || fieldName.trim();
+      return {
+        fieldName: fieldName.trim(),
+        displayName,
+        value: value.trim()
+      };
+    }
+    return {
+      fieldName: '',
+      displayName: 'Campo desconocido',
+      value: dataString
+    };
+  };
+
   const fetchData = async () => {
     try {
       setLoading(true);
@@ -645,11 +695,28 @@ export default function DetallesRevision() {
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5.291A7.962 7.962 0 0112 20c-4.411 0-8-3.589-8-8s3.589-8 8-8 8 3.589 8 8c0 1.913-.67 3.669-1.791 5.043L19.5 20.5 17 18" />
                   </svg>
                 </div>
-                <div>
-                  <h1 className="text-2xl sm:text-3xl font-bold bg-gradient-to-r from-white via-[#c9a45c] to-[#f0c987] bg-clip-text text-transparent">
-                    Detalles de la Revisión
-                  </h1>
-                  <p className="text-gray-400 text-sm mt-1">Casita {data?.casita}</p>
+                <div className="relative">
+                  {/* Efecto de resplandor sutil */}
+                  <div className="absolute -inset-2 bg-gradient-to-r from-[#c9a45c]/10 via-[#f0c987]/10 to-[#c9a45c]/10 blur-xl rounded-2xl"></div>
+                  
+                  <div className="relative">
+                    <h1 className="text-2xl sm:text-4xl lg:text-5xl font-black tracking-tight leading-tight">
+                      <span className="block bg-gradient-to-r from-white via-[#f0c987] to-[#c9a45c] bg-clip-text text-transparent drop-shadow-lg">
+                        Detalles de
+                      </span>
+                      <span className="block bg-gradient-to-r from-[#c9a45c] via-[#f0c987] to-white bg-clip-text text-transparent mt-1 transform translate-x-1">
+                        la Revisión
+                      </span>
+                    </h1>
+                    
+                    {/* Badge moderno para la casita */}
+                    <div className="inline-flex items-center gap-2 mt-4 px-4 py-2 bg-gradient-to-r from-[#c9a45c]/20 to-[#f0c987]/20 backdrop-blur-sm rounded-full border border-[#c9a45c]/30">
+                      <div className="w-2 h-2 bg-gradient-to-r from-[#c9a45c] to-[#f0c987] rounded-full animate-pulse"></div>
+                      <span className="text-[#f0c987] font-semibold text-sm tracking-wide">
+                        CASITA {data?.casita}
+                      </span>
+                    </div>
+                  </div>
                 </div>
               </div>
               
@@ -1235,23 +1302,47 @@ export default function DetallesRevision() {
                       
                       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
                         <div className="bg-gradient-to-r from-red-500/10 to-red-600/10 rounded-lg p-4 border border-red-500/20">
-                          <div className="flex items-center gap-2 mb-2">
+                          <div className="flex items-center gap-2 mb-3">
                             <div className="w-2 h-2 bg-red-400 rounded-full"></div>
-                            <span className="text-red-400 font-semibold text-sm">Dato Anterior</span>
+                            <span className="text-red-400 font-semibold text-sm">Valor Anterior</span>
                           </div>
-                          <p className="text-gray-300 text-sm leading-relaxed break-words">
-                            {edicion.Dato_anterior.split(': ').slice(1).join(': ')}
-                          </p>
+                          {(() => {
+                            const parsedData = parseEditData(edicion.Dato_anterior);
+                            return (
+                              <div className="space-y-2">
+                                <div className="flex items-center gap-2">
+                                  <span className="text-xs font-medium text-red-300 bg-red-500/20 px-2 py-1 rounded-md">
+                                    {parsedData.displayName}
+                                  </span>
+                                </div>
+                                <p className="text-gray-300 text-sm leading-relaxed break-words bg-[#1a1f35]/50 p-3 rounded-lg border border-red-500/10">
+                                  {parsedData.value || 'Sin valor'}
+                                </p>
+                              </div>
+                            );
+                          })()}
                         </div>
                         
                         <div className="bg-gradient-to-r from-green-500/10 to-green-600/10 rounded-lg p-4 border border-green-500/20">
-                          <div className="flex items-center gap-2 mb-2">
+                          <div className="flex items-center gap-2 mb-3">
                             <div className="w-2 h-2 bg-green-400 rounded-full"></div>
-                            <span className="text-green-400 font-semibold text-sm">Dato Nuevo</span>
+                            <span className="text-green-400 font-semibold text-sm">Valor Nuevo</span>
                           </div>
-                          <p className="text-gray-300 text-sm leading-relaxed break-words">
-                            {edicion.Dato_nuevo.split(': ').slice(1).join(': ')}
-                          </p>
+                          {(() => {
+                            const parsedData = parseEditData(edicion.Dato_nuevo);
+                            return (
+                              <div className="space-y-2">
+                                <div className="flex items-center gap-2">
+                                  <span className="text-xs font-medium text-green-300 bg-green-500/20 px-2 py-1 rounded-md">
+                                    {parsedData.displayName}
+                                  </span>
+                                </div>
+                                <p className="text-gray-300 text-sm leading-relaxed break-words bg-[#1a1f35]/50 p-3 rounded-lg border border-green-500/10">
+                                  {parsedData.value || 'Sin valor'}
+                                </p>
+                              </div>
+                            );
+                          })()}
                         </div>
                       </div>
                     </div>
