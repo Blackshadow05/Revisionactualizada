@@ -109,6 +109,17 @@ export default function NuevaRevision() {
     evidencia_02: null,
     evidencia_03: null,
   });
+
+  // Estados para tamaños de archivos
+  const [fileSizes, setFileSizes] = useState<{
+    evidencia_01: { original: number; compressed: number };
+    evidencia_02: { original: number; compressed: number };
+    evidencia_03: { original: number; compressed: number };
+  }>({
+    evidencia_01: { original: 0, compressed: 0 },
+    evidencia_02: { original: 0, compressed: 0 },
+    evidencia_03: { original: 0, compressed: 0 },
+  });
   
   const [compressionStatus, setCompressionStatus] = useState<{
     evidencia_01: { status: 'idle' | 'compressing' | 'completed' | 'error'; progress: number; stage: string; error?: string };
@@ -259,7 +270,7 @@ export default function NuevaRevision() {
   };
 
   // Función para comprimir imagen usando canvas (misma configuración que detalles)
-  const compressImage = (file: File, maxWidth = 1920, maxHeight = 1080, quality = 0.8): Promise<File> => {
+  const compressImage = (file: File, maxWidth = 1920, maxHeight = 1080, quality = 0.7): Promise<File> => {
     return new Promise((resolve, reject) => {
       const reader = new FileReader();
       reader.readAsDataURL(file);
@@ -328,12 +339,18 @@ export default function NuevaRevision() {
         [field]: compressedFile
       }));
 
+      // Guardar tamaños de archivos
+      setFileSizes(prev => ({
+        ...prev,
+        [field]: { original: file.size, compressed: compressedFile.size }
+      }));
+
       setCompressionStatus(prev => ({
         ...prev,
         [field]: { 
           status: 'completed', 
           progress: 100, 
-          stage: `Completado - ${compressionRatio}% compresión (Calidad 80% ALTA)` 
+          stage: `Completado - ${compressionRatio}% compresión` 
         }
       }));
 
@@ -363,6 +380,7 @@ export default function NuevaRevision() {
     } else {
       // Limpiar estados si se remueve el archivo
       setCompressedFiles(prev => ({ ...prev, [field]: null }));
+      setFileSizes(prev => ({ ...prev, [field]: { original: 0, compressed: 0 } }));
       setCompressionStatus(prev => ({
         ...prev,
         [field]: { status: 'idle', progress: 0, stage: '' }
@@ -927,6 +945,12 @@ export default function NuevaRevision() {
                                 )}
                               </div>
                             )}
+                            {/* Información de tamaños */}
+                            {fileSizes.evidencia_01.original > 0 && (
+                              <div className="mt-1 text-xs text-gray-500">
+                                {(fileSizes.evidencia_01.original / 1024).toFixed(1)} KB → {(fileSizes.evidencia_01.compressed / 1024).toFixed(1)} KB
+                              </div>
+                            )}
                             {/* Preview de imagen clickeable */}
                             {formData.evidencia_01 instanceof File && (
                               <button
@@ -1053,6 +1077,12 @@ export default function NuevaRevision() {
                                 )}
                               </div>
                             )}
+                            {/* Información de tamaños */}
+                            {fileSizes.evidencia_02.original > 0 && (
+                              <div className="mt-1 text-xs text-gray-500">
+                                {(fileSizes.evidencia_02.original / 1024).toFixed(1)} KB → {(fileSizes.evidencia_02.compressed / 1024).toFixed(1)} KB
+                              </div>
+                            )}
                             {/* Preview de imagen clickeable */}
                             {formData.evidencia_02 instanceof File && (
                               <button
@@ -1177,6 +1207,12 @@ export default function NuevaRevision() {
                                 {compressionStatus.evidencia_03.status === 'error' && (
                                   <span className="text-red-400">❌ Error: {compressionStatus.evidencia_03.error}</span>
                                 )}
+                              </div>
+                            )}
+                            {/* Información de tamaños */}
+                            {fileSizes.evidencia_03.original > 0 && (
+                              <div className="mt-1 text-xs text-gray-500">
+                                {(fileSizes.evidencia_03.original / 1024).toFixed(1)} KB → {(fileSizes.evidencia_03.compressed / 1024).toFixed(1)} KB
                               </div>
                             )}
                             {/* Preview de imagen clickeable */}
