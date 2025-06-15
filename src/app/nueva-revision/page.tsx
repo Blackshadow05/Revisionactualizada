@@ -132,6 +132,24 @@ export default function NuevaRevision() {
     evidencia_03: { status: 'idle', progress: 0, stage: '' },
   });
 
+  // Estados para progreso de subida
+  const [uploadProgress, setUploadProgress] = useState<{
+    evidencia_01: { status: 'idle' | 'uploading' | 'completed' | 'error'; progress: number; stage: string };
+    evidencia_02: { status: 'idle' | 'uploading' | 'completed' | 'error'; progress: number; stage: string };
+    evidencia_03: { status: 'idle' | 'uploading' | 'completed' | 'error'; progress: number; stage: string };
+  }>({
+    evidencia_01: { status: 'idle', progress: 0, stage: '' },
+    evidencia_02: { status: 'idle', progress: 0, stage: '' },
+    evidencia_03: { status: 'idle', progress: 0, stage: '' },
+  });
+
+  const [overallUploadProgress, setOverallUploadProgress] = useState({
+    totalFiles: 0,
+    completedFiles: 0,
+    currentStage: '',
+    isUploading: false
+  });
+
   const fileInputRef = useRef<HTMLInputElement>(null);
   const fileInputRef2 = useRef<HTMLInputElement>(null);
   const fileInputRef3 = useRef<HTMLInputElement>(null);
@@ -320,21 +338,48 @@ export default function NuevaRevision() {
     });
   };
 
-  // Función para comprimir automáticamente en segundo plano
+  // Función para comprimir automáticamente en segundo plano con progreso detallado
   const compressFileInBackground = async (field: keyof FileData, file: File) => {
-    // Iniciar compresión
+    // Limpiar archivo anterior de RAM si existe
+    if (compressedFiles[field]) {
+      setCompressedFiles(prev => ({
+        ...prev,
+        [field]: null
+      }));
+    }
+
+    // Iniciar compresión con progreso detallado
     setCompressionStatus(prev => ({
       ...prev,
-      [field]: { status: 'compressing', progress: 50, stage: 'Comprimiendo imagen...' }
+      [field]: { status: 'compressing', progress: 10, stage: 'Iniciando compresión...' }
     }));
 
     try {
+      // Simular progreso de lectura del archivo
+      await new Promise(resolve => setTimeout(resolve, 100));
+      setCompressionStatus(prev => ({
+        ...prev,
+        [field]: { status: 'compressing', progress: 25, stage: 'Leyendo archivo...' }
+      }));
+
+      // Simular progreso de procesamiento
+      await new Promise(resolve => setTimeout(resolve, 100));
+      setCompressionStatus(prev => ({
+        ...prev,
+        [field]: { status: 'compressing', progress: 50, stage: 'Procesando imagen...' }
+      }));
+
       const compressedFile = await compressImage(file);
       
+      setCompressionStatus(prev => ({
+        ...prev,
+        [field]: { status: 'compressing', progress: 85, stage: 'Finalizando compresión...' }
+      }));
+
       // Calcular porcentaje de compresión
       const compressionRatio = Math.round((1 - compressedFile.size / file.size) * 100);
 
-      // Guardar archivo comprimido
+      // Guardar archivo comprimido (solo uno en RAM por campo)
       setCompressedFiles(prev => ({
         ...prev,
         [field]: compressedFile
@@ -351,7 +396,7 @@ export default function NuevaRevision() {
         [field]: { 
           status: 'completed', 
           progress: 100, 
-          stage: `Completado - ${compressionRatio}% compresión` 
+          stage: `✅ Listo - ${compressionRatio}% compresión` 
         }
       }));
 
@@ -361,7 +406,7 @@ export default function NuevaRevision() {
         [field]: { 
           status: 'error', 
           progress: 0, 
-          stage: '', 
+          stage: '❌ Error en compresión', 
           error: (error as Error).message 
         }
       }));
@@ -488,84 +533,175 @@ export default function NuevaRevision() {
       const recordId = data?.[0]?.id;
       
               if (recordId) {
-        // Subir archivos individualmente a ImageKit.io
-        const uploadPromises = [];
-        
-        // Usar archivos comprimidos si están disponibles, sino usar originales
-        if (formData.evidencia_01 instanceof File) {
-          const fileToUpload = compressedFiles.evidencia_01 || formData.evidencia_01;
-          console.log('Preparando evidencia_01:', fileToUpload.name, fileToUpload.size);
-          
-          const uploadPromise = uploadToImageKitClient(fileToUpload, 'evidencias').then(async (url: string) => {
-            // Actualizar el registro en Supabase con la URL
-            const { error: updateError } = await supabase
-              .from('revisiones_casitas')
-              .update({ evidencia_01: url })
-              .eq('id', recordId);
-            
-            if (updateError) {
-              console.error('Error actualizando evidencia_01:', updateError);
-              throw updateError;
-            }
-            
-            console.log('✅ Evidencia_01 subida y actualizada:', url);
-            return url;
-          });
-          
-          uploadPromises.push(uploadPromise);
-        }
-        
-        if (formData.evidencia_02 instanceof File) {
-          const fileToUpload = compressedFiles.evidencia_02 || formData.evidencia_02;
-          console.log('Preparando evidencia_02:', fileToUpload.name, fileToUpload.size);
-          
-          const uploadPromise = uploadToImageKitClient(fileToUpload, 'evidencias').then(async (url: string) => {
-            // Actualizar el registro en Supabase con la URL
-            const { error: updateError } = await supabase
-              .from('revisiones_casitas')
-              .update({ evidencia_02: url })
-              .eq('id', recordId);
-            
-            if (updateError) {
-              console.error('Error actualizando evidencia_02:', updateError);
-              throw updateError;
-            }
-            
-            console.log('✅ Evidencia_02 subida y actualizada:', url);
-            return url;
-          });
-          
-          uploadPromises.push(uploadPromise);
-        }
-        
-        if (formData.evidencia_03 instanceof File) {
-          const fileToUpload = compressedFiles.evidencia_03 || formData.evidencia_03;
-          console.log('Preparando evidencia_03:', fileToUpload.name, fileToUpload.size);
-          
-          const uploadPromise = uploadToImageKitClient(fileToUpload, 'evidencias').then(async (url: string) => {
-            // Actualizar el registro en Supabase con la URL
-            const { error: updateError } = await supabase
-              .from('revisiones_casitas')
-              .update({ evidencia_03: url })
-              .eq('id', recordId);
-            
-            if (updateError) {
-              console.error('Error actualizando evidencia_03:', updateError);
-              throw updateError;
-            }
-            
-            console.log('✅ Evidencia_03 subida y actualizada:', url);
-            return url;
-          });
-          
-          uploadPromises.push(uploadPromise);
-        }
+        // Contar archivos a subir
+        const filesToUpload = [];
+        if (formData.evidencia_01 instanceof File) filesToUpload.push('evidencia_01');
+        if (formData.evidencia_02 instanceof File) filesToUpload.push('evidencia_02');
+        if (formData.evidencia_03 instanceof File) filesToUpload.push('evidencia_03');
 
-        console.log('Total archivos a subir:', uploadPromises.length);
+        if (filesToUpload.length > 0) {
+          // Inicializar progreso de subida
+          setOverallUploadProgress({
+            totalFiles: filesToUpload.length,
+            completedFiles: 0,
+            currentStage: 'Iniciando subida de imágenes...',
+            isUploading: true
+          });
 
-        // Subir todas las imágenes en paralelo
-        if (uploadPromises.length > 0) {
+          const uploadPromises = [];
+          
+          // Subir evidencia_01
+          if (formData.evidencia_01 instanceof File) {
+            const fileToUpload = compressedFiles.evidencia_01 || formData.evidencia_01;
+            console.log('Preparando evidencia_01:', fileToUpload.name, fileToUpload.size);
+            
+            setUploadProgress(prev => ({
+              ...prev,
+              evidencia_01: { status: 'uploading', progress: 0, stage: 'Subiendo evidencia 1...' }
+            }));
+            
+            const uploadPromise = uploadToImageKitClient(fileToUpload, 'evidencias').then(async (url: string) => {
+              setUploadProgress(prev => ({
+                ...prev,
+                evidencia_01: { status: 'uploading', progress: 50, stage: 'Actualizando base de datos...' }
+              }));
+
+              // Actualizar el registro en Supabase con la URL
+              const { error: updateError } = await supabase
+                .from('revisiones_casitas')
+                .update({ evidencia_01: url })
+                .eq('id', recordId);
+              
+              if (updateError) {
+                console.error('Error actualizando evidencia_01:', updateError);
+                throw updateError;
+              }
+              
+              setUploadProgress(prev => ({
+                ...prev,
+                evidencia_01: { status: 'completed', progress: 100, stage: '✅ Evidencia 1 completada' }
+              }));
+
+              setOverallUploadProgress(prev => ({
+                ...prev,
+                completedFiles: prev.completedFiles + 1,
+                currentStage: `Evidencia 1 completada (${prev.completedFiles + 1}/${prev.totalFiles})`
+              }));
+              
+              console.log('✅ Evidencia_01 subida y actualizada:', url);
+              return url;
+            });
+            
+            uploadPromises.push(uploadPromise);
+          }
+          
+          // Subir evidencia_02
+          if (formData.evidencia_02 instanceof File) {
+            const fileToUpload = compressedFiles.evidencia_02 || formData.evidencia_02;
+            console.log('Preparando evidencia_02:', fileToUpload.name, fileToUpload.size);
+            
+            setUploadProgress(prev => ({
+              ...prev,
+              evidencia_02: { status: 'uploading', progress: 0, stage: 'Subiendo evidencia 2...' }
+            }));
+            
+            const uploadPromise = uploadToImageKitClient(fileToUpload, 'evidencias').then(async (url: string) => {
+              setUploadProgress(prev => ({
+                ...prev,
+                evidencia_02: { status: 'uploading', progress: 50, stage: 'Actualizando base de datos...' }
+              }));
+
+              // Actualizar el registro en Supabase con la URL
+              const { error: updateError } = await supabase
+                .from('revisiones_casitas')
+                .update({ evidencia_02: url })
+                .eq('id', recordId);
+              
+              if (updateError) {
+                console.error('Error actualizando evidencia_02:', updateError);
+                throw updateError;
+              }
+              
+              setUploadProgress(prev => ({
+                ...prev,
+                evidencia_02: { status: 'completed', progress: 100, stage: '✅ Evidencia 2 completada' }
+              }));
+
+              setOverallUploadProgress(prev => ({
+                ...prev,
+                completedFiles: prev.completedFiles + 1,
+                currentStage: `Evidencia 2 completada (${prev.completedFiles + 1}/${prev.totalFiles})`
+              }));
+              
+              console.log('✅ Evidencia_02 subida y actualizada:', url);
+              return url;
+            });
+            
+            uploadPromises.push(uploadPromise);
+          }
+          
+          // Subir evidencia_03
+          if (formData.evidencia_03 instanceof File) {
+            const fileToUpload = compressedFiles.evidencia_03 || formData.evidencia_03;
+            console.log('Preparando evidencia_03:', fileToUpload.name, fileToUpload.size);
+            
+            setUploadProgress(prev => ({
+              ...prev,
+              evidencia_03: { status: 'uploading', progress: 0, stage: 'Subiendo evidencia 3...' }
+            }));
+            
+            const uploadPromise = uploadToImageKitClient(fileToUpload, 'evidencias').then(async (url: string) => {
+              setUploadProgress(prev => ({
+                ...prev,
+                evidencia_03: { status: 'uploading', progress: 50, stage: 'Actualizando base de datos...' }
+              }));
+
+              // Actualizar el registro en Supabase con la URL
+              const { error: updateError } = await supabase
+                .from('revisiones_casitas')
+                .update({ evidencia_03: url })
+                .eq('id', recordId);
+              
+              if (updateError) {
+                console.error('Error actualizando evidencia_03:', updateError);
+                throw updateError;
+              }
+              
+              setUploadProgress(prev => ({
+                ...prev,
+                evidencia_03: { status: 'completed', progress: 100, stage: '✅ Evidencia 3 completada' }
+              }));
+
+              setOverallUploadProgress(prev => ({
+                ...prev,
+                completedFiles: prev.completedFiles + 1,
+                currentStage: `Evidencia 3 completada (${prev.completedFiles + 1}/${prev.totalFiles})`
+              }));
+              
+              console.log('✅ Evidencia_03 subida y actualizada:', url);
+              return url;
+            });
+            
+            uploadPromises.push(uploadPromise);
+          }
+
+          console.log('Total archivos a subir:', uploadPromises.length);
+
+          // Subir todas las imágenes en paralelo
           await Promise.all(uploadPromises);
+
+          // Limpiar archivos de RAM después de subir exitosamente
+          setCompressedFiles({
+            evidencia_01: null,
+            evidencia_02: null,
+            evidencia_03: null,
+          });
+
+          setOverallUploadProgress(prev => ({
+            ...prev,
+            currentStage: '🎉 ¡Todas las imágenes subidas exitosamente!',
+            isUploading: false
+          }));
         }
       }
 
@@ -1003,17 +1139,34 @@ export default function NuevaRevision() {
                           </div>
                           <div>
                             <div className="text-white font-medium">Evidencia 1</div>
-                            {/* Indicador de estado de compresión */}
+                            {/* Barra de progreso de compresión */}
                             {compressionStatus.evidencia_01.status !== 'idle' && (
-                              <div className="mt-1 text-xs text-gray-400">
+                              <div className="mt-2">
                                 {compressionStatus.evidencia_01.status === 'compressing' && (
-                                  <span className="text-[#c9a45c]">🔄 Comprimiendo...</span>
+                                  <div>
+                                    <div className="flex items-center gap-2 mb-1">
+                                      <div className="w-2 h-2 bg-[#c9a45c] rounded-full animate-pulse"></div>
+                                      <span className="text-[#c9a45c] text-xs font-medium">{compressionStatus.evidencia_01.stage}</span>
+                                    </div>
+                                    <div className="w-full bg-gray-700/50 rounded-full h-1.5">
+                                      <div 
+                                        className="bg-gradient-to-r from-[#c9a45c] to-[#f0c987] h-1.5 rounded-full transition-all duration-300 ease-out"
+                                        style={{ width: `${compressionStatus.evidencia_01.progress}%` }}
+                                      ></div>
+                                    </div>
+                                  </div>
                                 )}
                                 {compressionStatus.evidencia_01.status === 'completed' && (
-                                  <span className="text-green-400">✅ {compressionStatus.evidencia_01.stage}</span>
+                                  <div className="flex items-center gap-2">
+                                    <div className="w-2 h-2 bg-green-400 rounded-full"></div>
+                                    <span className="text-green-400 text-xs font-medium">{compressionStatus.evidencia_01.stage}</span>
+                                  </div>
                                 )}
                                 {compressionStatus.evidencia_01.status === 'error' && (
-                                  <span className="text-red-400">❌ Error: {compressionStatus.evidencia_01.error}</span>
+                                  <div className="flex items-center gap-2">
+                                    <div className="w-2 h-2 bg-red-400 rounded-full"></div>
+                                    <span className="text-red-400 text-xs font-medium">❌ Error: {compressionStatus.evidencia_01.error}</span>
+                                  </div>
                                 )}
                               </div>
                             )}
@@ -1135,17 +1288,34 @@ export default function NuevaRevision() {
                           </div>
                           <div>
                             <div className="text-white font-medium">Evidencia 2</div>
-                            {/* Indicador de estado de compresión */}
+                            {/* Barra de progreso de compresión */}
                             {compressionStatus.evidencia_02.status !== 'idle' && (
-                              <div className="mt-1 text-xs text-gray-400">
+                              <div className="mt-2">
                                 {compressionStatus.evidencia_02.status === 'compressing' && (
-                                  <span className="text-[#c9a45c]">🔄 Comprimiendo...</span>
+                                  <div>
+                                    <div className="flex items-center gap-2 mb-1">
+                                      <div className="w-2 h-2 bg-[#c9a45c] rounded-full animate-pulse"></div>
+                                      <span className="text-[#c9a45c] text-xs font-medium">{compressionStatus.evidencia_02.stage}</span>
+                                    </div>
+                                    <div className="w-full bg-gray-700/50 rounded-full h-1.5">
+                                      <div 
+                                        className="bg-gradient-to-r from-[#c9a45c] to-[#f0c987] h-1.5 rounded-full transition-all duration-300 ease-out"
+                                        style={{ width: `${compressionStatus.evidencia_02.progress}%` }}
+                                      ></div>
+                                    </div>
+                                  </div>
                                 )}
                                 {compressionStatus.evidencia_02.status === 'completed' && (
-                                  <span className="text-green-400">✅ {compressionStatus.evidencia_02.stage}</span>
+                                  <div className="flex items-center gap-2">
+                                    <div className="w-2 h-2 bg-green-400 rounded-full"></div>
+                                    <span className="text-green-400 text-xs font-medium">{compressionStatus.evidencia_02.stage}</span>
+                                  </div>
                                 )}
                                 {compressionStatus.evidencia_02.status === 'error' && (
-                                  <span className="text-red-400">❌ Error: {compressionStatus.evidencia_02.error}</span>
+                                  <div className="flex items-center gap-2">
+                                    <div className="w-2 h-2 bg-red-400 rounded-full"></div>
+                                    <span className="text-red-400 text-xs font-medium">❌ Error: {compressionStatus.evidencia_02.error}</span>
+                                  </div>
                                 )}
                               </div>
                             )}
@@ -1267,17 +1437,34 @@ export default function NuevaRevision() {
                           </div>
                           <div>
                             <div className="text-white font-medium">Evidencia 3</div>
-                            {/* Indicador de estado de compresión */}
+                            {/* Barra de progreso de compresión */}
                             {compressionStatus.evidencia_03.status !== 'idle' && (
-                              <div className="mt-1 text-xs text-gray-400">
+                              <div className="mt-2">
                                 {compressionStatus.evidencia_03.status === 'compressing' && (
-                                  <span className="text-[#c9a45c]">🔄 Comprimiendo...</span>
+                                  <div>
+                                    <div className="flex items-center gap-2 mb-1">
+                                      <div className="w-2 h-2 bg-[#c9a45c] rounded-full animate-pulse"></div>
+                                      <span className="text-[#c9a45c] text-xs font-medium">{compressionStatus.evidencia_03.stage}</span>
+                                    </div>
+                                    <div className="w-full bg-gray-700/50 rounded-full h-1.5">
+                                      <div 
+                                        className="bg-gradient-to-r from-[#c9a45c] to-[#f0c987] h-1.5 rounded-full transition-all duration-300 ease-out"
+                                        style={{ width: `${compressionStatus.evidencia_03.progress}%` }}
+                                      ></div>
+                                    </div>
+                                  </div>
                                 )}
                                 {compressionStatus.evidencia_03.status === 'completed' && (
-                                  <span className="text-green-400">✅ {compressionStatus.evidencia_03.stage}</span>
+                                  <div className="flex items-center gap-2">
+                                    <div className="w-2 h-2 bg-green-400 rounded-full"></div>
+                                    <span className="text-green-400 text-xs font-medium">{compressionStatus.evidencia_03.stage}</span>
+                                  </div>
                                 )}
                                 {compressionStatus.evidencia_03.status === 'error' && (
-                                  <span className="text-red-400">❌ Error: {compressionStatus.evidencia_03.error}</span>
+                                  <div className="flex items-center gap-2">
+                                    <div className="w-2 h-2 bg-red-400 rounded-full"></div>
+                                    <span className="text-red-400 text-xs font-medium">❌ Error: {compressionStatus.evidencia_03.error}</span>
+                                  </div>
                                 )}
                               </div>
                             )}
@@ -1354,7 +1541,75 @@ export default function NuevaRevision() {
                 </div>
               )}
 
-
+              {/* Barra de progreso de subida */}
+              {overallUploadProgress.isUploading && (
+                <div className="bg-gradient-to-r from-blue-500/10 to-green-500/10 border border-blue-500/20 rounded-xl p-4 backdrop-blur-sm">
+                  <div className="flex items-center gap-3 mb-3">
+                    <div className="w-3 h-3 bg-blue-400 rounded-full animate-pulse"></div>
+                    <span className="text-blue-400 font-medium">Subiendo imágenes a ImageKit.io</span>
+                    <span className="text-gray-300 text-sm">
+                      ({overallUploadProgress.completedFiles}/{overallUploadProgress.totalFiles})
+                    </span>
+                  </div>
+                  
+                  {/* Barra de progreso general */}
+                  <div className="w-full bg-gray-700/50 rounded-full h-2 mb-3">
+                    <div 
+                      className="bg-gradient-to-r from-blue-500 to-green-500 h-2 rounded-full transition-all duration-300 ease-out"
+                      style={{ 
+                        width: `${(overallUploadProgress.completedFiles / overallUploadProgress.totalFiles) * 100}%` 
+                      }}
+                    ></div>
+                  </div>
+                  
+                  <p className="text-gray-300 text-sm">{overallUploadProgress.currentStage}</p>
+                  
+                  {/* Progreso individual de cada archivo */}
+                  <div className="mt-3 space-y-2">
+                    {uploadProgress.evidencia_01.status !== 'idle' && (
+                      <div className="flex items-center gap-2 text-xs">
+                        <div className="w-2 h-2 bg-blue-400 rounded-full"></div>
+                        <span className="text-gray-400 min-w-[80px]">Evidencia 1:</span>
+                        <div className="flex-1 bg-gray-700/30 rounded-full h-1">
+                          <div 
+                            className="bg-blue-400 h-1 rounded-full transition-all duration-300"
+                            style={{ width: `${uploadProgress.evidencia_01.progress}%` }}
+                          ></div>
+                        </div>
+                        <span className="text-gray-400 text-xs">{uploadProgress.evidencia_01.stage}</span>
+                      </div>
+                    )}
+                    
+                    {uploadProgress.evidencia_02.status !== 'idle' && (
+                      <div className="flex items-center gap-2 text-xs">
+                        <div className="w-2 h-2 bg-blue-400 rounded-full"></div>
+                        <span className="text-gray-400 min-w-[80px]">Evidencia 2:</span>
+                        <div className="flex-1 bg-gray-700/30 rounded-full h-1">
+                          <div 
+                            className="bg-blue-400 h-1 rounded-full transition-all duration-300"
+                            style={{ width: `${uploadProgress.evidencia_02.progress}%` }}
+                          ></div>
+                        </div>
+                        <span className="text-gray-400 text-xs">{uploadProgress.evidencia_02.stage}</span>
+                      </div>
+                    )}
+                    
+                    {uploadProgress.evidencia_03.status !== 'idle' && (
+                      <div className="flex items-center gap-2 text-xs">
+                        <div className="w-2 h-2 bg-blue-400 rounded-full"></div>
+                        <span className="text-gray-400 min-w-[80px]">Evidencia 3:</span>
+                        <div className="flex-1 bg-gray-700/30 rounded-full h-1">
+                          <div 
+                            className="bg-blue-400 h-1 rounded-full transition-all duration-300"
+                            style={{ width: `${uploadProgress.evidencia_03.progress}%` }}
+                          ></div>
+                        </div>
+                        <span className="text-gray-400 text-xs">{uploadProgress.evidencia_03.stage}</span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
 
               <button
                 type="submit"

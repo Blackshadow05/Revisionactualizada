@@ -199,6 +199,49 @@ body {
   background: #4a5573;
 }
 
+/* Mejoras para interacción táctil */
+.touch-manipulation {
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  user-select: none;
+}
+
+/* Estilos específicos para botones táctiles */
+button, [role="button"] {
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Mejora la respuesta táctil en dispositivos móviles */
+@media (hover: none) and (pointer: coarse) {
+  button:active, [role="button"]:active {
+    transform: scale(0.95);
+    transition: transform 0.1s ease;
+  }
+  
+  .cursor-pointer:active {
+    transform: scale(0.95);
+    transition: transform 0.1s ease;
+  }
+  
+  /* Estilos específicos para el botón del menú en móvil */
+  .menu-dropdown-container [role="button"]:active {
+    background-color: #f0c987 !important;
+    transform: scale(0.95);
+    transition: all 0.1s ease;
+  }
+}
+
+/* Asegurar que los elementos táctiles tengan el tamaño mínimo recomendado */
+[role="button"], button {
+  min-height: 44px;
+  min-width: 44px;
+}
+
 /* Animaciones suaves */
 .transition-all {
   transition-duration: 300ms;

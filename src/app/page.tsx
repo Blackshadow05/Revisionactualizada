@@ -72,6 +72,10 @@ export default function Home() {
   const [showReportModal, setShowReportModal] = useState(false);
   const [reportDateFrom, setReportDateFrom] = useState('');
   const [reportDateTo, setReportDateTo] = useState('');
+  // Función para manejar el toggle del menú
+  const handleMenuToggle = () => {
+    setShowMenuDropdown(prev => !prev);
+  };
 
   const tableContainerRef = useRef<HTMLDivElement>(null);
   const [startX, setStartX] = useState(0);
@@ -97,7 +101,7 @@ export default function Home() {
 
   // Cerrar menú desplegable al hacer clic fuera
   useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
+    const handleClickOutside = (event: Event) => {
       if (showMenuDropdown) {
         const target = event.target as Element;
         if (!target.closest('.menu-dropdown-container')) {
@@ -106,9 +110,13 @@ export default function Home() {
       }
     };
 
-    document.addEventListener('mousedown', handleClickOutside);
+    // Usar eventos más específicos para mejor compatibilidad móvil
+    document.addEventListener('click', handleClickOutside, true);
+    document.addEventListener('touchend', handleClickOutside, true);
+    
     return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('click', handleClickOutside, true);
+      document.removeEventListener('touchend', handleClickOutside, true);
     };
   }, [showMenuDropdown]);
 
@@ -405,81 +413,82 @@ export default function Home() {
       <div className="absolute top-0 left-0 w-full h-full bg-gradient-to-b from-transparent via-transparent to-[#0f1419]/20"></div>
       
       <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Hero Section */}
-        <div className="text-center mb-12">
-          <div className="inline-flex items-center gap-3 mb-6">
-            <div className="relative menu-dropdown-container lg:absolute lg:top-8 lg:left-8">
-              <div className="w-12 h-12 bg-gradient-to-br from-[#c9a45c] to-[#f0c987] rounded-xl flex items-center justify-center shadow-lg cursor-pointer hover:shadow-xl transition-all duration-300"
-                   onClick={() => setShowMenuDropdown(!showMenuDropdown)}>
-                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-7 h-7 text-[#1a1f35]">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5" />
-                </svg>
-              </div>
-              
-              {/* Menú Desplegable */}
-              {showMenuDropdown && (
-                <div className="absolute top-14 left-0 w-64 bg-gradient-to-br from-[#1e2538]/95 to-[#2a3347]/95 backdrop-blur-md rounded-xl border border-[#3d4659]/50 shadow-2xl z-50">
-                  <div className="p-2">
-                    <div className="px-3 py-2 text-xs font-medium text-[#c9a45c] uppercase tracking-wider border-b border-[#3d4659]/30 mb-2">
-                      Herramientas
-                    </div>
-                    <Link
-                      href="/unir-imagenes"
-                      onClick={() => setShowMenuDropdown(false)}
-                      className="w-full flex items-center gap-3 px-3 py-2.5 text-white hover:bg-[#3d4659]/30 rounded-lg transition-all duration-200 text-left"
-                    >
-                      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5 text-blue-400">
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 15.75l5.159-5.159a2.25 2.25 0 013.182 0l5.159 5.159m-1.5-1.5l1.409-1.409a2.25 2.25 0 013.182 0l2.909 2.909m-18 3.75h16.5a1.5 1.5 0 001.5-1.5V6a1.5 1.5 0 00-1.5-1.5H3.75A1.5 1.5 0 002.25 6v12a1.5 1.5 0 001.5 1.5zm10.5-11.25h.008v.008h-.008V8.25zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0z" />
-                      </svg>
-                      Unir imágenes
-                    </Link>
-
-                    
-                    <div className="px-3 py-2 text-xs font-medium text-[#c9a45c] uppercase tracking-wider border-b border-[#3d4659]/30 mb-2 mt-4">
-                      Reportes
-                    </div>
-                    {userRole === 'SuperAdmin' && (
-                      <button
-                        onClick={() => {
-                          setShowReportModal(true);
-                          setShowMenuDropdown(false);
-                        }}
-                        className="w-full flex items-center gap-3 px-3 py-2.5 text-white hover:bg-[#3d4659]/30 rounded-lg transition-all duration-200 text-left"
-                      >
-                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5 text-green-400">
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" />
-                        </svg>
-                        Exportar Reporte
-                      </button>
-                    )}
-                  </div>
-                </div>
-              )}
+                {/* Botón del menú en posición fija */}
+        <div className="absolute top-8 left-8 z-50 menu-dropdown-container">
+          <button 
+            className="w-12 h-12 bg-[#c9a45c] rounded-xl flex items-center justify-center shadow-lg hover:bg-[#f0c987] transition-colors duration-200"
+            onClick={handleMenuToggle}
+            type="button"
+            aria-label="Abrir menú"
+          >
+            <div className="flex flex-col gap-1">
+              <div className="w-5 h-0.5 bg-[#1a1f35] rounded"></div>
+              <div className="w-5 h-0.5 bg-[#1a1f35] rounded"></div>
+              <div className="w-5 h-0.5 bg-[#1a1f35] rounded"></div>
             </div>
-            <div className="relative">
-              {/* Efecto de resplandor de fondo */}
-              <div className="absolute inset-0 bg-gradient-to-r from-[#c9a45c]/20 via-[#f0c987]/20 to-[#c9a45c]/20 blur-3xl rounded-full transform scale-150"></div>
-              
-              {/* Título principal con efectos modernos */}
-              <h1 className="relative text-4xl md:text-6xl lg:text-7xl font-black tracking-tight">
-                <span className="block bg-gradient-to-r from-white via-[#f0c987] to-[#c9a45c] bg-clip-text text-transparent drop-shadow-2xl">
-                  Revisión
-                </span>
-                <span className="block bg-gradient-to-r from-[#c9a45c] via-[#f0c987] to-white bg-clip-text text-transparent mt-2 transform -translate-x-2">
-                  de Casitas
-                </span>
-              </h1>
-              
-              {/* Línea decorativa animada */}
-              <div className="relative mt-6 h-1 w-32 mx-auto">
-                <div className="absolute inset-0 bg-gradient-to-r from-transparent via-[#c9a45c] to-transparent rounded-full"></div>
-                <div className="absolute inset-0 bg-gradient-to-r from-transparent via-[#f0c987] to-transparent rounded-full animate-pulse"></div>
+          </button>
+          
+          {/* Menú Desplegable */}
+          {showMenuDropdown && (
+            <div className="absolute top-14 left-0 w-64 bg-gradient-to-br from-[#1e2538]/95 to-[#2a3347]/95 backdrop-blur-md rounded-xl border border-[#3d4659]/50 shadow-2xl z-50">
+              <div className="p-2">
+                <div className="px-3 py-2 text-xs font-medium text-[#c9a45c] uppercase tracking-wider border-b border-[#3d4659]/30 mb-2">
+                  Herramientas
+                </div>
+                <Link
+                  href="/unir-imagenes"
+                  onClick={() => setShowMenuDropdown(false)}
+                  className="w-full flex items-center gap-3 px-3 py-2.5 text-white hover:bg-[#3d4659]/30 rounded-lg transition-all duration-200 text-left"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5 text-blue-400">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 15.75l5.159-5.159a2.25 2.25 0 013.182 0l5.159 5.159m-1.5-1.5l1.409-1.409a2.25 2.25 0 013.182 0l2.909 2.909m-18 3.75h16.5a1.5 1.5 0 001.5-1.5V6a1.5 1.5 0 00-1.5-1.5H3.75A1.5 1.5 0 002.25 6v12a1.5 1.5 0 001.5 1.5zm10.5-11.25h.008v.008h-.008V8.25zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0z" />
+                  </svg>
+                  Unir imágenes
+                </Link>
+
+                
+                <div className="px-3 py-2 text-xs font-medium text-[#c9a45c] uppercase tracking-wider border-b border-[#3d4659]/30 mb-2 mt-4">
+                  Reportes
+                </div>
+                {userRole === 'SuperAdmin' && (
+                  <button
+                    onClick={() => {
+                      setShowReportModal(true);
+                      setShowMenuDropdown(false);
+                    }}
+                    className="w-full flex items-center gap-3 px-3 py-2.5 text-white hover:bg-[#3d4659]/30 rounded-lg transition-all duration-200 text-left"
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5 text-green-400">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" />
+                    </svg>
+                    Exportar Reporte
+                  </button>
+                )}
               </div>
-              
-              {/* Subtítulo elegante */}
-              <p className="relative mt-4 text-lg md:text-xl text-gray-300 font-light tracking-wide">
-                Sistema de gestión y control de calidad
-              </p>
+            </div>
+          )}
+        </div>
+
+                {/* Hero Section */}
+        <div className="text-center mb-12">
+          <div className="relative">
+            {/* Efecto de resplandor de fondo */}
+            <div className="absolute inset-0 bg-gradient-to-r from-[#c9a45c]/20 via-[#f0c987]/20 to-[#c9a45c]/20 blur-3xl rounded-full transform scale-150"></div>
+            
+            {/* Título principal con efectos modernos */}
+            <h1 className="relative text-4xl md:text-6xl lg:text-7xl font-black tracking-tight">
+              <span className="block bg-gradient-to-r from-white via-[#f0c987] to-[#c9a45c] bg-clip-text text-transparent drop-shadow-2xl">
+                Revisión
+              </span>
+              <span className="block bg-gradient-to-r from-[#c9a45c] via-[#f0c987] to-white bg-clip-text text-transparent mt-2 transform -translate-x-2">
+                de Casitas
+              </span>
+            </h1>
+            
+            {/* Línea decorativa animada */}
+            <div className="relative mt-6 h-1 w-32 mx-auto">
+              <div className="absolute inset-0 bg-gradient-to-r from-transparent via-[#c9a45c] to-transparent rounded-full"></div>
+              <div className="absolute inset-0 bg-gradient-to-r from-transparent via-[#f0c987] to-transparent rounded-full animate-pulse"></div>
             </div>
           </div>
         </div>
