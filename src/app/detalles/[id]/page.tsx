@@ -554,16 +554,72 @@ export default function DetallesRevision() {
       <div className="absolute bottom-20 right-10 w-40 h-40 bg-[#f0c987]/10 rounded-full blur-3xl animate-pulse delay-1000"></div>
       <div className="absolute top-1/2 left-1/4 w-24 h-24 bg-[#c9a45c]/5 rounded-full blur-2xl animate-pulse delay-500"></div>
 
-      {/* Modal de imagen */}
+      {/* Modal de imagen mejorado */}
       {modalOpen && modalImg && (
-        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 overflow-hidden">
-          <div className="relative w-[90vw] h-[90vh] overflow-hidden bg-gradient-to-br from-[#1e2538]/20 to-[#2a3347]/20 backdrop-blur-md rounded-2xl border border-[#3d4659]/30">
-            <div className="w-full h-full flex items-center justify-center p-4">
+        <div className="fixed inset-0 bg-black/90 backdrop-blur-sm flex items-center justify-center z-50 overflow-hidden">
+          <div className="relative w-full h-full max-w-7xl max-h-screen overflow-hidden">
+            {/* Barra superior con controles */}
+            <div className="absolute top-0 left-0 right-0 z-10 bg-gradient-to-b from-black/80 to-transparent p-4">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-blue-600 rounded-lg flex items-center justify-center">
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                    </svg>
+                  </div>
+                  <div>
+                    <h3 className="text-white font-semibold text-lg">Evidencia Fotográfica</h3>
+                    <p className="text-gray-300 text-sm">Zoom: {Math.round(zoom * 100)}%</p>
+                  </div>
+                </div>
+                
+                <div className="flex items-center gap-2">
+                  {/* Controles de zoom */}
+                  <div className="flex items-center gap-1 bg-black/40 backdrop-blur-sm rounded-lg p-1">
+                    <button
+                      onClick={handleZoomOut}
+                      className="w-8 h-8 text-white hover:bg-white/20 rounded-md flex items-center justify-center transition-all duration-200"
+                      title="Alejar"
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 12H4" />
+                      </svg>
+                    </button>
+                    <div className="px-2 py-1 text-white text-xs font-medium min-w-[50px] text-center">
+                      {Math.round(zoom * 100)}%
+                    </div>
+                    <button
+                      onClick={handleZoomIn}
+                      className="w-8 h-8 text-white hover:bg-white/20 rounded-md flex items-center justify-center transition-all duration-200"
+                      title="Acercar"
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                      </svg>
+                    </button>
+                  </div>
+                  
+                  {/* Botón cerrar */}
+                  <button
+                    onClick={closeModal}
+                    className="w-10 h-10 bg-red-500/20 hover:bg-red-500/30 border border-red-500/50 hover:border-red-500/70 rounded-lg flex items-center justify-center transition-all duration-200 backdrop-blur-sm"
+                    title="Cerrar"
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            {/* Contenedor de imagen */}
+            <div className="w-full h-full flex items-center justify-center p-4 pt-20">
               <img
                 ref={imgRef}
                 src={modalImg}
                 alt="Evidencia"
-                className="max-w-full max-h-full object-contain rounded-xl shadow-2xl"
+                className="max-w-full max-h-full object-contain rounded-lg shadow-2xl"
                 style={{
                   transform: `scale(${zoom}) translate(${position.x}px, ${position.y}px)`,
                   cursor: zoom > 1 ? 'grab' : 'default',
@@ -634,31 +690,35 @@ export default function DetallesRevision() {
                 onContextMenu={handleContextMenu}
               />
             </div>
-            <div className="absolute top-4 right-4 flex gap-2">
-              <button
-                onClick={handleZoomIn}
-                className="w-12 h-12 bg-gradient-to-br from-[#1e2538]/80 to-[#2a3347]/80 backdrop-blur-md border border-[#3d4659]/50 rounded-xl flex items-center justify-center text-white hover:from-[#2a3347]/80 hover:to-[#3d4659]/80 transition-all duration-300 transform hover:scale-110 shadow-lg hover:shadow-xl"
-              >
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
-                </svg>
-              </button>
-              <button
-                onClick={handleZoomOut}
-                className="w-12 h-12 bg-gradient-to-br from-[#1e2538]/80 to-[#2a3347]/80 backdrop-blur-md border border-[#3d4659]/50 rounded-xl flex items-center justify-center text-white hover:from-[#2a3347]/80 hover:to-[#3d4659]/80 transition-all duration-300 transform hover:scale-110 shadow-lg hover:shadow-xl"
-              >
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 12H4" />
-                </svg>
-              </button>
-              <button
-                onClick={closeModal}
-                className="w-12 h-12 bg-gradient-to-br from-red-500/80 to-red-600/80 backdrop-blur-md border border-red-500/50 rounded-xl flex items-center justify-center text-white hover:from-red-600/80 hover:to-red-700/80 transition-all duration-300 transform hover:scale-110 shadow-lg hover:shadow-xl"
-              >
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              </button>
+
+            {/* Indicador de instrucciones */}
+            <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 z-10">
+              <div className="bg-black/60 backdrop-blur-sm rounded-lg px-4 py-2 text-white text-sm">
+                <div className="flex items-center gap-4 text-xs">
+                  <span className="flex items-center gap-1">
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 15l-2 5L9 9l11 4-5 2zm0 0l5 5M7.188 2.239l.777 2.897M5.136 7.965l-2.898-.777M13.95 4.05l-2.122 2.122m-5.657 5.656l-2.121 2.122" />
+                    </svg>
+                    Rueda del mouse: Zoom
+                  </span>
+                  <span className="flex items-center gap-1">
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 11.5V14m0-2.5v-6a1.5 1.5 0 113 0m-3 6a1.5 1.5 0 00-3 0v2a7.5 7.5 0 0015 0v-5a1.5 1.5 0 00-3 0m-6-3V11m0-5.5v-1a1.5 1.5 0 013 0v1m0 0V11m0-5.5a1.5 1.5 0 013 0v3m0 0V11" />
+                    </svg>
+                    Arrastrar: Mover imagen
+                  </span>
+                  <span className="hidden sm:flex items-center gap-1">
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 18.75a6 6 0 006-6v-1.5m-6 7.5a6 6 0 01-6-6v-1.5m6 7.5v3.75m-3.75 0h7.5M12 15.75a3 3 0 01-3-3V4.5a3 3 0 116 0v8.25a3 3 0 01-3 3z" />
+                    </svg>
+                    Pellizcar: Zoom táctil
+                  </span>
+                  <span className="flex items-center gap-1">
+                    <kbd className="px-1 py-0.5 bg-white/20 rounded text-xs">ESC</kbd>
+                    Cerrar
+                  </span>
+                </div>
+              </div>
             </div>
           </div>
         </div>
