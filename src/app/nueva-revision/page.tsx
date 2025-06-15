@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { supabase } from '@/lib/supabase';
 import { useRouter } from 'next/navigation';
 import ButtonGroup from '@/components/ButtonGroup';
@@ -289,108 +289,106 @@ export default function NuevaRevision() {
   };
 
   // Función para comprimir imagen usando canvas (misma configuración que detalles)
-  const compressImage = (file: File, maxWidth = 1920, maxHeight = 1080, quality = 0.7): Promise<File> => {
+  // Nueva función de compresión basada en "Unir Imágenes" pero retornando File
+  const comprimirImagenWebP = useCallback((file: File): Promise<File> => {
+    console.log('🚀 INICIANDO COMPRESIÓN:', file.name, file.type, `${(file.size / 1024).toFixed(1)} KB`);
+    
     return new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.readAsDataURL(file);
-      reader.onload = (event) => {
-        const img = new Image();
-        img.src = event.target?.result as string;
-        img.onload = () => {
-          let width = img.width;
-          let height = img.height;
-
-          // Redimensionar manteniendo la proporción
-          if (width > height) {
-            if (width > maxWidth) {
-              height *= maxWidth / width;
-              width = maxWidth;
-            }
-          } else {
-            if (height > maxHeight) {
-              width *= maxHeight / height;
-              height = maxHeight;
-            }
-          }
-
-          const canvas = document.createElement('canvas');
-          canvas.width = width;
-          canvas.height = height;
-          const ctx = canvas.getContext('2d');
-          ctx?.drawImage(img, 0, 0, width, height);
-
-          // Convertir canvas a blob
+      const canvas = document.createElement('canvas');
+      const ctx = canvas.getContext('2d');
+      const img = new Image();
+      
+      img.onload = () => {
+        // Mantener proporción original, limitando ancho máximo a 1920px y alto máximo a 1080px
+        const maxWidth = 1920;
+        const maxHeight = 1080;
+        let { width, height } = img;
+        
+        // Calcular ratio para ambas dimensiones
+        const widthRatio = width > maxWidth ? maxWidth / width : 1;
+        const heightRatio = height > maxHeight ? maxHeight / height : 1;
+        
+        // Usar el ratio más restrictivo para mantener proporción
+        const ratio = Math.min(widthRatio, heightRatio);
+        
+        if (ratio < 1) {
+          width = width * ratio;
+          height = height * ratio;
+        }
+        
+        canvas.width = width;
+        canvas.height = height;
+        
+        if (ctx) {
+          // Configurar contexto para calidad media
+          ctx.imageSmoothingEnabled = true;
+          ctx.imageSmoothingQuality = 'medium';
+          
+          // Dibujar imagen manteniendo su proporción original
+          ctx.drawImage(img, 0, 0, width, height);
+          
+          // Convertir a blob WebP con calidad 70%
           canvas.toBlob((blob) => {
             if (!blob) {
               reject(new Error('No se pudo comprimir la imagen'));
               return;
             }
-            const compressedFile = new File([blob], file.name, {
-              type: file.type,
+            
+            // Crear nombre con extensión .webp
+            const originalName = file.name.replace(/\.[^/.]+$/, '');
+            const webpName = `${originalName}.webp`;
+            
+            const compressedFile = new File([blob], webpName, {
+              type: 'image/webp',
               lastModified: Date.now()
             });
+            
+            console.log('✅ COMPRESIÓN COMPLETADA:', {
+              original: { name: file.name, type: file.type, size: `${(file.size / 1024).toFixed(1)} KB` },
+              compressed: { name: compressedFile.name, type: compressedFile.type, size: `${(compressedFile.size / 1024).toFixed(1)} KB` },
+              compression: `${Math.round((1 - compressedFile.size / file.size) * 100)}%`
+            });
+            
             resolve(compressedFile);
-          }, file.type, quality);
-        };
-        img.onerror = reject;
+          }, 'image/webp', 0.70);
+        } else {
+          reject(new Error('No se pudo obtener el contexto del canvas'));
+        }
       };
-      reader.onerror = reject;
+      
+      img.onerror = () => reject(new Error('Error al cargar la imagen'));
+      img.src = URL.createObjectURL(file);
     });
-  };
+  }, []);
 
-  // Función para comprimir automáticamente en segundo plano con progreso detallado
-  const compressFileInBackground = async (field: keyof FileData, file: File) => {
-    // Limpiar archivo anterior de RAM si existe
-    if (compressedFiles[field]) {
-      setCompressedFiles(prev => ({
-        ...prev,
-        [field]: null
-      }));
+  // Función simplificada para manejar compresión automática (basada en "Unir Imágenes")
+  const manejarArchivoSeleccionado = async (field: keyof FileData, file: File) => {
+    if (!file.type.startsWith('image/')) {
+      showError('Por favor selecciona un archivo de imagen válido');
+      return;
     }
 
-    // Iniciar compresión con progreso detallado
+    console.log('📁 ARCHIVO SELECCIONADO:', field, file.name, file.type);
+
+    // Actualizar estado de carga
     setCompressionStatus(prev => ({
       ...prev,
-      [field]: { status: 'compressing', progress: 10, stage: 'Iniciando compresión...' }
+      [field]: { status: 'compressing', progress: 50, stage: 'Comprimiendo...' }
     }));
 
     try {
-      // Simular progreso de lectura del archivo
-      await new Promise(resolve => setTimeout(resolve, 100));
-      setCompressionStatus(prev => ({
-        ...prev,
-        [field]: { status: 'compressing', progress: 25, stage: 'Leyendo archivo...' }
-      }));
-
-      // Simular progreso de procesamiento
-      await new Promise(resolve => setTimeout(resolve, 100));
-      setCompressionStatus(prev => ({
-        ...prev,
-        [field]: { status: 'compressing', progress: 50, stage: 'Procesando imagen...' }
-      }));
-
-      const compressedFile = await compressImage(file);
+      // Comprimir automáticamente
+      const compressedFile = await comprimirImagenWebP(file);
       
-      setCompressionStatus(prev => ({
-        ...prev,
-        [field]: { status: 'compressing', progress: 85, stage: 'Finalizando compresión...' }
-      }));
+      // Calcular tamaños
+      const originalSize = file.size;
+      const compressedSize = compressedFile.size;
+      const compressionRatio = Math.round((1 - compressedSize / originalSize) * 100);
 
-      // Calcular porcentaje de compresión
-      const compressionRatio = Math.round((1 - compressedFile.size / file.size) * 100);
-
-      // Guardar archivo comprimido (solo uno en RAM por campo)
-      setCompressedFiles(prev => ({
-        ...prev,
-        [field]: compressedFile
-      }));
-
-      // Guardar tamaños de archivos
-      setFileSizes(prev => ({
-        ...prev,
-        [field]: { original: file.size, compressed: compressedFile.size }
-      }));
-
+      // Actualizar estados
+      setFormData(prev => ({ ...prev, [field]: file })); // Archivo original para referencia
+      setCompressedFiles(prev => ({ ...prev, [field]: compressedFile })); // Archivo comprimido
+      setFileSizes(prev => ({ ...prev, [field]: { original: originalSize, compressed: compressedSize } }));
       setCompressionStatus(prev => ({
         ...prev,
         [field]: { 
@@ -400,7 +398,10 @@ export default function NuevaRevision() {
         }
       }));
 
+      console.log('🎯 COMPRESIÓN EXITOSA:', field, `${compressionRatio}% reducción`);
+
     } catch (error) {
+      console.error('❌ ERROR EN COMPRESIÓN:', error);
       setCompressionStatus(prev => ({
         ...prev,
         [field]: { 
@@ -417,14 +418,12 @@ export default function NuevaRevision() {
   const handleFileChange = (field: keyof FileData, file: File | null) => {
     if (error) setError(null);
     
-    // Actualizar el formulario con el archivo original
-    setFormData(prev => ({ ...prev, [field]: file }));
-    
-    // Si hay archivo, iniciar compresión en segundo plano
     if (file) {
-      compressFileInBackground(field, file);
+      // Iniciar compresión automática
+      manejarArchivoSeleccionado(field, file);
     } else {
       // Limpiar estados si se remueve el archivo
+      setFormData(prev => ({ ...prev, [field]: '' }));
       setCompressedFiles(prev => ({ ...prev, [field]: null }));
       setFileSizes(prev => ({ ...prev, [field]: { original: 0, compressed: 0 } }));
       setCompressionStatus(prev => ({
@@ -1176,22 +1175,53 @@ export default function NuevaRevision() {
                                 {(fileSizes.evidencia_01.original / 1024).toFixed(1)} KB → {(fileSizes.evidencia_01.compressed / 1024).toFixed(1)} KB
                               </div>
                             )}
-                            {/* Preview de imagen clickeable */}
+                                                        {/* Botones de acción para imagen */}
                             {formData.evidencia_01 instanceof File && (
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  const url = URL.createObjectURL(formData.evidencia_01 as File);
-                                  openModal(url);
-                                }}
-                                className="mt-2 text-xs text-blue-400 hover:text-blue-300 underline flex items-center gap-1"
-                              >
-                                <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                                </svg>
-                                Ver en pantalla completa
-                              </button>
+                              <div className="mt-2 flex gap-2">
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    // Usar imagen comprimida si está disponible, sino la original
+                                    const fileToShow = compressedFiles.evidencia_01 || (formData.evidencia_01 instanceof File ? formData.evidencia_01 : null);
+                                    if (!fileToShow) return;
+                                    
+                                    const url = URL.createObjectURL(fileToShow);
+                                    openModal(url);
+                                  }}
+                                  className="text-xs text-blue-400 hover:text-blue-300 underline flex items-center gap-1"
+                                >
+                                  <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                                  </svg>
+                                  Ver pantalla completa
+                                </button>
+                                
+                                {compressedFiles.evidencia_01 && (
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      const compressedFile = compressedFiles.evidencia_01;
+                                      if (!compressedFile) return;
+                                      
+                                      const url = URL.createObjectURL(compressedFile);
+                                      const link = document.createElement('a');
+                                      link.href = url;
+                                      link.download = compressedFile.name;
+                                      document.body.appendChild(link);
+                                      link.click();
+                                      document.body.removeChild(link);
+                                      URL.revokeObjectURL(url);
+                                    }}
+                                    className="text-xs text-green-400 hover:text-green-300 underline flex items-center gap-1"
+                                  >
+                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                                    </svg>
+                                    Descargar
+                                  </button>
+                                )}
+                              </div>
                             )}
                           </div>
                         </div>
@@ -1325,22 +1355,53 @@ export default function NuevaRevision() {
                                 {(fileSizes.evidencia_02.original / 1024).toFixed(1)} KB → {(fileSizes.evidencia_02.compressed / 1024).toFixed(1)} KB
                               </div>
                             )}
-                            {/* Preview de imagen clickeable */}
+                            {/* Botones de acción para imagen */}
                             {formData.evidencia_02 instanceof File && (
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  const url = URL.createObjectURL(formData.evidencia_02 as File);
-                                  openModal(url);
-                                }}
-                                className="mt-2 text-xs text-blue-400 hover:text-blue-300 underline flex items-center gap-1"
-                              >
-                                <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                                </svg>
-                                Ver en pantalla completa
-                              </button>
+                              <div className="mt-2 flex gap-2">
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    // Usar imagen comprimida si está disponible, sino la original
+                                    const fileToShow = compressedFiles.evidencia_02 || (formData.evidencia_02 instanceof File ? formData.evidencia_02 : null);
+                                    if (!fileToShow) return;
+                                    
+                                    const url = URL.createObjectURL(fileToShow);
+                                    openModal(url);
+                                  }}
+                                  className="text-xs text-blue-400 hover:text-blue-300 underline flex items-center gap-1"
+                                >
+                                  <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                                  </svg>
+                                  Ver pantalla completa
+                                </button>
+                                
+                                {compressedFiles.evidencia_02 && (
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      const compressedFile = compressedFiles.evidencia_02;
+                                      if (!compressedFile) return;
+                                      
+                                      const url = URL.createObjectURL(compressedFile);
+                                      const link = document.createElement('a');
+                                      link.href = url;
+                                      link.download = compressedFile.name;
+                                      document.body.appendChild(link);
+                                      link.click();
+                                      document.body.removeChild(link);
+                                      URL.revokeObjectURL(url);
+                                    }}
+                                    className="text-xs text-green-400 hover:text-green-300 underline flex items-center gap-1"
+                                  >
+                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                                    </svg>
+                                    Descargar
+                                  </button>
+                                )}
+                              </div>
                             )}
                           </div>
                         </div>
@@ -1474,22 +1535,53 @@ export default function NuevaRevision() {
                                 {(fileSizes.evidencia_03.original / 1024).toFixed(1)} KB → {(fileSizes.evidencia_03.compressed / 1024).toFixed(1)} KB
                               </div>
                             )}
-                            {/* Preview de imagen clickeable */}
+                            {/* Botones de acción para imagen */}
                             {formData.evidencia_03 instanceof File && (
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  const url = URL.createObjectURL(formData.evidencia_03 as File);
-                                  openModal(url);
-                                }}
-                                className="mt-2 text-xs text-blue-400 hover:text-blue-300 underline flex items-center gap-1"
-                              >
-                                <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                                </svg>
-                                Ver en pantalla completa
-                              </button>
+                              <div className="mt-2 flex gap-2">
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    // Usar imagen comprimida si está disponible, sino la original
+                                    const fileToShow = compressedFiles.evidencia_03 || (formData.evidencia_03 instanceof File ? formData.evidencia_03 : null);
+                                    if (!fileToShow) return;
+                                    
+                                    const url = URL.createObjectURL(fileToShow);
+                                    openModal(url);
+                                  }}
+                                  className="text-xs text-blue-400 hover:text-blue-300 underline flex items-center gap-1"
+                                >
+                                  <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                                  </svg>
+                                  Ver pantalla completa
+                                </button>
+                                
+                                {compressedFiles.evidencia_03 && (
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      const compressedFile = compressedFiles.evidencia_03;
+                                      if (!compressedFile) return;
+                                      
+                                      const url = URL.createObjectURL(compressedFile);
+                                      const link = document.createElement('a');
+                                      link.href = url;
+                                      link.download = compressedFile.name;
+                                      document.body.appendChild(link);
+                                      link.click();
+                                      document.body.removeChild(link);
+                                      URL.revokeObjectURL(url);
+                                    }}
+                                    className="text-xs text-green-400 hover:text-green-300 underline flex items-center gap-1"
+                                  >
+                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                                    </svg>
+                                    Descargar
+                                  </button>
+                                )}
+                              </div>
                             )}
                           </div>
                         </div>

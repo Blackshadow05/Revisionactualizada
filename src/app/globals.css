@@ -529,7 +529,7 @@ button, [role="button"] {
 
   td:nth-child(23), /* Evidencias */
   th:nth-child(23) {
-    min-width: 70px !important;
+    min-width: 120px !important;
   }
 }
 

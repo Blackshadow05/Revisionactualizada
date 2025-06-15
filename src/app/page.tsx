@@ -720,36 +720,38 @@ export default function Home() {
                         <td className="px-3 py-2 md:px-4 md:py-3">{row.cola_caballo}</td>
                         <td className="px-3 py-2 md:px-4 md:py-3">{row.Notas}</td>
                         <td className="px-3 py-2 md:px-4 md:py-3">
-                          {row.evidencia_01 && (
-                            <button
-                              type="button"
-                              onClick={() => openModal(row.evidencia_01)}
-                              className="text-[#c9a45c] hover:text-[#f0c987] mr-2 underline cursor-pointer hover:scale-110 transform duration-200 bg-[#1e2538]/50 px-2 py-1 rounded-lg shadow-[0_4px_8px_rgb(0_0_0/0.2)] hover:shadow-[0_4px_8px_rgb(0_0_0/0.3)] transition-all duration-200"
-                              title="Ver evidencia 1"
-                            >
-                              1
-                            </button>
-                          )}
-                          {row.evidencia_02 && (
-                            <button
-                              type="button"
-                              onClick={() => openModal(row.evidencia_02)}
-                              className="text-[#c9a45c] hover:text-[#f0c987] mr-2 underline cursor-pointer hover:scale-110 transform duration-200 bg-[#1e2538]/50 px-2 py-1 rounded-lg shadow-[0_4px_8px_rgb(0_0_0/0.2)] hover:shadow-[0_4px_8px_rgb(0_0_0/0.3)] transition-all duration-200"
-                              title="Ver evidencia 2"
-                            >
-                              2
-                            </button>
-                          )}
-                          {row.evidencia_03 && (
-                            <button
-                              type="button"
-                              onClick={() => openModal(row.evidencia_03)}
-                              className="text-[#c9a45c] hover:text-[#f0c987] underline cursor-pointer hover:scale-110 transform duration-200 bg-[#1e2538]/50 px-2 py-1 rounded-lg shadow-[0_4px_8px_rgb(0_0_0/0.2)] hover:shadow-[0_4px_8px_rgb(0_0_0/0.3)] transition-all duration-200"
-                              title="Ver evidencia 3"
-                            >
-                              3
-                            </button>
-                          )}
+                          <div className="flex items-center gap-1 flex-nowrap">
+                            {row.evidencia_01 && (
+                              <button
+                                type="button"
+                                onClick={() => openModal(row.evidencia_01)}
+                                className="text-[#c9a45c] hover:text-[#f0c987] underline cursor-pointer hover:scale-110 transform duration-200 bg-[#1e2538]/50 px-1.5 py-0.5 rounded text-xs shadow-[0_2px_4px_rgb(0_0_0/0.2)] hover:shadow-[0_2px_4px_rgb(0_0_0/0.3)] transition-all duration-200 min-w-[20px] flex-shrink-0"
+                                title="Ver evidencia 1"
+                              >
+                                1
+                              </button>
+                            )}
+                            {row.evidencia_02 && (
+                              <button
+                                type="button"
+                                onClick={() => openModal(row.evidencia_02)}
+                                className="text-[#c9a45c] hover:text-[#f0c987] underline cursor-pointer hover:scale-110 transform duration-200 bg-[#1e2538]/50 px-1.5 py-0.5 rounded text-xs shadow-[0_2px_4px_rgb(0_0_0/0.2)] hover:shadow-[0_2px_4px_rgb(0_0_0/0.3)] transition-all duration-200 min-w-[20px] flex-shrink-0"
+                                title="Ver evidencia 2"
+                              >
+                                2
+                              </button>
+                            )}
+                            {row.evidencia_03 && (
+                              <button
+                                type="button"
+                                onClick={() => openModal(row.evidencia_03)}
+                                className="text-[#c9a45c] hover:text-[#f0c987] underline cursor-pointer hover:scale-110 transform duration-200 bg-[#1e2538]/50 px-1.5 py-0.5 rounded text-xs shadow-[0_2px_4px_rgb(0_0_0/0.2)] hover:shadow-[0_2px_4px_rgb(0_0_0/0.3)] transition-all duration-200 min-w-[20px] flex-shrink-0"
+                                title="Ver evidencia 3"
+                              >
+                                3
+                              </button>
+                            )}
+                          </div>
                         </td>
                       </tr>
                     ))}

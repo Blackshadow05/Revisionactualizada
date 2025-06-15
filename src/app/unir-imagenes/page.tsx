@@ -349,11 +349,6 @@ export default function UnirImagenes() {
               <div className="absolute inset-0 bg-gradient-to-r from-transparent via-[#c9a45c] to-transparent rounded-full"></div>
               <div className="absolute inset-0 bg-gradient-to-r from-transparent via-[#f0c987] to-transparent rounded-full animate-pulse"></div>
             </div>
-            
-            {/* Subtítulo elegante */}
-            <p className="relative mt-3 text-sm md:text-base text-gray-300 font-light tracking-wide">
-              Combina tus imágenes de forma profesional
-            </p>
           </div>
           <div className="w-32"></div>
         </div>

@@ -70,12 +70,16 @@ export const uploadToImageKit = async (
       useUniqueFileName: false, // Ya generamos nombre único
       tags: [type, 'revision-casitas'],
       transformation: {
-        pre: 'f-auto,q-auto' // Optimización automática
+        pre: 'f-auto,q-auto' // Optimización automática sin thumbsmall aquí
       }
     });
     
-    console.log('✅ Imagen subida exitosamente:', response.url);
-    return response.url;
+    // Agregar la transformación thumbsmall con el formato correcto
+    const baseUrl = response.url;
+    const finalUrl = `${baseUrl}?tr=n-thumbsmall`;
+    
+    console.log('✅ Imagen subida exitosamente:', finalUrl);
+    return finalUrl;
     
   } catch (error: any) {
     console.error('❌ Error al subir imagen a ImageKit.io:', error);
@@ -136,7 +140,10 @@ export const optimizeImageKitUrl = (url: string, options?: {
   
   // Insertar transformaciones en la URL
   const transformationString = transformations.join(',');
-  return url.replace('/upload/', `/upload/tr:${transformationString}/`);
+  const baseUrl = url.replace('/upload/', `/upload/tr:${transformationString}/`);
+  
+  // Agregar la transformación thumbsmall con el formato correcto
+  return `${baseUrl}?tr=n-thumbsmall`;
 };
 
 // Función para obtener información de un archivo en ImageKit.io
