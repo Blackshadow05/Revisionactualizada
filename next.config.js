@@ -55,7 +55,10 @@ const nextConfig = {
   poweredByHeader: false,
   generateEtags: true,
   compress: true,
-  // Next.js 14 ya tiene Server Actions y App Directory habilitados por defecto
+  experimental: {
+    serverActions: true,
+    appDir: true
+  }
 };
 
 module.exports = nextConfig; 

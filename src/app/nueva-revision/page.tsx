@@ -532,9 +532,7 @@ export default function NuevaRevision() {
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
         <form onSubmit={handleSubmit} className="bg-[#2a3347] rounded-xl shadow-2xl p-4 md:p-8 border border-[#3d4659]">
           <div className="flex justify-between items-center mb-6 md:mb-8">
-                        <h1 className="text-2xl md:text-4xl font-bold bg-gradient-to-r from-[#c9a45c] via-[#f0c987] to-[#c9a45c] bg-clip-text text-transparent">
-              Nueva Revisión
-            </h1>
+            <h1 className="text-2xl md:text-3xl font-bold text-[#c9a45c]">Nueva Revisión</h1>
             <button
               type="button"
               onClick={() => router.push('/')}

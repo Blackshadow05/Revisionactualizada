@@ -7,8 +7,6 @@ Aplicación web para la gestión de revisiones de casitas.
 ✅ Despliegue exitoso en Netlify
 ✅ Variables de entorno configuradas correctamente
 ✅ Funcionalidades principales operativas
-✅ PWA (Progressive Web App) habilitada
-✅ Configuración optimizada para producción
 
 ## Características
 
@@ -18,8 +16,6 @@ Aplicación web para la gestión de revisiones de casitas.
 - Carga y visualización de evidencias
 - Notas y comentarios
 - Historial de ediciones
-- **NUEVO**: Soporte PWA para instalación en dispositivos móviles
-- **NUEVO**: Configuración optimizada para rendimiento
 
 ## Tecnologías
 
@@ -28,7 +24,6 @@ Aplicación web para la gestión de revisiones de casitas.
 - Tailwind CSS
 - TypeScript
 - Netlify
-- PWA (Service Worker)
 
 ## Configuración
 
@@ -74,24 +69,6 @@ Cada revisión incluye los siguientes campos:
 
 ## Última Actualización
 
-### Versión 1.2.0 - Enero 2025
-
-#### Nuevas Características
-- ✅ Implementación de PWA (Progressive Web App)
-- ✅ Manifest.json para instalación en dispositivos
-- ✅ Iconos optimizados para diferentes resoluciones
-- ✅ Service Worker para mejor rendimiento
-- ✅ Configuración mejorada de Next.js para producción
-
-#### Mejoras Técnicas
-- 🚀 Optimización de webpack para reducir bundle
-- 🔧 Headers de cache mejorados
-- 💾 Configuración standalone para mejor despliegue
-- 🛡️ Headers de seguridad implementados
-- ⚡ Minificación SWC habilitada
-
-#### Cambios de Configuración
-- 📁 Estructura de archivos reorganizada
-- 🌐 Variables de entorno mejoradas
-- 🎨 Fuentes Google optimizadas
-- 📱 Meta tags para PWA 
+- Actualización de configuración para optimizar el despliegue en Netlify
+- Mejoras en la gestión de dependencias
+- Optimización del rendimiento general 
