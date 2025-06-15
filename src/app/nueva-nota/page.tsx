@@ -4,7 +4,7 @@ import { useState, useRef } from 'react';
 import { supabase } from '@/lib/supabase';
 import { useRouter } from 'next/navigation';
 import { getWeek } from 'date-fns';
-import { uploadToCloudinary } from '@/lib/cloudinary';
+import { uploadToImageKitClient } from '@/lib/imagekit-client';
 
 interface NotaData {
   fecha: string;
@@ -143,34 +143,12 @@ export default function NuevaNota() {
       let evidenciaUrl = null;
 
       if (formData.evidencia) {
+        console.log('📸 Subiendo imagen a ImageKit.io...');
         const compressedImage = await compressImage(formData.evidencia);
-        const now = new Date();
-        const month = String(now.getMonth() + 1).padStart(2, '0');
-        const week = `semana_${getWeek(now, { weekStartsOn: 1 })}`;
-        const folder = `notas/${month}/${week}`;
         
-        const formDataCloudinary = new FormData();
-        formDataCloudinary.append('file', compressedImage);
-        formDataCloudinary.append('upload_preset', 'PruebaSubir');
-        formDataCloudinary.append('cloud_name', 'dhd61lan4');
-        formDataCloudinary.append('folder', folder);
-
-        const response = await fetch(
-          `https://api.cloudinary.com/v1_1/dhd61lan4/image/upload`,
-          {
-            method: 'POST',
-            body: formDataCloudinary,
-          }
-        );
-
-        if (!response.ok) {
-          throw new Error('Error al subir la imagen a Cloudinary');
-        }
-
-        const data = await response.json();
-        // Agregar optimizaciones automáticas f_auto,q_auto a la URL
-        const originalUrl = data.secure_url;
-        evidenciaUrl = originalUrl.replace('/upload/', '/upload/f_auto,q_auto/');
+        // Subir directamente a ImageKit.io con organización automática por carpetas
+        evidenciaUrl = await uploadToImageKitClient(compressedImage, 'notas');
+        console.log('✅ Imagen subida exitosamente:', evidenciaUrl);
       }
 
       // Obtener fecha y hora local del dispositivo

@@ -40,43 +40,59 @@ async function processUploadQueue() {
     const activeUploads = pendingUploads.slice(0, 3);
     
     for (const upload of activeUploads) {
-      uploadToCloudinary(upload);
+      uploadToImageKit(upload);
     }
   } catch (error) {
     console.error('Error procesando cola de subidas:', error);
   }
 }
 
-// Subir a Cloudinary
-async function uploadToCloudinary(uploadItem) {
+// Subir a ImageKit.io
+async function uploadToImageKit(uploadItem) {
   try {
     // Actualizar estado a "uploading"
     await updateUploadStatus(uploadItem.id, 'uploading', { progress: 0 });
     
-    const now = new Date();
-    const month = String(now.getMonth() + 1).padStart(2, '0');
-    const week = `semana_${getWeekNumber(now)}`;
-    const folder = `prueba-imagenes/${month}/${week}`;
+    // Obtener configuración de ImageKit.io desde el cliente
+    const config = await getImageKitConfig();
+    
+    if (!config) {
+      throw new Error('Configuración de ImageKit.io no disponible');
+    }
 
+    // Generar carpeta automática basada en fecha
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = String(now.getMonth() + 1).padStart(2, '0');
+    const folderPath = `Evidencias/${year}-${month}`;
+
+    // Generar nombre único para el archivo
+    const timestamp = Date.now();
+    const randomString = Math.random().toString(36).substring(2, 8);
+    const fileExtension = uploadItem.file.name.split('.').pop() || 'jpg';
+    const fileName = `${timestamp}_${randomString}.${fileExtension}`;
+
+    // Preparar FormData para ImageKit.io
     const formData = new FormData();
     formData.append('file', uploadItem.file);
-    formData.append('upload_preset', 'ml_default');
-    formData.append('cloud_name', 'dhd61lan4');
-    formData.append('folder', folder);
+    formData.append('fileName', fileName);
+    formData.append('folder', folderPath);
+    formData.append('publicKey', config.publicKey);
+    formData.append('signature', config.signature);
+    formData.append('expire', config.expire);
+    formData.append('token', config.token);
 
-    const response = await fetch('https://api.cloudinary.com/v1_1/dhd61lan4/image/upload', {
+    const response = await fetch(config.uploadUrl, {
       method: 'POST',
       body: formData,
     });
 
     if (!response.ok) {
-      throw new Error('Error al subir imagen a Cloudinary');
+      throw new Error('Error al subir imagen a ImageKit.io');
     }
 
     const data = await response.json();
-    // Agregar optimizaciones automáticas f_auto,q_auto a la URL
-    const originalUrl = data.secure_url;
-    const finalUrl = originalUrl.replace('/upload/', '/upload/f_auto,q_auto/');
+    const finalUrl = data.url;
 
     // Actualizar Supabase
     await updateSupabaseRecord(uploadItem.recordId, uploadItem.fieldName, finalUrl);
@@ -168,11 +184,35 @@ async function updateSupabaseRecord(recordId, fieldName, url) {
   });
 }
 
-// Función auxiliar para obtener número de semana
-function getWeekNumber(date) {
-  const firstDayOfYear = new Date(date.getFullYear(), 0, 1);
-  const pastDaysOfYear = (date - firstDayOfYear) / 86400000;
-  return Math.ceil((pastDaysOfYear + firstDayOfYear.getDay() + 1) / 7);
+// Obtener configuración de ImageKit.io desde el cliente
+async function getImageKitConfig() {
+  return new Promise((resolve) => {
+    self.clients.matchAll().then(clients => {
+      if (clients.length > 0) {
+        clients[0].postMessage({
+          type: 'GET_IMAGEKIT_CONFIG'
+        });
+        
+        // Escuchar respuesta
+        const messageHandler = (event) => {
+          if (event.data.type === 'IMAGEKIT_CONFIG') {
+            self.removeEventListener('message', messageHandler);
+            resolve(event.data.config);
+          }
+        };
+        
+        self.addEventListener('message', messageHandler);
+        
+        // Timeout después de 5 segundos
+        setTimeout(() => {
+          self.removeEventListener('message', messageHandler);
+          resolve(null);
+        }, 5000);
+      } else {
+        resolve(null);
+      }
+    });
+  });
 }
 
 // Event Listeners

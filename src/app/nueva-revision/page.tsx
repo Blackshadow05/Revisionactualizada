@@ -5,10 +5,10 @@ import { supabase } from '@/lib/supabase';
 import { useRouter } from 'next/navigation';
 import ButtonGroup from '@/components/ButtonGroup';
 import { getWeek } from 'date-fns';
-import { uploadToCloudinary } from '@/lib/cloudinary';
+import { uploadToImageKitClient } from '@/lib/imagekit-client';
 import { useAuth } from '@/context/AuthContext';
 import { useToast } from '@/context/ToastContext';
-import { useDirectCloudinaryUpload } from '@/hooks/useDirectCloudinaryUpload';
+import { useDirectImageKitUpload } from '@/hooks/useDirectImageKitUpload';
 
 interface RevisionData {
   casita: string;
@@ -87,7 +87,8 @@ const nombresRevisores = [
 export default function NuevaRevision() {
   const router = useRouter();
   const { user } = useAuth();
-  const { uploadMultipleFiles, isUploading: uploadsInProgress, uploads } = useDirectCloudinaryUpload();
+  // Hook de ImageKit.io (no usado actualmente, pero disponible para futuras mejoras)
+  // const { uploadMultipleFiles, isUploading: uploadsInProgress, uploads } = useDirectImageKitUpload();
   const { showSuccess, showError } = useToast();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -487,31 +488,84 @@ export default function NuevaRevision() {
       const recordId = data?.[0]?.id;
       
               if (recordId) {
-        // Preparar archivos comprimidos para subida
-        const filesToUpload = [];
+        // Subir archivos individualmente a ImageKit.io
+        const uploadPromises = [];
         
         // Usar archivos comprimidos si están disponibles, sino usar originales
         if (formData.evidencia_01 instanceof File) {
           const fileToUpload = compressedFiles.evidencia_01 || formData.evidencia_01;
           console.log('Preparando evidencia_01:', fileToUpload.name, fileToUpload.size);
-          filesToUpload.push({ file: fileToUpload, recordId, fieldName: 'evidencia_01' });
+          
+          const uploadPromise = uploadToImageKitClient(fileToUpload, 'evidencias').then(async (url: string) => {
+            // Actualizar el registro en Supabase con la URL
+            const { error: updateError } = await supabase
+              .from('revisiones_casitas')
+              .update({ evidencia_01: url })
+              .eq('id', recordId);
+            
+            if (updateError) {
+              console.error('Error actualizando evidencia_01:', updateError);
+              throw updateError;
+            }
+            
+            console.log('✅ Evidencia_01 subida y actualizada:', url);
+            return url;
+          });
+          
+          uploadPromises.push(uploadPromise);
         }
+        
         if (formData.evidencia_02 instanceof File) {
           const fileToUpload = compressedFiles.evidencia_02 || formData.evidencia_02;
           console.log('Preparando evidencia_02:', fileToUpload.name, fileToUpload.size);
-          filesToUpload.push({ file: fileToUpload, recordId, fieldName: 'evidencia_02' });
+          
+          const uploadPromise = uploadToImageKitClient(fileToUpload, 'evidencias').then(async (url: string) => {
+            // Actualizar el registro en Supabase con la URL
+            const { error: updateError } = await supabase
+              .from('revisiones_casitas')
+              .update({ evidencia_02: url })
+              .eq('id', recordId);
+            
+            if (updateError) {
+              console.error('Error actualizando evidencia_02:', updateError);
+              throw updateError;
+            }
+            
+            console.log('✅ Evidencia_02 subida y actualizada:', url);
+            return url;
+          });
+          
+          uploadPromises.push(uploadPromise);
         }
+        
         if (formData.evidencia_03 instanceof File) {
           const fileToUpload = compressedFiles.evidencia_03 || formData.evidencia_03;
           console.log('Preparando evidencia_03:', fileToUpload.name, fileToUpload.size);
-          filesToUpload.push({ file: fileToUpload, recordId, fieldName: 'evidencia_03' });
+          
+          const uploadPromise = uploadToImageKitClient(fileToUpload, 'evidencias').then(async (url: string) => {
+            // Actualizar el registro en Supabase con la URL
+            const { error: updateError } = await supabase
+              .from('revisiones_casitas')
+              .update({ evidencia_03: url })
+              .eq('id', recordId);
+            
+            if (updateError) {
+              console.error('Error actualizando evidencia_03:', updateError);
+              throw updateError;
+            }
+            
+            console.log('✅ Evidencia_03 subida y actualizada:', url);
+            return url;
+          });
+          
+          uploadPromises.push(uploadPromise);
         }
 
-        console.log('Total archivos a subir:', filesToUpload.length);
+        console.log('Total archivos a subir:', uploadPromises.length);
 
-        // Subir todas las imágenes
-        if (filesToUpload.length > 0) {
-          await uploadMultipleFiles(filesToUpload);
+        // Subir todas las imágenes en paralelo
+        if (uploadPromises.length > 0) {
+          await Promise.all(uploadPromises);
         }
       }
 
@@ -1300,96 +1354,29 @@ export default function NuevaRevision() {
                 </div>
               )}
 
-              {/* Indicadores de subida arriba del botón */}
-              {uploads.length > 0 && (
-                <div className="space-y-3">
-                  <div className="flex items-center gap-2 mb-2">
-                    <div className="w-2 h-2 bg-blue-400 rounded-full animate-pulse"></div>
-                    <span className="text-blue-400 text-sm font-medium">Estado de subidas</span>
-                  </div>
-                  {uploads.map((upload: any, index: number) => (
-                    <div key={index} className="bg-gradient-to-r from-[#1e2538] to-[#2a3347] rounded-xl p-4 border border-[#3d4659] backdrop-blur-sm">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-3">
-                          <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${
-                            upload.status === 'uploading' ? 'bg-blue-500/20 border border-blue-500/30' :
-                            upload.status === 'completed' ? 'bg-green-500/20 border border-green-500/30' :
-                            'bg-red-500/20 border border-red-500/30'
-                          }`}>
-                            {upload.status === 'uploading' ? (
-                              <svg className="w-4 h-4 text-blue-400 animate-spin" fill="none" viewBox="0 0 24 24">
-                                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                              </svg>
-                            ) : upload.status === 'completed' ? (
-                              <svg className="w-4 h-4 text-green-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                              </svg>
-                            ) : (
-                              <svg className="w-4 h-4 text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                              </svg>
-                            )}
-                          </div>
-                          <div>
-                            <div className="text-white font-medium text-sm">{upload.fileName}</div>
-                            <div className={`text-xs font-medium ${
-                              upload.status === 'completed' ? 'text-green-400' :
-                              upload.status === 'error' ? 'text-red-400' :
-                              'text-blue-400'
-                            }`}>
-                              {upload.status === 'uploading' ? 'Subiendo...' :
-                               upload.status === 'completed' ? 'Completado' :
-                               'Error'}
-                            </div>
-                          </div>
-                        </div>
-                        {upload.progress > 0 && upload.status !== 'completed' && (
-                          <div className="text-xs text-gray-400 font-mono">{upload.progress}%</div>
-                        )}
-                      </div>
-                      
-                      {/* Barra de progreso moderna */}
-                      {upload.status === 'uploading' && (
-                        <div className="mt-3 w-full bg-[#3d4659] rounded-full h-1.5 overflow-hidden">
-                          <div
-                            className="bg-gradient-to-r from-blue-400 to-blue-500 h-1.5 rounded-full transition-all duration-500 ease-out"
-                            style={{ width: `${upload.progress}%` }}
-                          />
-                        </div>
-                      )}
-                      
-                      {upload.error && (
-                        <div className="mt-3 text-xs text-red-400 bg-red-500/10 rounded-lg p-2">
-                          Error: {upload.error}
-                        </div>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              )}
+
 
               <button
                 type="submit"
-                disabled={loading || uploadsInProgress}
+                disabled={loading}
                 className={`w-full font-bold px-8 py-4 rounded-xl transform hover:scale-[1.02] transition-all duration-200 shadow-[0_8px_16px_rgb(0_0_0/0.2)] hover:shadow-[0_12px_24px_rgb(0_0_0/0.3)] relative overflow-hidden border-2 ${
-                  loading || uploadsInProgress
+                  loading
                     ? 'bg-gradient-to-r from-green-500 via-green-400 to-green-500 text-white border-green-400 animate-pulse cursor-wait'
                     : 'bg-gradient-to-br from-[#c9a45c] via-[#d4b06c] to-[#f0c987] text-[#1a1f35] border-white/40 hover:border-white/60'
                 } ${
-                  loading || uploadsInProgress
+                  loading
                     ? 'before:absolute before:inset-0 before:bg-gradient-to-r before:from-transparent before:via-white/30 before:to-transparent before:translate-x-[-200%] before:animate-[shimmer_1s_infinite] after:absolute after:inset-0 after:bg-gradient-to-b after:from-white/20 after:to-transparent after:animate-pulse'
                     : 'before:absolute before:inset-0 before:bg-gradient-to-r before:from-transparent before:via-white/40 before:to-transparent before:translate-x-[-200%] before:animate-shimmer before:transition-transform before:duration-1000 after:absolute after:inset-0 after:bg-gradient-to-b after:from-white/20 after:to-transparent after:opacity-100 after:transition-opacity after:duration-300'
                 }`}
               >
                 <span className="relative z-10 flex items-center justify-center gap-2">
-                  {loading || uploadsInProgress ? (
+                  {loading ? (
                     <>
                       <svg className="animate-spin h-5 w-5" fill="none" viewBox="0 0 24 24">
                         <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                         <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                       </svg>
-                      {uploadsInProgress ? 'Subiendo Imágenes...' : 'Guardando...'}
+                      Guardando y subiendo imágenes...
                     </>
                   ) : (
                     'Guardar Revisión'

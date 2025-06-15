@@ -4,7 +4,10 @@ const nextConfig = {
   output: 'standalone',
   images: {
     unoptimized: true,
-    domains: ['dhd61lan4.cloudinary.net'],
+    domains: [
+      'dhd61lan4.cloudinary.net', // Mantener para imágenes existentes
+      'ik.imagekit.io' // Nuevo dominio para ImageKit.io
+    ],
   },
   env: {
     NEXT_PUBLIC_SUPABASE_URL: process.env.NEXT_PUBLIC_SUPABASE_URL || '',
@@ -54,11 +57,7 @@ const nextConfig = {
   swcMinify: true,
   poweredByHeader: false,
   generateEtags: true,
-  compress: true,
-  experimental: {
-    serverActions: true,
-    appDir: true
-  }
+  compress: true
 };
 
 module.exports = nextConfig; 

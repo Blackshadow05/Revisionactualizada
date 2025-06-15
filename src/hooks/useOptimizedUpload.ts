@@ -105,52 +105,30 @@ export function useOptimizedUpload() {
         }
       }));
 
-      // 2. Generar folder con fecha y semana
-      const now = new Date();
-      const month = String(now.getMonth() + 1).padStart(2, '0');
-      const week = `semana_${getWeek(now, { weekStartsOn: 1 })}`;
-      const folder = `prueba-imagenes/${month}/${week}`;
-
-      // 3. Preparar FormData
-      const formData = new FormData();
-      formData.append('file', result.file);
-      formData.append('upload_preset', 'ml_default');
-      formData.append('cloud_name', 'dhd61lan4');
-      formData.append('folder', folder);
-
+      // 2. Subir a ImageKit.io con organización automática
       setUploads(prev => ({
         ...prev,
         [uploadId]: {
           ...prev[uploadId],
           progress: 75,
-          stage: 'Subiendo a servidor...'
+          stage: 'Subiendo a ImageKit.io...'
         }
       }));
 
-      // 4. Subir a Cloudinary
-      const response = await fetch('https://api.cloudinary.com/v1_1/dhd61lan4/image/upload', {
-        method: 'POST',
-        body: formData
-      });
-
+      // Importar dinámicamente para evitar problemas de SSR
+      const { uploadToImageKitClient } = await import('@/lib/imagekit-client');
+      
       setUploads(prev => ({
         ...prev,
         [uploadId]: {
           ...prev[uploadId],
           progress: 90,
-          stage: 'Procesando respuesta...'
+          stage: 'Procesando en ImageKit.io...'
         }
       }));
 
-      if (!response.ok) {
-        throw new Error(`Error HTTP: ${response.status}`);
-      }
-
-      const data = await response.json();
-      
-      // Agregar optimizaciones automáticas f_auto,q_auto a la URL
-      const originalUrl = data.secure_url;
-      const optimizedUrl = originalUrl.replace('/upload/', '/upload/f_auto,q_auto/');
+      // Subir a ImageKit.io (se organiza automáticamente por carpetas)
+      const optimizedUrl = await uploadToImageKitClient(result.file, 'evidencias');
 
       setUploads(prev => ({
         ...prev,

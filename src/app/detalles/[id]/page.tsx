@@ -8,6 +8,7 @@ import { supabase } from '@/lib/supabase';
 import { compressImage } from '@/lib/imageUtils';
 import { getWeek } from 'date-fns';
 import { useAuth } from '@/context/AuthContext';
+import { uploadToImageKitClient } from '@/lib/imagekit-client';
 
 interface RevisionData {
   id?: string;
@@ -226,34 +227,13 @@ export default function DetallesRevision() {
       let evidenciaUrl = null;
 
       if (nuevaNota.evidencia) {
-        const now = new Date();
-        const month = String(now.getMonth() + 1).padStart(2, '0');
-        const week = `semana_${getWeek(now, { weekStartsOn: 1 })}`;
-        const folder = `notas/${month}/${week}`;
-        
-        const formDataCloudinary = new FormData();
-        formDataCloudinary.append('file', nuevaNota.evidencia);
-        formDataCloudinary.append('upload_preset', 'PruebaSubir');
-        formDataCloudinary.append('cloud_name', 'dhd61lan4');
-        formDataCloudinary.append('folder', folder);
-
-        const response = await fetch(
-          `https://api.cloudinary.com/v1_1/dhd61lan4/image/upload`,
-          {
-            method: 'POST',
-            body: formDataCloudinary,
-          }
-        );
-
-        if (!response.ok) {
-          throw new Error('Error al subir la imagen a Cloudinary');
+        try {
+          // Usar ImageKit.io en lugar de Cloudinary
+          evidenciaUrl = await uploadToImageKitClient(nuevaNota.evidencia, 'notas');
+        } catch (uploadError) {
+          console.error('Error al subir imagen a ImageKit:', uploadError);
+          throw new Error('Error al subir la imagen');
         }
-
-        const data = await response.json();
-        // Añadir los parámetros f_auto,q_auto a la URL
-        const url = new URL(data.secure_url);
-        url.pathname = url.pathname.replace('/upload/', '/upload/f_auto,q_auto/');
-        evidenciaUrl = url.toString();
       }
 
       // Obtener fecha y hora local del dispositivo
