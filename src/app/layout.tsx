@@ -12,7 +12,6 @@ const inter = Inter({ subsets: ['latin'] })
 export const metadata: Metadata = {
   title: 'Sistema de Revisión de Casitas',
   description: 'Sistema moderno para la gestión y control de revisiones',
-  viewport: 'width=device-width, initial-scale=1, maximum-scale=5, user-scalable=yes',
 }
 
 export default function RootLayout({

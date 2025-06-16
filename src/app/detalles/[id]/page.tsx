@@ -292,25 +292,6 @@ export default function DetallesRevision() {
     setPosition({ x: 0, y: 0 });
   };
 
-  // Efecto para manejar tecla ESC
-  useEffect(() => {
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape' && modalOpen) {
-        closeModal();
-      }
-    };
-
-    if (modalOpen) {
-      document.addEventListener('keydown', handleKeyDown);
-      document.body.style.overflow = 'hidden'; // Prevenir scroll del fondo
-    }
-
-    return () => {
-      document.removeEventListener('keydown', handleKeyDown);
-      document.body.style.overflow = 'unset';
-    };
-  }, [modalOpen]);
-
   const handleWheel = (e: React.WheelEvent) => {
     e.preventDefault();
     const delta = e.deltaY;
@@ -468,60 +449,53 @@ export default function DetallesRevision() {
     setEditedData({ ...editedData, [field]: value });
   };
 
-  // Función para comprimir imagen usando canvas (configuración estándar)
-  const compressImage = (file: File): Promise<File> => {
+  // Función para comprimir imagen usando canvas
+  const compressImage = (file: File, maxWidth = 1920, maxHeight = 1080, quality = 0.8): Promise<File> => {
     return new Promise((resolve, reject) => {
-      const canvas = document.createElement('canvas');
-      const ctx = canvas.getContext('2d');
-      const img = new Image();
-      
-      img.onload = () => {
-        // Mantener proporción original, limitando el ancho máximo a 1920px (configuración estándar)
-        const maxWidth = 1920;
-        let { width, height } = img;
-        
-        if (width > maxWidth) {
-          const ratio = maxWidth / width;
-          width = maxWidth;
-          height = height * ratio;
-        }
-        
-        canvas.width = width;
-        canvas.height = height;
-        
-        if (ctx) {
-          // Configurar contexto para mejor calidad (configuración estándar)
-          ctx.imageSmoothingEnabled = true;
-          ctx.imageSmoothingQuality = 'high';
-          
-          // Dibujar imagen manteniendo su proporción original
-          ctx.drawImage(img, 0, 0, width, height);
-          
-          // Convertir a blob WebP con calidad 70% (configuración estándar)
+      const reader = new FileReader();
+      reader.readAsDataURL(file);
+      reader.onload = (event) => {
+        const img = new Image();
+        img.src = event.target?.result as string;
+        img.onload = () => {
+          let width = img.width;
+          let height = img.height;
+
+          // Redimensionar manteniendo la proporción
+          if (width > height) {
+            if (width > maxWidth) {
+              height *= maxWidth / width;
+              width = maxWidth;
+            }
+          } else {
+            if (height > maxHeight) {
+              width *= maxHeight / height;
+              height = maxHeight;
+            }
+          }
+
+          const canvas = document.createElement('canvas');
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext('2d');
+          ctx?.drawImage(img, 0, 0, width, height);
+
+          // Convertir canvas a blob
           canvas.toBlob((blob) => {
             if (!blob) {
               reject(new Error('No se pudo comprimir la imagen'));
               return;
             }
-            
-            // Crear nombre con extensión .webp
-            const originalName = file.name.replace(/\.[^/.]+$/, '');
-            const webpName = `${originalName}.webp`;
-            
-            const compressedFile = new File([blob], webpName, {
-              type: 'image/webp',
+            const compressedFile = new File([blob], file.name, {
+              type: file.type,
               lastModified: Date.now()
             });
-            
             resolve(compressedFile);
-          }, 'image/webp', 0.70); // Calidad 70% - configuración estándar
-        } else {
-          reject(new Error('No se pudo obtener el contexto del canvas'));
-        }
+          }, file.type, quality);
+        };
+        img.onerror = reject;
       };
-      
-      img.onerror = () => reject(new Error('Error al cargar la imagen'));
-      img.src = URL.createObjectURL(file);
+      reader.onerror = reject;
     });
   };
 
@@ -623,31 +597,21 @@ export default function DetallesRevision() {
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
                       </svg>
                     </button>
-                    <button
-                      onClick={() => {
-                        setZoom(1);
-                        setPosition({ x: 0, y: 0 });
-                      }}
-                      className="ml-1 px-2 py-1 text-white hover:bg-white/20 rounded-md text-xs transition-all duration-200"
-                      title="Restablecer"
-                    >
-                      Reset
-                    </button>
                   </div>
+                  
+                  {/* Botón cerrar */}
+                  <button
+                    onClick={closeModal}
+                    className="w-10 h-10 bg-red-500/20 hover:bg-red-500/30 border border-red-500/50 hover:border-red-500/70 rounded-lg flex items-center justify-center transition-all duration-200 backdrop-blur-sm"
+                    title="Cerrar"
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
                 </div>
               </div>
             </div>
-
-            {/* Botón cerrar - SIEMPRE visible con z-index alto */}
-            <button
-              onClick={closeModal}
-              className="fixed top-4 right-4 z-[60] w-12 h-12 bg-red-500/90 hover:bg-red-500 text-white rounded-full flex items-center justify-center transition-all duration-200 backdrop-blur-sm border-2 border-white/20 shadow-2xl"
-              title="Cerrar"
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-              </svg>
-            </button>
 
             {/* Contenedor de imagen */}
             <div className="w-full h-full flex items-center justify-center p-4 pt-20">
@@ -658,15 +622,14 @@ export default function DetallesRevision() {
                 className="max-w-full max-h-full object-contain rounded-lg shadow-2xl"
                 style={{
                   transform: `scale(${zoom}) translate(${position.x}px, ${position.y}px)`,
-                  cursor: zoom > 1 ? (isDragging ? 'grabbing' : 'grab') : 'default',
-                  transition: isDragging ? 'none' : 'transform 0.1s ease-out',
+                  cursor: zoom > 1 ? 'grab' : 'default',
+                  transition: 'transform 0.1s ease-out',
                   touchAction: 'none'
                 }}
                 onWheel={handleWheel}
                 onMouseDown={handleMouseDownImage}
                 onMouseMove={handleMouseMoveImage}
                 onMouseUp={handleMouseUpImage}
-                onMouseLeave={handleMouseUpImage}
                 onTouchStart={(e) => {
                   if (e.touches.length === 2) {
                     e.preventDefault();
@@ -695,11 +658,11 @@ export default function DetallesRevision() {
                       touch2.clientX - touch1.clientX,
                       touch2.clientY - touch1.clientY
                     );
-                    const scaleChange = currentDistance / dragStart.x;
-                    const newZoom = Math.max(1, Math.min(5, zoom * scaleChange));
+                    const scale = currentDistance / dragStart.x;
+                    const newZoom = Math.min(Math.max(zoom * scale, 1), 5);
                     setZoom(newZoom);
                     setDragStart({ x: currentDistance, y: 0 });
-                  } else if (e.touches.length === 1 && isDragging && zoom > 1) {
+                  } else if (isDragging && zoom > 1) {
                     e.preventDefault();
                     const touch = e.touches[0];
                     const newX = touch.clientX - dragStart.x;
@@ -728,15 +691,31 @@ export default function DetallesRevision() {
               />
             </div>
 
-            {/* Indicador de instrucciones - Solo para móviles */}
+            {/* Indicador de instrucciones */}
             <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 z-10">
               <div className="bg-black/60 backdrop-blur-sm rounded-lg px-4 py-2 text-white text-sm">
-                <div className="flex items-center justify-center text-xs">
+                <div className="flex items-center gap-4 text-xs">
                   <span className="flex items-center gap-1">
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 15l-2 5L9 9l11 4-5 2zm0 0l5 5M7.188 2.239l.777 2.897M5.136 7.965l-2.898-.777M13.95 4.05l-2.122 2.122m-5.657 5.656l-2.121 2.122" />
+                    </svg>
+                    Rueda del mouse: Zoom
+                  </span>
+                  <span className="flex items-center gap-1">
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 11.5V14m0-2.5v-6a1.5 1.5 0 113 0m-3 6a1.5 1.5 0 00-3 0v2a7.5 7.5 0 0015 0v-5a1.5 1.5 0 00-3 0m-6-3V11m0-5.5v-1a1.5 1.5 0 013 0v1m0 0V11m0-5.5a1.5 1.5 0 013 0v3m0 0V11" />
+                    </svg>
+                    Arrastrar: Mover imagen
+                  </span>
+                  <span className="hidden sm:flex items-center gap-1">
                     <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 18.75a6 6 0 006-6v-1.5m-6 7.5a6 6 0 01-6-6v-1.5m6 7.5v3.75m-3.75 0h7.5M12 15.75a3 3 0 01-3-3V4.5a3 3 0 116 0v8.25a3 3 0 01-3 3z" />
                     </svg>
-                    Pellizcar para hacer zoom • Arrastrar para mover
+                    Pellizcar: Zoom táctil
+                  </span>
+                  <span className="flex items-center gap-1">
+                    <kbd className="px-1 py-0.5 bg-white/20 rounded text-xs">ESC</kbd>
+                    Cerrar
                   </span>
                 </div>
               </div>

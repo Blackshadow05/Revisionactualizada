@@ -185,25 +185,6 @@ export default function Home() {
     setPosition({ x: 0, y: 0 });
   };
 
-  // Efecto para manejar tecla ESC
-  useEffect(() => {
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape' && modalOpen) {
-        closeModal();
-      }
-    };
-
-    if (modalOpen) {
-      document.addEventListener('keydown', handleKeyDown);
-      document.body.style.overflow = 'hidden'; // Prevenir scroll del fondo
-    }
-
-    return () => {
-      document.removeEventListener('keydown', handleKeyDown);
-      document.body.style.overflow = 'unset';
-    };
-  }, [modalOpen]);
-
   const handleWheel = (e: React.WheelEvent) => {
     e.preventDefault();
     const delta = e.deltaY;
@@ -826,31 +807,21 @@ export default function Home() {
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
                         </svg>
                       </button>
-                      <button
-                        onClick={() => {
-                          setZoom(1);
-                          setPosition({ x: 0, y: 0 });
-                        }}
-                        className="ml-1 px-2 py-1 text-white hover:bg-white/20 rounded-md text-xs transition-all duration-200"
-                        title="Restablecer"
-                      >
-                        Reset
-                      </button>
                     </div>
+                    
+                    {/* Botón cerrar */}
+                    <button
+                      onClick={closeModal}
+                      className="w-10 h-10 bg-red-500/20 hover:bg-red-500/30 border border-red-500/50 hover:border-red-500/70 rounded-lg flex items-center justify-center transition-all duration-200 backdrop-blur-sm"
+                      title="Cerrar"
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                      </svg>
+                    </button>
                   </div>
                 </div>
               </div>
-
-              {/* Botón cerrar - SIEMPRE visible con z-index alto */}
-              <button
-                onClick={closeModal}
-                className="fixed top-4 right-4 z-[60] w-12 h-12 bg-red-500/90 hover:bg-red-500 text-white rounded-full flex items-center justify-center transition-all duration-200 backdrop-blur-sm border-2 border-white/20 shadow-2xl"
-                title="Cerrar"
-              >
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              </button>
 
               {/* Contenedor de imagen */}
               <div className="w-full h-full flex items-center justify-center p-4 pt-20">
@@ -861,85 +832,36 @@ export default function Home() {
                   className="max-w-full max-h-full object-contain rounded-lg shadow-2xl"
                   style={{
                     transform: `scale(${zoom}) translate(${position.x}px, ${position.y}px)`,
-                    cursor: zoom > 1 ? (isDragging ? 'grabbing' : 'grab') : 'default',
-                    transition: isDragging ? 'none' : 'transform 0.1s ease-out',
-                    touchAction: 'none'
+                    cursor: zoom > 1 ? 'grab' : 'default',
+                    transition: 'transform 0.1s ease-out'
                   }}
                   onWheel={handleWheel}
                   onMouseDown={handleMouseDownImage}
                   onMouseMove={handleMouseMoveImage}
                   onMouseUp={handleMouseUpImage}
-                  onMouseLeave={handleMouseUpImage}
-                  onTouchStart={(e) => {
-                    if (e.touches.length === 2) {
-                      e.preventDefault();
-                      const touch1 = e.touches[0];
-                      const touch2 = e.touches[1];
-                      const initialDistance = Math.hypot(
-                        touch2.clientX - touch1.clientX,
-                        touch2.clientY - touch1.clientY
-                      );
-                      setDragStart({ x: initialDistance, y: 0 });
-                    } else if (e.touches.length === 1 && zoom > 1) {
-                      e.preventDefault();
-                      setIsDragging(true);
-                      setDragStart({
-                        x: e.touches[0].clientX - position.x,
-                        y: e.touches[0].clientY - position.y
-                      });
-                    }
-                  }}
-                  onTouchMove={(e) => {
-                    if (e.touches.length === 2) {
-                      e.preventDefault();
-                      const touch1 = e.touches[0];
-                      const touch2 = e.touches[1];
-                      const currentDistance = Math.hypot(
-                        touch2.clientX - touch1.clientX,
-                        touch2.clientY - touch1.clientY
-                      );
-                      const scaleChange = currentDistance / dragStart.x;
-                      const newZoom = Math.max(1, Math.min(5, zoom * scaleChange));
-                      setZoom(newZoom);
-                      setDragStart({ x: currentDistance, y: 0 });
-                    } else if (e.touches.length === 1 && isDragging && zoom > 1) {
-                      e.preventDefault();
-                      const touch = e.touches[0];
-                      const newX = touch.clientX - dragStart.x;
-                      const newY = touch.clientY - dragStart.y;
-                      
-                      const img = imgRef.current;
-                      if (img) {
-                        const rect = img.getBoundingClientRect();
-                        const scaledWidth = rect.width * zoom;
-                        const scaledHeight = rect.height * zoom;
-                        
-                        const maxX = (scaledWidth - rect.width) / 2;
-                        const maxY = (scaledHeight - rect.height) / 2;
-                        
-                        setPosition({
-                          x: Math.min(Math.max(-maxX, newX), maxX),
-                          y: Math.min(Math.max(-maxY, newY), maxY)
-                        });
-                      }
-                    }
-                  }}
-                  onTouchEnd={() => {
-                    setIsDragging(false);
-                  }}
                   onContextMenu={handleContextMenu}
                 />
               </div>
 
-              {/* Indicador de instrucciones - Solo para móviles */}
+              {/* Indicador de instrucciones */}
               <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 z-10">
                 <div className="bg-black/60 backdrop-blur-sm rounded-lg px-4 py-2 text-white text-sm">
-                  <div className="flex items-center justify-center text-xs">
+                  <div className="flex items-center gap-4 text-xs">
                     <span className="flex items-center gap-1">
                       <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 18.75a6 6 0 006-6v-1.5m-6 7.5a6 6 0 01-6-6v-1.5m6 7.5v3.75m-3.75 0h7.5M12 15.75a3 3 0 01-3-3V4.5a3 3 0 116 0v8.25a3 3 0 01-3 3z" />
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 15l-2 5L9 9l11 4-5 2zm0 0l5 5M7.188 2.239l.777 2.897M5.136 7.965l-2.898-.777M13.95 4.05l-2.122 2.122m-5.657 5.656l-2.121 2.122" />
                       </svg>
-                      Pellizcar para hacer zoom • Arrastrar para mover
+                      Rueda del mouse: Zoom
+                    </span>
+                    <span className="flex items-center gap-1">
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 11.5V14m0-2.5v-6a1.5 1.5 0 113 0m-3 6a1.5 1.5 0 00-3 0v2a7.5 7.5 0 0015 0v-5a1.5 1.5 0 00-3 0m-6-3V11m0-5.5v-1a1.5 1.5 0 013 0v1m0 0V11m0-5.5a1.5 1.5 0 013 0v3m0 0V11" />
+                      </svg>
+                      Arrastrar: Mover imagen
+                    </span>
+                    <span className="flex items-center gap-1">
+                      <kbd className="px-1 py-0.5 bg-white/20 rounded text-xs">ESC</kbd>
+                      Cerrar
                     </span>
                   </div>
                 </div>

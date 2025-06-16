@@ -139,12 +139,12 @@ export class OptimizedImageCompressor {
   private static getOptimalSettings(fileSize: number, imageAnalysis?: any): OptimizedCompressionOptions {
     const device = this.detectDeviceCapabilities();
     
-    // Usar configuración estándar como base
-    let baseQuality = 0.70; // Configuración estándar: 70%
+    // Calidad base alta para todos los dispositivos
+    let baseQuality = 0.90; // Alta calidad predeterminada
     if (device.isLowEnd) {
-      baseQuality = 0.65; // Reducir ligeramente en gama baja
+      baseQuality = 0.80; // Calidad alta incluso en gama baja
     } else if (device.memoryGB >= 6) {
-      baseQuality = 0.75; // Aumentar ligeramente en gama alta
+      baseQuality = 0.92; // Calidad muy alta en gama alta
     }
     
     // Ajustar calidad según análisis de imagen (si está disponible)
@@ -152,31 +152,31 @@ export class OptimizedImageCompressor {
     
     if (device.isLowEnd) {
       return {
-        maxWidth: 1920,  // Configuración estándar
-        maxHeight: undefined,  // Solo limitamos por ancho
-        quality: Math.max(0.60, Math.min(finalQuality, 0.70)), 
-        format: 'webp',  // Configuración estándar
-        maxSizeKB: device.isMobile ? 400 : 600,
+        maxWidth: device.isMobile ? 800 : 1280,
+        maxHeight: device.isMobile ? 600 : 720,
+        quality: Math.max(0.75, Math.min(finalQuality, 0.90)), // Calidad alta incluso en gama baja
+        format: 'jpeg',
+        maxSizeKB: device.isMobile ? 300 : 600, // Aumentar límite para mejor calidad
         progressive: true,
         chunkSize: 512 * 1024
       };
     } else if (device.memoryGB >= 6) {
       return {
-        maxWidth: 1920,  // Configuración estándar
-        maxHeight: undefined,  // Solo limitamos por ancho
+        maxWidth: device.isMobile ? 1920 : 2560,
+        maxHeight: device.isMobile ? 1080 : 1440,
         quality: finalQuality,
-        format: 'webp',  // Configuración estándar
-        maxSizeKB: device.isMobile ? 1000 : 1500,
+        format: 'jpeg',
+        maxSizeKB: device.isMobile ? 1200 : 2000, // Aumentar para mejor calidad
         progressive: false,
         chunkSize: 2 * 1024 * 1024
       };
     } else {
       return {
-        maxWidth: 1920,  // Configuración estándar
-        maxHeight: undefined,  // Solo limitamos por ancho
+        maxWidth: device.isMobile ? 1280 : 1920,
+        maxHeight: device.isMobile ? 720 : 1080,
         quality: finalQuality,
-        format: 'webp',  // Configuración estándar
-        maxSizeKB: device.isMobile ? 700 : 1000,
+        format: 'jpeg',
+        maxSizeKB: device.isMobile ? 700 : 1200, // Aumentar para mejor calidad
         progressive: true,
         chunkSize: 1024 * 1024
       };
