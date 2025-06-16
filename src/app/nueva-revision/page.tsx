@@ -259,6 +259,25 @@ export default function NuevaRevision() {
     setPosition({ x: 0, y: 0 });
   };
 
+  // Efecto para manejar tecla ESC
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape' && modalOpen) {
+        closeModal();
+      }
+    };
+
+    if (modalOpen) {
+      document.addEventListener('keydown', handleKeyDown);
+      document.body.style.overflow = 'hidden'; // Prevenir scroll del fondo
+    }
+
+    return () => {
+      document.removeEventListener('keydown', handleKeyDown);
+      document.body.style.overflow = 'unset';
+    };
+  }, [modalOpen]);
+
   const handleWheel = (e: React.WheelEvent) => {
     e.preventDefault();
     const newZoom = zoom + (e.deltaY > 0 ? -0.1 : 0.1);
@@ -288,8 +307,7 @@ export default function NuevaRevision() {
     setIsDragging(false);
   };
 
-  // Función para comprimir imagen usando canvas (misma configuración que detalles)
-  // Nueva función de compresión basada en "Unir Imágenes" pero retornando File
+  // Función para comprimir imagen usando canvas (misma configuración que "Unir Imágenes")
   const comprimirImagenWebP = useCallback((file: File): Promise<File> => {
     console.log('🚀 INICIANDO COMPRESIÓN:', file.name, file.type, `${(file.size / 1024).toFixed(1)} KB`);
     
@@ -299,20 +317,13 @@ export default function NuevaRevision() {
       const img = new Image();
       
       img.onload = () => {
-        // Mantener proporción original, limitando ancho máximo a 1920px y alto máximo a 1080px
+        // Mantener proporción original, limitando el ancho máximo a 1920px (configuración estándar)
         const maxWidth = 1920;
-        const maxHeight = 1080;
         let { width, height } = img;
         
-        // Calcular ratio para ambas dimensiones
-        const widthRatio = width > maxWidth ? maxWidth / width : 1;
-        const heightRatio = height > maxHeight ? maxHeight / height : 1;
-        
-        // Usar el ratio más restrictivo para mantener proporción
-        const ratio = Math.min(widthRatio, heightRatio);
-        
-        if (ratio < 1) {
-          width = width * ratio;
+        if (width > maxWidth) {
+          const ratio = maxWidth / width;
+          width = maxWidth;
           height = height * ratio;
         }
         
@@ -320,14 +331,14 @@ export default function NuevaRevision() {
         canvas.height = height;
         
         if (ctx) {
-          // Configurar contexto para calidad media
+          // Configurar contexto para mejor calidad (configuración estándar)
           ctx.imageSmoothingEnabled = true;
-          ctx.imageSmoothingQuality = 'medium';
+          ctx.imageSmoothingQuality = 'high';
           
           // Dibujar imagen manteniendo su proporción original
           ctx.drawImage(img, 0, 0, width, height);
           
-          // Convertir a blob WebP con calidad 70%
+          // Convertir a blob WebP con calidad 70% (configuración estándar)
           canvas.toBlob((blob) => {
             if (!blob) {
               reject(new Error('No se pudo comprimir la imagen'));
@@ -350,7 +361,7 @@ export default function NuevaRevision() {
             });
             
             resolve(compressedFile);
-          }, 'image/webp', 0.70);
+          }, 'image/webp', 0.70); // Calidad 70% - configuración estándar
         } else {
           reject(new Error('No se pudo obtener el contexto del canvas'));
         }
@@ -1789,20 +1800,20 @@ export default function NuevaRevision() {
                       Reset
                     </button>
                   </div>
-                  
-                  {/* Botón cerrar */}
-                  <button
-                    onClick={closeModal}
-                    className="w-10 h-10 bg-red-500/20 hover:bg-red-500/30 border border-red-500/50 hover:border-red-500/70 rounded-lg flex items-center justify-center transition-all duration-200 backdrop-blur-sm"
-                    title="Cerrar"
-                  >
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                    </svg>
-                  </button>
                 </div>
               </div>
             </div>
+
+            {/* Botón cerrar - SIEMPRE visible con z-index alto */}
+            <button
+              onClick={closeModal}
+              className="fixed top-4 right-4 z-[60] w-12 h-12 bg-red-500/90 hover:bg-red-500 text-white rounded-full flex items-center justify-center transition-all duration-200 backdrop-blur-sm border-2 border-white/20 shadow-2xl"
+              title="Cerrar"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
 
             {/* Contenedor de imagen */}
             <div className="w-full h-full flex items-center justify-center p-4 pt-20">
@@ -1851,14 +1862,29 @@ export default function NuevaRevision() {
                       touch2.clientY - touch1.clientY
                     );
                     const scaleChange = currentDistance / dragStart.x;
-                    setZoom(Math.max(0.5, Math.min(5, zoom * scaleChange)));
+                    const newZoom = Math.max(0.5, Math.min(5, zoom * scaleChange));
+                    setZoom(newZoom);
                     setDragStart({ x: currentDistance, y: 0 });
                   } else if (e.touches.length === 1 && isDragging && zoom > 1) {
                     e.preventDefault();
-                    setPosition({
-                      x: e.touches[0].clientX - dragStart.x,
-                      y: e.touches[0].clientY - dragStart.y
-                    });
+                    const touch = e.touches[0];
+                    const newX = touch.clientX - dragStart.x;
+                    const newY = touch.clientY - dragStart.y;
+                    
+                    const img = imgRef.current;
+                    if (img) {
+                      const rect = img.getBoundingClientRect();
+                      const scaledWidth = rect.width * zoom;
+                      const scaledHeight = rect.height * zoom;
+                      
+                      const maxX = (scaledWidth - rect.width) / 2;
+                      const maxY = (scaledHeight - rect.height) / 2;
+                      
+                      setPosition({
+                        x: Math.min(Math.max(-maxX, newX), maxX),
+                        y: Math.min(Math.max(-maxY, newY), maxY)
+                      });
+                    }
                   }
                 }}
                 onTouchEnd={() => {
@@ -1867,31 +1893,15 @@ export default function NuevaRevision() {
               />
             </div>
 
-            {/* Indicador de instrucciones */}
+            {/* Indicador de instrucciones - Solo para móviles */}
             <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 z-10">
               <div className="bg-black/60 backdrop-blur-sm rounded-lg px-4 py-2 text-white text-sm">
-                <div className="flex items-center gap-4 text-xs">
+                <div className="flex items-center justify-center text-xs">
                   <span className="flex items-center gap-1">
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 15l-2 5L9 9l11 4-5 2zm0 0l5 5M7.188 2.239l.777 2.897M5.136 7.965l-2.898-.777M13.95 4.05l-2.122 2.122m-5.657 5.656l-2.121 2.122" />
-                    </svg>
-                    Rueda del mouse: Zoom
-                  </span>
-                  <span className="flex items-center gap-1">
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 11.5V14m0-2.5v-6a1.5 1.5 0 113 0m-3 6a1.5 1.5 0 00-3 0v2a7.5 7.5 0 0015 0v-5a1.5 1.5 0 00-3 0m-6-3V11m0-5.5v-1a1.5 1.5 0 013 0v1m0 0V11m0-5.5a1.5 1.5 0 013 0v3m0 0V11" />
-                    </svg>
-                    Arrastrar: Mover imagen
-                  </span>
-                  <span className="hidden sm:flex items-center gap-1">
                     <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 18.75a6 6 0 006-6v-1.5m-6 7.5a6 6 0 01-6-6v-1.5m6 7.5v3.75m-3.75 0h7.5M12 15.75a3 3 0 01-3-3V4.5a3 3 0 116 0v8.25a3 3 0 01-3 3z" />
                     </svg>
-                    Pellizcar: Zoom táctil
-                  </span>
-                  <span className="flex items-center gap-1">
-                    <kbd className="px-1 py-0.5 bg-white/20 rounded text-xs">ESC</kbd>
-                    Cerrar
+                    Pellizcar para hacer zoom • Arrastrar para mover
                   </span>
                 </div>
               </div>

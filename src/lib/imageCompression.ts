@@ -30,18 +30,18 @@ export class ImageCompressor {
   }
 
   /**
-   * Comprime una imagen de forma eficiente
+   * Comprime una imagen de forma eficiente usando configuración estándar
    */
   static async compressImage(
     file: File, 
     options: CompressionOptions = {}
   ): Promise<{ file: File; originalSize: number; compressedSize: number; compressionRatio: number }> {
     const {
-      maxWidth = 1920,
-      maxHeight = 1080,
-      quality = 0.8,
-      format = 'jpeg',
-      maxSizeKB = 500
+      maxWidth = 1920,      // Configuración estándar
+      maxHeight = undefined,  // Solo limitamos por ancho
+      quality = 0.70,       // Configuración estándar: 70%
+      format = 'webp',      // Configuración estándar: WebP
+      maxSizeKB = 1000      // Tamaño aumentado para mantener calidad
     } = options;
 
     return new Promise((resolve, reject) => {
@@ -51,13 +51,14 @@ export class ImageCompressor {
         try {
           const { canvas, ctx } = this.getCanvas();
           
-          // Calcular nuevas dimensiones manteniendo aspect ratio
-          const { width, height } = this.calculateDimensions(
-            img.width, 
-            img.height, 
-            maxWidth, 
-            maxHeight
-          );
+          // Calcular nuevas dimensiones manteniendo aspect ratio (configuración estándar)
+          let { width, height } = img;
+          
+          if (width > maxWidth) {
+            const ratio = maxWidth / width;
+            width = maxWidth;
+            height = height * ratio;
+          }
 
           // Configurar canvas
           canvas.width = width;
@@ -66,14 +67,14 @@ export class ImageCompressor {
           // Limpiar canvas
           ctx.clearRect(0, 0, width, height);
 
-          // Configurar filtros para mejor calidad
+          // Configurar filtros para mejor calidad (configuración estándar)
           ctx.imageSmoothingEnabled = true;
           ctx.imageSmoothingQuality = 'high';
 
           // Dibujar imagen redimensionada
           ctx.drawImage(img, 0, 0, width, height);
 
-          // Convertir a blob con compresión
+          // Convertir a blob con compresión (configuración estándar)
           canvas.toBlob(
             (blob) => {
               if (!blob) {
@@ -85,19 +86,22 @@ export class ImageCompressor {
               const originalSize = file.size;
               const compressionRatio = Math.round((1 - compressedSize / originalSize) * 100);
 
-              // Si aún es muy grande, reducir calidad
+              // Si aún es muy grande, reducir calidad progresivamente
               if (compressedSize > maxSizeKB * 1024 && quality > 0.3) {
-                const newQuality = Math.max(0.3, quality - 0.2);
+                const newQuality = Math.max(0.3, quality - 0.15);
                 this.compressImage(file, { ...options, quality: newQuality })
                   .then(resolve)
                   .catch(reject);
                 return;
               }
 
-              // Crear nuevo archivo
+              // Crear nuevo archivo con extensión correcta
+              const originalName = file.name.replace(/\.[^/.]+$/, '');
+              const newName = `${originalName}.${format === 'jpeg' ? 'jpg' : format}`;
+              
               const compressedFile = new File(
                 [blob], 
-                file.name.replace(/\.[^/.]+$/, `.${format === 'jpeg' ? 'jpg' : format}`),
+                newName,
                 { 
                   type: `image/${format}`,
                   lastModified: Date.now()
