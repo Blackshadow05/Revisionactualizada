@@ -1,6 +1,7 @@
 'use client';
 
-import { useState, useEffect, useRef, useMemo, useCallback, memo } from 'react';
+import { useState, useEffect, useRef, useMemo, useCallback, memo, lazy, Suspense } from 'react';
+import dynamic from 'next/dynamic';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { supabase, checkSupabaseConnection } from '@/lib/supabase';
@@ -9,6 +10,13 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useAuth } from '@/context/AuthContext';
 import { useSpectacularBackground } from '@/hooks/useSpectacularBackground';
+import { debounce, getDeviceCapabilities } from '@/utils/performanceUtils';
+
+// Lazy load de componentes pesados
+const VirtualizedTable = dynamic(() => import('@/components/VirtualizedTable'), {
+  loading: () => <div className="text-center py-8 text-gray-400">Cargando tabla...</div>,
+  ssr: false
+});
 
 // Tipos optimizados
 interface RevisionData {
@@ -176,6 +184,7 @@ export default function Home() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
+  const [searchInput, setSearchInput] = useState('');
   const [cajaFuerteFilter, setCajaFuerteFilter] = useState('');
   
   const [uiState, setUiState] = useState<UIState>({
@@ -213,6 +222,14 @@ export default function Home() {
 
   // Hook para el fondo espectacular
   const spectacularBg = useSpectacularBackground();
+
+  // Debounce para la búsqueda
+  const debouncedSetSearchTerm = useMemo(
+    () => debounce((value: string) => {
+      setSearchTerm(value);
+    }, 300),
+    []
+  );
 
   // Función optimizada para obtener revisiones
   const fetchRevisiones = useCallback(async () => {
@@ -611,15 +628,21 @@ export default function Home() {
                 ref={searchInputRef}
                 type="text"
                 placeholder="Buscar por casita, revisor o estado..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
+                value={searchInput}
+                onChange={(e) => {
+                  setSearchInput(e.target.value);
+                  debouncedSetSearchTerm(e.target.value);
+                }}
                 className="w-full pl-12 pr-4 py-3 bg-gradient-to-r from-[#1a1f35] to-[#1e2538] border border-[#3d4659] rounded-xl text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#c9a45c]/50 focus:border-[#c9a45c]/50 transition-all duration-300 hover:border-[#c9a45c]/30"
                 onFocus={() => setUiState(prev => ({ ...prev, isSearchFocused: true }))}
                 onBlur={() => setUiState(prev => ({ ...prev, isSearchFocused: false }))}
               />
-              {searchTerm && (
+              {searchInput && (
                 <button
-                  onClick={() => setSearchTerm('')}
+                  onClick={() => {
+                    setSearchInput('');
+                    setSearchTerm('');
+                  }}
                   className="absolute inset-y-0 right-0 pr-4 flex items-center text-gray-400 hover:text-white transition-colors"
                 >
                   <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -671,54 +694,11 @@ export default function Home() {
             ) : (
               <div className="relative">
                 <div className="overflow-hidden rounded-xl shadow-[0_8px_32px_rgb(0_0_0/0.2)] backdrop-blur-md bg-[#1e2538]/80 border border-[#3d4659]/50">
-                  <div 
-                    ref={tableContainerRef} 
-                    className="table-mobile-optimized md:table-desktop-optimized overflow-x-auto relative cursor-grab"
-                    onMouseDown={handleTableMouseDown}
-                    onMouseLeave={handleTableMouseUp}
-                    onMouseUp={handleTableMouseUp}
-                    onMouseMove={handleTableMouseMove}
-                  >
-                    <table className="min-w-full divide-y divide-[#3d4659]/50">
-                      <thead className="sticky top-0 z-30">
-                        <tr className="bg-gradient-to-r from-[#1e2538]/90 to-[#2a3347]/90 backdrop-blur-md text-gray-300 text-left">
-                          <th className="table-col-fixed-1">Fecha</th>
-                          <th className="table-col-fixed-2">Casita</th>
-                          <th className="px-3 py-2 md:px-4 md:py-3">Quien revisa</th>
-                          <th className="px-3 py-2 md:px-4 md:py-3">Caja fuerte</th>
-                          <th className="px-3 py-2 md:px-4 md:py-3">Puertas/Ventanas</th>
-                          <th className="px-3 py-2 md:px-4 md:py-3">Chromecast</th>
-                          <th className="px-3 py-2 md:px-4 md:py-3">Binoculares</th>
-                          <th className="px-3 py-2 md:px-4 md:py-3">Trapo binoculares</th>
-                          <th className="px-3 py-2 md:px-4 md:py-3">Speaker</th>
-                          <th className="px-3 py-2 md:px-4 md:py-3">USB Speaker</th>
-                          <th className="px-3 py-2 md:px-4 md:py-3">Controles TV</th>
-                          <th className="px-3 py-2 md:px-4 md:py-3">Secadora</th>
-                          <th className="px-3 py-2 md:px-4 md:py-3">Accesorios secadora</th>
-                          <th className="px-3 py-2 md:px-4 md:py-3">Steamer</th>
-                          <th className="px-3 py-2 md:px-4 md:py-3">Bolsa vapor</th>
-                          <th className="px-3 py-2 md:px-4 md:py-3">Plancha cabello</th>
-                          <th className="px-3 py-2 md:px-4 md:py-3">Bulto</th>
-                          <th className="px-3 py-2 md:px-4 md:py-3">Sombrero</th>
-                          <th className="px-3 py-2 md:px-4 md:py-3">Bolso yute</th>
-                          <th className="px-3 py-2 md:px-4 md:py-3">Camas ordenadas</th>
-                          <th className="px-3 py-2 md:px-4 md:py-3">Cola caballo</th>
-                          <th className="px-3 py-2 md:px-4 md:py-3">Notas</th>
-                          <th className="px-3 py-2 md:px-4 md:py-3">Evidencias</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-[#3d4659]/50">
-                        {filteredData.map((row, index) => (
-                          <TableRow
-                            key={row.id || index}
-                            row={row}
-                            router={router}
-                            openModal={openModal}
-                          />
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
+                  <VirtualizedTable 
+                    data={filteredData}
+                    openModal={openModal}
+                    containerRef={tableContainerRef}
+                  />
                 </div>
               </div>
             )}

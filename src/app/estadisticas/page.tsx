@@ -8,8 +8,8 @@ import dynamic from 'next/dynamic';
 import LoadingSpinner from '../../components/LoadingSpinner';
 import { useSpectacularBackground } from '@/hooks/useSpectacularBackground';
 
-// Importar BarChartComponent dinámicamente con Suspense optimizado
-const BarChartComponent = dynamic(() => import('../../components/BarChartComponent'), {
+// Importar gráfico CSS ligero
+const CSSBarChart = dynamic(() => import('../../components/CSSBarChart'), {
   ssr: false,
   loading: () => (
     <div className="bg-gray-800 bg-opacity-80 backdrop-blur-sm p-6 rounded-lg shadow-xl h-96 flex items-center justify-center">
@@ -244,28 +244,22 @@ export default function EstadisticasPage() {
 
       {/* Charts Section - Renderizado optimizado */}
       <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4 sm:gap-6">
-        <BarChartComponent
+        <CSSBarChart
           data={stats.casitasCheckIn}
           title="Estadística Casitas Check in (Año Actual)"
           barColor={CHART_COLORS.PRIMARY}
-          xAxisLabel="Casita"
-          yAxisLabel="Número de Revisiones"
         />
         
-        <BarChartComponent
+        <CSSBarChart
           data={stats.quienRevisa}
           title="Estadística Revisiones (Año Actual)"
           barColor={CHART_COLORS.SECONDARY}
-          xAxisLabel="Persona que revisa"
-          yAxisLabel="Número de Revisiones"
         />
 
-        <BarChartComponent
+        <CSSBarChart
           data={stats.quienRevisaCheckOut}
           title="Estadísticas Check out (Año Actual)"
           barColor={CHART_COLORS.TERTIARY}
-          xAxisLabel="Persona que revisa"
-          yAxisLabel="Número de Revisiones"
         />
       </div>
       

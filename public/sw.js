@@ -1,4 +1,194 @@
-const CACHE_NAME = 'revision-casitas-v1';
+// Service Worker optimizado para móviles de gama baja
+const CACHE_NAME = 'casitas-v2';
+const STATIC_CACHE = 'static-v2';
+const DYNAMIC_CACHE = 'dynamic-v2';
+
+// Assets críticos para cache inmediato
+const CRITICAL_ASSETS = [
+  '/',
+  '/globals.css',
+  '/manifest.json'
+];
+
+// Estrategia: Cache First para assets estáticos
+const STATIC_ASSETS = [
+  '/_next/static/',
+  '/icons/',
+  '/fonts/'
+];
+
+// Estrategia: Network First para API y contenido dinámico
+const DYNAMIC_ROUTES = [
+  '/api/',
+  '/detalles/',
+  '/nueva-revision'
+];
+
+// Instalación del Service Worker
+self.addEventListener('install', event => {
+  console.log('Service Worker: Installing...');
+  
+  event.waitUntil(
+    caches.open(STATIC_CACHE)
+      .then(cache => {
+        console.log('Service Worker: Caching critical assets');
+        return cache.addAll(CRITICAL_ASSETS);
+      })
+      .then(() => self.skipWaiting())
+  );
+});
+
+// Activación y limpieza de caches antiguos
+self.addEventListener('activate', event => {
+  console.log('Service Worker: Activating...');
+  
+  event.waitUntil(
+    caches.keys()
+      .then(cacheNames => {
+        return Promise.all(
+          cacheNames
+            .filter(cacheName => {
+              return cacheName !== CACHE_NAME && 
+                     cacheName !== STATIC_CACHE && 
+                     cacheName !== DYNAMIC_CACHE;
+            })
+            .map(cacheName => {
+              console.log('Service Worker: Removing old cache:', cacheName);
+              return caches.delete(cacheName);
+            })
+        );
+      })
+      .then(() => self.clients.claim())
+  );
+});
+
+// Estrategias de fetch optimizadas
+self.addEventListener('fetch', event => {
+  const { request } = event;
+  const url = new URL(request.url);
+
+  // Ignorar peticiones no-GET
+  if (request.method !== 'GET') {
+    return;
+  }
+
+  // Ignorar extensiones de desarrollo
+  if (url.pathname.includes('__next') || url.pathname.includes('_next/webpack')) {
+    return;
+  }
+
+  // Cache First para assets estáticos
+  if (STATIC_ASSETS.some(path => url.pathname.includes(path))) {
+    event.respondWith(
+      caches.match(request)
+        .then(cachedResponse => {
+          if (cachedResponse) {
+            return cachedResponse;
+          }
+          
+          return fetch(request).then(response => {
+            if (!response || response.status !== 200) {
+              return response;
+            }
+            
+            const responseToCache = response.clone();
+            caches.open(STATIC_CACHE)
+              .then(cache => {
+                cache.put(request, responseToCache);
+              });
+            
+            return response;
+          });
+        })
+    );
+    return;
+  }
+
+  // Network First para contenido dinámico
+  if (DYNAMIC_ROUTES.some(route => url.pathname.includes(route))) {
+    event.respondWith(
+      fetch(request)
+        .then(response => {
+          if (!response || response.status !== 200) {
+            return caches.match(request) || response;
+          }
+          
+          const responseToCache = response.clone();
+          caches.open(DYNAMIC_CACHE)
+            .then(cache => {
+              cache.put(request, responseToCache);
+            });
+          
+          return response;
+        })
+        .catch(() => {
+          return caches.match(request);
+        })
+    );
+    return;
+  }
+
+  // Stale While Revalidate para el resto
+  event.respondWith(
+    caches.match(request)
+      .then(cachedResponse => {
+        const fetchPromise = fetch(request).then(response => {
+          if (!response || response.status !== 200) {
+            return response;
+          }
+          
+          const responseToCache = response.clone();
+          caches.open(CACHE_NAME)
+            .then(cache => {
+              cache.put(request, responseToCache);
+            });
+          
+          return response;
+        });
+        
+        return cachedResponse || fetchPromise;
+      })
+  );
+});
+
+// Limpieza periódica de cache (cada 7 días)
+self.addEventListener('message', event => {
+  if (event.data && event.data.type === 'CLEANUP_CACHE') {
+    event.waitUntil(
+      caches.open(DYNAMIC_CACHE)
+        .then(cache => {
+          return cache.keys().then(requests => {
+            const now = Date.now();
+            const WEEK = 7 * 24 * 60 * 60 * 1000;
+            
+            return Promise.all(
+              requests.map(request => {
+                return cache.match(request).then(response => {
+                  if (response) {
+                    const date = new Date(response.headers.get('date') || 0);
+                    if (now - date.getTime() > WEEK) {
+                      return cache.delete(request);
+                    }
+                  }
+                });
+              })
+            );
+          });
+        })
+    );
+  }
+});
+
+// Sincronización en background (cuando hay conexión)
+self.addEventListener('sync', event => {
+  if (event.tag === 'sync-data') {
+    event.waitUntil(
+      // Aquí puedes implementar sincronización de datos pendientes
+      console.log('Service Worker: Syncing data...')
+    );
+  }
+});
+
 const DB_NAME = 'RevisionCasitasDB';
 const DB_VERSION = 1;
 const STORE_NAME = 'uploadQueue';
@@ -216,16 +406,6 @@ async function getImageKitConfig() {
 }
 
 // Event Listeners
-self.addEventListener('install', (event) => {
-  console.log('Service Worker instalado');
-  self.skipWaiting();
-});
-
-self.addEventListener('activate', (event) => {
-  console.log('Service Worker activado');
-  event.waitUntil(self.clients.claim());
-});
-
 self.addEventListener('message', (event) => {
   const { type, data } = event.data;
   
