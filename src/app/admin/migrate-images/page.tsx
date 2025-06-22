@@ -101,9 +101,12 @@ export default function MigrateImages() {
             <div className="text-center">
               <a
                 href="/"
-                className="text-[#c9a45c] hover:text-[#d4b06c] underline transition-colors"
+                className="px-4 py-2.5 text-[#c9a45c] hover:text-[#d4b06c] underline transition-colors relative overflow-hidden rounded-xl font-medium flex items-center justify-center gap-2"
               >
-                ← Volver al inicio
+                <div className="absolute inset-0 bg-gradient-to-r from-transparent via-[#f0cb35]/80 to-transparent animate-[slide_2s_ease-in-out_infinite] z-0"></div>
+                <div className="relative z-10 flex items-center gap-2">
+                  ← Volver al inicio
+                </div>
               </a>
             </div>
           </div>

@@ -86,9 +86,13 @@ export default function SubidasPendientes() {
               )}
               <button
                 onClick={() => router.push('/')}
-                className="px-4 py-2 bg-[#c9a45c] hover:bg-[#d4b06c] text-[#1a1f35] rounded-lg text-sm font-medium transition-colors"
+                className="px-4 py-2.5 bg-[#c9a45c] hover:bg-[#d4b06c] text-[#1a1f35] rounded-xl text-sm font-medium transition-colors relative overflow-hidden flex items-center justify-center gap-2"
               >
-                Volver
+                {/* Efecto de brillo continuo */}
+                <div className="absolute inset-0 bg-gradient-to-r from-transparent via-[#f0cb35]/80 to-transparent animate-[slide_2s_ease-in-out_infinite] z-0"></div>
+                <div className="relative z-10 flex items-center gap-2">
+                  Volver
+                </div>
               </button>
             </div>
           </div>

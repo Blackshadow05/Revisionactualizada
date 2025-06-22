@@ -2,6 +2,7 @@
 
 import { useState, useRef, useCallback, useEffect } from 'react';
 import Link from 'next/link';
+import { useSpectacularBackground } from '@/hooks/useSpectacularBackground';
 
 interface ImageData {
   file: File | null;
@@ -11,16 +12,42 @@ interface ImageData {
 }
 
 export default function UnirImagenes() {
+  const spectacularBg = useSpectacularBackground();
   const [imagen1, setImagen1] = useState<ImageData>({ file: null, compressed: null, originalSize: 0, compressedSize: 0 });
   const [imagen2, setImagen2] = useState<ImageData>({ file: null, compressed: null, originalSize: 0, compressedSize: 0 });
   const [imagenUnida, setImagenUnida] = useState<string | null>(null);
   const [orientacion, setOrientacion] = useState<'vertical' | 'horizontal'>('vertical');
   const [modalVisible, setModalVisible] = useState(false);
   const [loading, setLoading] = useState<{ img1: boolean; img2: boolean }>({ img1: false, img2: false });
+  const [zoom, setZoom] = useState(1);
+  const [position, setPosition] = useState({ x: 0, y: 0 });
+  const [isDragging, setIsDragging] = useState(false);
+  const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
+  const [modalImg, setModalImg] = useState<string | null>(null);
+
+  // Efecto para manejar tecla ESC en modal
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape' && modalVisible) {
+        setModalVisible(false);
+      }
+    };
+
+    if (modalVisible) {
+      document.addEventListener('keydown', handleKeyDown);
+      document.body.style.overflow = 'hidden'; // Prevenir scroll del fondo
+    }
+
+    return () => {
+      document.removeEventListener('keydown', handleKeyDown);
+      document.body.style.overflow = 'unset';
+    };
+  }, [modalVisible]);
   
   const fileInputRef1 = useRef<HTMLInputElement>(null);
   const fileInputRef2 = useRef<HTMLInputElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const imgRef = useRef<HTMLImageElement>(null);
 
   // Funcion para comprimir imagen optimizada (sin metadatos)
   const comprimirImagen = useCallback((file: File): Promise<string> => {
@@ -313,21 +340,70 @@ export default function UnirImagenes() {
     }
   };
 
+  const handleWheel = (e: React.WheelEvent<HTMLImageElement>) => {
+    e.preventDefault();
+    const scaleChange = e.deltaY > 0 ? 1.25 : 0.8;
+    const newZoom = Math.max(0.5, Math.min(5, zoom * scaleChange));
+    setZoom(newZoom);
+  };
+
+  const handleMouseDownImage = (e: React.MouseEvent<HTMLImageElement>) => {
+    e.preventDefault();
+    setIsDragging(true);
+    setDragStart({ x: e.clientX, y: e.clientY });
+  };
+
+  const handleMouseMoveImage = (e: React.MouseEvent<HTMLImageElement>) => {
+    if (isDragging) {
+      e.preventDefault();
+      const img = imgRef.current;
+      if (img) {
+        const rect = img.getBoundingClientRect();
+        const scaledWidth = rect.width * zoom;
+        const scaledHeight = rect.height * zoom;
+        
+        const maxX = (scaledWidth - rect.width) / 2;
+        const maxY = (scaledHeight - rect.height) / 2;
+        
+        const newX = e.clientX - dragStart.x;
+        const newY = e.clientY - dragStart.y;
+        
+        setPosition({
+          x: Math.min(Math.max(-maxX, newX), maxX),
+          y: Math.min(Math.max(-maxY, newY), maxY)
+        });
+      }
+    }
+  };
+
+  const handleMouseUpImage = () => {
+    setIsDragging(false);
+  };
+
+  const closeModal = () => {
+    setModalVisible(false);
+    setZoom(1);
+    setPosition({ x: 0, y: 0 });
+  };
+
   return (
-    <main className="min-h-screen bg-gradient-to-br from-[#0f1419] via-[#1a1f35] to-[#1e2538] relative overflow-hidden">
-      <div className="absolute inset-0 bg-[url('data:image/svg+xml,%3Csvg%20width%3D%2260%22%20height%3D%2260%22%20viewBox%3D%220%200%2060%2060%22%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%3E%3Cg%20fill%3D%22none%22%20fill-rule%3D%22evenodd%22%3E%3Cg%20fill%3D%22%23c9a45c%22%20fill-opacity%3D%220.03%22%3E%3Ccircle%20cx%3D%2230%22%20cy%3D%2230%22%20r%3D%222%22/%3E%3C/g%3E%3C/g%3E%3C/svg%3E')] opacity-50"></div>
-      <div className="absolute top-0 left-0 w-full h-full bg-gradient-to-b from-transparent via-transparent to-[#0f1419]/20"></div>
+    <main style={spectacularBg} className="relative overflow-hidden">
       
       <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="flex items-center justify-between mb-8">
-          <Link 
+          <Link
             href="/"
-            className="flex items-center gap-3 text-white hover:text-[#c9a45c] transition-colors duration-300"
+            className="flex items-center justify-center gap-3 text-white hover:text-[#c9a45c] transition-colors duration-300 relative overflow-hidden rounded-xl font-medium"
+            style={{ padding: '10px 18px' }}
           >
-            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-6 h-6">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M10.5 19.5L3 12m0 0l7.5-7.5M3 12h18" />
-            </svg>
-            <span className="font-medium">Volver al inicio</span>
+            {/* Efecto de brillo continuo */}
+            <div className="absolute inset-0 bg-gradient-to-r from-transparent via-[#f0cb35]/80 to-transparent animate-[slide_2s_ease-in-out_infinite] z-0"></div>
+            <div className="relative z-10 flex items-center gap-3">
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-6 h-6">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M10.5 19.5L3 12m0 0l7.5-7.5M3 12h18" />
+              </svg>
+              <span className="font-medium">Volver al inicio</span>
+            </div>
           </Link>
           
           <div className="relative text-center">
@@ -621,22 +697,162 @@ export default function UnirImagenes() {
         )}
 
         {modalVisible && imagenUnida && (
-          <div className="fixed inset-0 bg-black/90 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-            <div className="relative max-w-7xl max-h-[90vh] w-full h-full flex items-center justify-center">
+          <div className="fixed inset-0 z-50 bg-black/95 backdrop-blur-sm" style={{ touchAction: 'none' }}>
+            {/* Barra superior con controles */}
+            <div className="absolute top-0 left-0 right-0 z-10 bg-gradient-to-b from-black/80 to-transparent p-4">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-blue-600 rounded-lg flex items-center justify-center">
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                    </svg>
+                  </div>
+                  <div>
+                    <h3 className="text-white font-semibold text-lg">Evidencia Fotográfica</h3>
+                    <p className="text-gray-300 text-sm">Zoom: {Math.round(zoom * 100)}%</p>
+                  </div>
+                </div>
+                
+                <div className="flex items-center gap-2">
+                  {/* Controles de zoom */}
+                  <div className="flex items-center gap-1 bg-black/40 backdrop-blur-sm rounded-lg p-1">
+                    <button
+                      onClick={() => setZoom(Math.max(0.5, zoom - 0.25))}
+                      className="w-8 h-8 text-white hover:bg-white/20 rounded-md flex items-center justify-center transition-all duration-200"
+                      title="Alejar"
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 12H4" />
+                      </svg>
+                    </button>
+                    <div className="px-2 py-1 text-white text-xs font-medium min-w-[50px] text-center">
+                      {Math.round(zoom * 100)}%
+                    </div>
+                    <button
+                      onClick={() => setZoom(Math.min(5, zoom + 0.25))}
+                      className="w-8 h-8 text-white hover:bg-white/20 rounded-md flex items-center justify-center transition-all duration-200"
+                      title="Acercar"
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                      </svg>
+                    </button>
+                    <button
+                      onClick={() => {
+                        setZoom(1);
+                        setPosition({ x: 0, y: 0 });
+                      }}
+                      className="ml-1 px-2 py-1 text-white hover:bg-white/20 rounded-md text-xs transition-all duration-200"
+                      title="Restablecer"
+                    >
+                      Reset
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Botón cerrar - SIEMPRE visible con z-index alto */}
+            <button
+              onClick={closeModal}
+              className="fixed top-4 right-4 z-[60] w-12 h-12 bg-red-500/90 hover:bg-red-500 text-white rounded-full flex items-center justify-center transition-all duration-200 backdrop-blur-sm border-2 border-white/20 shadow-2xl"
+              title="Cerrar"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+
+            {/* Contenedor de imagen */}
+            <div className="w-full h-full flex items-center justify-center p-4 pt-20">
               <img
+                ref={imgRef}
                 src={imagenUnida}
                 alt="Imagen unida - Pantalla completa"
                 className="max-w-full max-h-full object-contain rounded-lg shadow-2xl"
+                style={{
+                  transform: `scale(${zoom}) translate(${position.x}px, ${position.y}px)`,
+                  cursor: zoom > 1 ? (isDragging ? 'grabbing' : 'grab') : 'default',
+                  transition: isDragging ? 'none' : 'transform 0.1s ease-out',
+                  touchAction: 'none'
+                }}
+                onWheel={handleWheel}
+                onMouseDown={handleMouseDownImage}
+                onMouseMove={handleMouseMoveImage}
+                onMouseUp={handleMouseUpImage}
+                onMouseLeave={handleMouseUpImage}
+                onTouchStart={(e) => {
+                  if (e.touches.length === 2) {
+                    e.preventDefault();
+                    const touch1 = e.touches[0];
+                    const touch2 = e.touches[1];
+                    const initialDistance = Math.hypot(
+                      touch2.clientX - touch1.clientX,
+                      touch2.clientY - touch1.clientY
+                    );
+                    setDragStart({ x: initialDistance, y: 0 });
+                  } else if (e.touches.length === 1 && zoom > 1) {
+                    e.preventDefault();
+                    setIsDragging(true);
+                    setDragStart({
+                      x: e.touches[0].clientX - position.x,
+                      y: e.touches[0].clientY - position.y
+                    });
+                  }
+                }}
+                onTouchMove={(e) => {
+                  if (e.touches.length === 2) {
+                    e.preventDefault();
+                    const touch1 = e.touches[0];
+                    const touch2 = e.touches[1];
+                    const currentDistance = Math.hypot(
+                      touch2.clientX - touch1.clientX,
+                      touch2.clientY - touch1.clientY
+                    );
+                    const scaleChange = currentDistance / dragStart.x;
+                    const newZoom = Math.max(0.5, Math.min(5, zoom * scaleChange));
+                    setZoom(newZoom);
+                    setDragStart({ x: currentDistance, y: 0 });
+                  } else if (e.touches.length === 1 && isDragging && zoom > 1) {
+                    e.preventDefault();
+                    const touch = e.touches[0];
+                    const newX = touch.clientX - dragStart.x;
+                    const newY = touch.clientY - dragStart.y;
+                    
+                    const img = imgRef.current;
+                    if (img) {
+                      const rect = img.getBoundingClientRect();
+                      const scaledWidth = rect.width * zoom;
+                      const scaledHeight = rect.height * zoom;
+                      
+                      const maxX = (scaledWidth - rect.width) / 2;
+                      const maxY = (scaledHeight - rect.height) / 2;
+                      
+                      setPosition({
+                        x: Math.min(Math.max(-maxX, newX), maxX),
+                        y: Math.min(Math.max(-maxY, newY), maxY)
+                      });
+                    }
+                  }
+                }}
+                onTouchEnd={() => {
+                  setIsDragging(false);
+                }}
               />
-              
-              <button
-                onClick={() => setModalVisible(false)}
-                className="absolute top-4 right-4 w-12 h-12 bg-red-500/80 hover:bg-red-500 text-white rounded-full flex items-center justify-center transition-all duration-300 backdrop-blur-sm"
-              >
-                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-6 h-6">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              </button>
+            </div>
+
+            {/* Indicador de instrucciones - Solo para móviles */}
+            <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 z-10">
+              <div className="bg-black/60 backdrop-blur-sm rounded-lg px-4 py-2 text-white text-sm">
+                <div className="flex items-center justify-center text-xs">
+                  <span className="flex items-center gap-1">
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 18.75a6 6 0 006-6v-1.5m-6 7.5a6 6 0 01-6-6v-1.5m6 7.5v3.75m-3.75 0h7.5M12 15.75a3 3 0 01-3-3V4.5a3 3 0 116 0v8.25a3 3 0 01-3 3z" />
+                    </svg>
+                    Pellizcar para hacer zoom • Arrastrar para mover
+                  </span>
+                </div>
+              </div>
             </div>
           </div>
         )}

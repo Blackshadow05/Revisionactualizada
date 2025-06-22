@@ -8,6 +8,7 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/context/AuthContext';
+import { useSpectacularBackground } from '@/hooks/useSpectacularBackground';
 
 interface Usuario {
   id: string | null;
@@ -20,6 +21,7 @@ interface Usuario {
 export default function GestionUsuarios() {
   const router = useRouter();
   const { userRole } = useAuth();
+  const spectacularBg = useSpectacularBackground();
   const [usuarios, setUsuarios] = useState<Usuario[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -191,11 +193,11 @@ export default function GestionUsuarios() {
     setEditingId(null);
   };
 
-  if (loading) return <div className="min-h-screen bg-gradient-to-br from-[#1a1f35] to-[#2d364c] flex items-center justify-center text-white">Cargando...</div>;
-  if (error) return <div className="min-h-screen bg-gradient-to-br from-[#1a1f35] to-[#2d364c] flex items-center justify-center text-red-500">Error: {error}</div>;
+  if (loading) return <div style={spectacularBg} className="flex items-center justify-center text-white min-h-screen">Cargando...</div>;
+  if (error) return <div style={spectacularBg} className="flex items-center justify-center text-red-500 min-h-screen">Error: {error}</div>;
 
   return (
-    <main className="min-h-screen bg-gradient-to-br from-[#1a1f35] to-[#2d364c] py-8">
+    <main style={spectacularBg} className="py-8">
       {/* Modal de confirmación de eliminación */}
       {showDeleteModal && usuarioToDelete && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
@@ -237,9 +239,13 @@ export default function GestionUsuarios() {
             <h1 className="text-3xl font-bold text-white">Gestión de Usuarios</h1>
             <button
               onClick={() => router.back()}
-              className="px-4 py-2 text-[#1a1f35] bg-gradient-to-br from-[#c9a45c] via-[#d4b06c] to-[#f0c987] rounded-xl hover:from-[#d4b06c] hover:via-[#e0bc7c] hover:to-[#f7d498] transform hover:scale-[1.02] transition-all duration-200 shadow-[0_8px_16px_rgb(0_0_0/0.2)] hover:shadow-[0_12px_24px_rgb(0_0_0/0.3)] relative overflow-hidden border-2 border-white/40 hover:border-white/60"
+              className="px-4 py-2.5 text-[#1a1f35] bg-gradient-to-br from-[#c9a45c] via-[#d4b06c] to-[#f0c987] rounded-xl hover:from-[#d4b06c] hover:via-[#e0bc7c] hover:to-[#f7d498] transform hover:scale-[1.02] transition-all duration-200 shadow-[0_8px_16px_rgb(0_0_0/0.2)] hover:shadow-[0_12px_24px_rgb(0_0_0/0.3)] relative overflow-hidden border-2 border-white/40 hover:border-white/60 font-medium flex items-center justify-center gap-2"
             >
-              Volver
+              {/* Efecto de brillo continuo */}
+              <div className="absolute inset-0 bg-gradient-to-r from-transparent via-[#f0cb35]/80 to-transparent animate-[slide_2s_ease-in-out_infinite] z-0"></div>
+              <div className="relative z-10 flex items-center gap-2">
+                Volver
+              </div>
             </button>
           </div>
 

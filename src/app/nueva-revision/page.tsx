@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback, createRef } from 'react';
 import { supabase } from '@/lib/supabase';
 import { useRouter } from 'next/navigation';
 import ButtonGroup from '@/components/ButtonGroup';
@@ -9,6 +9,7 @@ import { uploadToImageKitClient } from '@/lib/imagekit-client';
 import { useAuth } from '@/context/AuthContext';
 import { useToast } from '@/context/ToastContext';
 import { useDirectImageKitUpload } from '@/hooks/useDirectImageKitUpload';
+import { useSpectacularBackground } from '@/hooks/useSpectacularBackground';
 
 interface RevisionData {
   casita: string;
@@ -90,13 +91,69 @@ export default function NuevaRevision() {
   // Hook de ImageKit.io (no usado actualmente, pero disponible para futuras mejoras)
   // const { uploadMultipleFiles, isUploading: uploadsInProgress, uploads } = useDirectImageKitUpload();
   const { showSuccess, showError } = useToast();
+  const spectacularBg = useSpectacularBackground();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [deviceInfo, setDeviceInfo] = useState<any>(null);
+  
+  // Función para cargar datos desde localStorage
+  const loadFromLocalStorage = () => {
+    if (typeof window !== 'undefined') {
+      const savedData = localStorage.getItem('revision-form-data');
+      if (savedData) {
+        try {
+          const parsedData = JSON.parse(savedData);
+          return { ...initialFormData, ...parsedData, quien_revisa: user || parsedData.quien_revisa || '' };
+        } catch (error) {
+          console.error('Error parsing saved form data:', error);
+          return { ...initialFormData, quien_revisa: user || '' };
+        }
+      }
+    }
+    return { ...initialFormData, quien_revisa: user || '' };
+  };
+
+  // Inicializar con datos por defecto (sin localStorage para evitar hidratación)
   const [formData, setFormData] = useState<RevisionData>({
     ...initialFormData,
     quien_revisa: user || ''
   });
+
+  // Función para guardar en localStorage
+  const saveToLocalStorage = (data: RevisionData) => {
+    if (typeof window !== 'undefined') {
+      // No guardar archivos en localStorage, solo los campos de texto
+      const { evidencia_01, evidencia_02, evidencia_03, ...dataToSave } = data;
+      localStorage.setItem('revision-form-data', JSON.stringify(dataToSave));
+    }
+  };
+
+  // Función para guardar el campo resaltado
+  const saveHighlightedField = (field: string | null) => {
+    if (typeof window !== 'undefined') {
+      if (field) {
+        localStorage.setItem('revision-highlighted-field', field);
+      } else {
+        localStorage.removeItem('revision-highlighted-field');
+      }
+    }
+  };
+
+  // Función para cargar el campo resaltado
+  const loadHighlightedField = () => {
+    if (typeof window !== 'undefined') {
+      return localStorage.getItem('revision-highlighted-field');
+    }
+    return 'casita';
+  };
+
+  // Función para limpiar localStorage
+  const clearLocalStorage = () => {
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem('revision-form-data');
+      localStorage.removeItem('revision-highlighted-field');
+    }
+  };
 
   const [highlightedField, setHighlightedField] = useState<string | null>('casita');
   
@@ -166,15 +223,16 @@ export default function NuevaRevision() {
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
   const imgRef = useRef<HTMLImageElement>(null);
 
-  // Efecto para actualizar quien_revisa cuando cambie el usuario
+  // Refs para scroll automático
+  const fieldRefs = useRef<{ [key: string]: React.RefObject<any> }>({});
+  // Inicializar refs para los campos requeridos
   useEffect(() => {
-    if (user) {
-      setFormData(prev => ({
-        ...prev,
-        quien_revisa: user
-      }));
-    }
-  }, [user]);
+    requiredFields.forEach((field) => {
+      if (!fieldRefs.current[field]) {
+        fieldRefs.current[field] = createRef();
+      }
+    });
+  }, []);
 
   // Efecto para inicializar información del dispositivo
   useEffect(() => {
@@ -184,6 +242,36 @@ export default function NuevaRevision() {
       setDeviceInfo(info);
     };
     initDeviceInfo();
+  }, []);
+
+  // Efecto para actualizar quien_revisa cuando cambie el usuario
+  useEffect(() => {
+    if (user) {
+      setFormData(prev => {
+        const newData = { ...prev, quien_revisa: user };
+        saveToLocalStorage(newData);
+        return newData;
+      });
+    }
+  }, [user]);
+
+  // Efecto para cargar datos del localStorage al montar el componente (después de la hidratación)
+  useEffect(() => {
+    const savedData = loadFromLocalStorage();
+    const savedHighlightedField = loadHighlightedField();
+    
+    if (savedData && Object.keys(savedData).some(key => savedData[key as keyof RevisionData] && key !== 'quien_revisa')) {
+      setFormData(savedData);
+      
+      // Restaurar el campo resaltado o calcular el siguiente campo vacío
+      if (savedHighlightedField) {
+        setHighlightedField(savedHighlightedField);
+      } else {
+        const nextEmptyField = requiredFields.find(f => !savedData[f]);
+        setHighlightedField(nextEmptyField || null);
+        saveHighlightedField(nextEmptyField || null);
+      }
+    }
   }, []);
 
   // Efecto para cerrar modal con Escape y limpiar URLs
@@ -232,16 +320,22 @@ export default function NuevaRevision() {
     'cola_caballo'
   ];
 
+  // Modificar handleInputChange para guardar automáticamente
   const handleInputChange = (field: keyof RevisionData, value: string) => {
     if (error) setError(null);
-    
     // Crear el nuevo estado con el valor actualizado
     const newFormData = { ...formData, [field]: value };
     setFormData(newFormData);
     
+    // Guardar automáticamente en localStorage
+    saveToLocalStorage(newFormData);
+    
     // Buscar el primer campo vacío usando el nuevo estado
     const nextEmptyField = requiredFields.find(f => !newFormData[f]);
     setHighlightedField(nextEmptyField || null);
+    
+    // Guardar el campo resaltado
+    saveHighlightedField(nextEmptyField || null);
   };
 
   // Funciones para modal de imagen
@@ -258,6 +352,25 @@ export default function NuevaRevision() {
     setZoom(1);
     setPosition({ x: 0, y: 0 });
   };
+
+  // Efecto para manejar tecla ESC
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape' && modalOpen) {
+        closeModal();
+      }
+    };
+
+    if (modalOpen) {
+      document.addEventListener('keydown', handleKeyDown);
+      document.body.style.overflow = 'hidden'; // Prevenir scroll del fondo
+    }
+
+    return () => {
+      document.removeEventListener('keydown', handleKeyDown);
+      document.body.style.overflow = 'unset';
+    };
+  }, [modalOpen]);
 
   const handleWheel = (e: React.WheelEvent) => {
     e.preventDefault();
@@ -288,8 +401,7 @@ export default function NuevaRevision() {
     setIsDragging(false);
   };
 
-  // Función para comprimir imagen usando canvas (misma configuración que detalles)
-  // Nueva función de compresión basada en "Unir Imágenes" pero retornando File
+  // Función para comprimir imagen usando canvas (misma configuración que "Unir Imágenes")
   const comprimirImagenWebP = useCallback((file: File): Promise<File> => {
     console.log('🚀 INICIANDO COMPRESIÓN:', file.name, file.type, `${(file.size / 1024).toFixed(1)} KB`);
     
@@ -299,20 +411,13 @@ export default function NuevaRevision() {
       const img = new Image();
       
       img.onload = () => {
-        // Mantener proporción original, limitando ancho máximo a 1920px y alto máximo a 1080px
+        // Mantener proporción original, limitando el ancho máximo a 1920px (configuración estándar)
         const maxWidth = 1920;
-        const maxHeight = 1080;
         let { width, height } = img;
         
-        // Calcular ratio para ambas dimensiones
-        const widthRatio = width > maxWidth ? maxWidth / width : 1;
-        const heightRatio = height > maxHeight ? maxHeight / height : 1;
-        
-        // Usar el ratio más restrictivo para mantener proporción
-        const ratio = Math.min(widthRatio, heightRatio);
-        
-        if (ratio < 1) {
-          width = width * ratio;
+        if (width > maxWidth) {
+          const ratio = maxWidth / width;
+          width = maxWidth;
           height = height * ratio;
         }
         
@@ -320,14 +425,14 @@ export default function NuevaRevision() {
         canvas.height = height;
         
         if (ctx) {
-          // Configurar contexto para calidad media
+          // Configurar contexto para mejor calidad (configuración estándar)
           ctx.imageSmoothingEnabled = true;
-          ctx.imageSmoothingQuality = 'medium';
+          ctx.imageSmoothingQuality = 'high';
           
           // Dibujar imagen manteniendo su proporción original
           ctx.drawImage(img, 0, 0, width, height);
           
-          // Convertir a blob WebP con calidad 70%
+          // Convertir a blob WebP con calidad 70% (configuración estándar)
           canvas.toBlob((blob) => {
             if (!blob) {
               reject(new Error('No se pudo comprimir la imagen'));
@@ -350,7 +455,7 @@ export default function NuevaRevision() {
             });
             
             resolve(compressedFile);
-          }, 'image/webp', 0.70);
+          }, 'image/webp', 0.70); // Calidad 70% - configuración estándar
         } else {
           reject(new Error('No se pudo obtener el contexto del canvas'));
         }
@@ -489,8 +594,8 @@ export default function NuevaRevision() {
       const { faltantes, accesorios_secadora_faltante, ...restOfFormData } = formData;
 
       const notas_completas = [
-        accesorios_secadora_faltante ? `Faltante accesorios secadora: ${accesorios_secadora_faltante}` : '',
-        faltantes ? `Faltantes generales: ${faltantes}` : ''
+        accesorios_secadora_faltante || '',
+        faltantes || ''
       ].filter(Boolean).join('\n');
 
       const { data, error } = await supabase
@@ -517,7 +622,7 @@ export default function NuevaRevision() {
             bolso_yute: formData.bolso_yute,
             camas_ordenadas: formData.camas_ordenadas,
             cola_caballo: formData.cola_caballo,
-            Notas: notas_completas,
+            notas: notas_completas,
             evidencia_01: uploadedUrls.evidencia_01,
             evidencia_02: uploadedUrls.evidencia_02,
             evidencia_03: uploadedUrls.evidencia_03,
@@ -713,7 +818,47 @@ export default function NuevaRevision() {
         showSuccess('Formulario guardado exitosamente.');
       }
 
-      router.push('/');
+      // Limpiar todos los campos y estados para permitir rellenar de nuevo
+      clearLocalStorage();
+      setFormData({ ...initialFormData, quien_revisa: user || '' });
+      setCompressedFiles({ evidencia_01: null, evidencia_02: null, evidencia_03: null });
+      setFileSizes({
+        evidencia_01: { original: 0, compressed: 0 },
+        evidencia_02: { original: 0, compressed: 0 },
+        evidencia_03: { original: 0, compressed: 0 },
+      });
+      setCompressionStatus({
+        evidencia_01: { status: 'idle', progress: 0, stage: '' },
+        evidencia_02: { status: 'idle', progress: 0, stage: '' },
+        evidencia_03: { status: 'idle', progress: 0, stage: '' },
+      });
+      setUploadProgress({
+        evidencia_01: { status: 'idle', progress: 0, stage: '' },
+        evidencia_02: { status: 'idle', progress: 0, stage: '' },
+        evidencia_03: { status: 'idle', progress: 0, stage: '' },
+      });
+      setOverallUploadProgress({
+        totalFiles: 0,
+        completedFiles: 0,
+        currentStage: '',
+        isUploading: false
+      });
+      setHighlightedField('casita');
+      // Limpiar inputs de archivos
+      if (fileInputRef.current) fileInputRef.current.value = '';
+      if (fileInputRef2.current) fileInputRef2.current.value = '';
+      if (fileInputRef3.current) fileInputRef3.current.value = '';
+      if (cameraInputRef.current) cameraInputRef.current.value = '';
+      if (cameraInputRef2.current) cameraInputRef2.current.value = '';
+      if (cameraInputRef3.current) cameraInputRef3.current.value = '';
+      
+      // Scroll automático hacia arriba después de limpiar (ELIMINADO)
+      // setTimeout(() => {
+      //   window.scrollTo({ top: 0, behavior: 'smooth' });
+      // }, 300);
+      
+      // NO redirigir, solo limpiar
+      // router.push('/');
     } catch (error: any) {
       console.error('Error al guardar la revisión:', error);
       setError(error.message);
@@ -735,7 +880,7 @@ export default function NuevaRevision() {
 
 
   return (
-    <main className="min-h-screen bg-gradient-to-br from-[#1a1f35] to-[#2d364c] py-8 md:py-12">
+    <main style={spectacularBg} className="py-8 md:py-12">
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
         <form onSubmit={handleSubmit} className="bg-[#2a3347] rounded-xl shadow-2xl p-4 md:p-8 border border-[#3d4659]">
           <div className="flex justify-between items-center mb-6 md:mb-8">
@@ -761,9 +906,14 @@ export default function NuevaRevision() {
             <button
               type="button"
               onClick={() => router.push('/')}
-              className="px-3 py-1 md:px-4 md:py-2 text-sm text-[#1a1f35] bg-gradient-to-br from-[#c9a45c] via-[#d4b06c] to-[#f0c987] rounded-xl hover:from-[#d4b06c] hover:via-[#e0bc7c] hover:to-[#f7d498] transform hover:scale-[1.02] transition-all duration-200 shadow-[0_8px_16px_rgb(0_0_0/0.2)] hover:shadow-[0_12px_24px_rgb(0_0_0/0.3)] relative overflow-hidden before:absolute before:inset-0 before:bg-gradient-to-r before:from-transparent before:via-white/40 before:to-transparent before:translate-x-[-200%] hover:before:translate-x-[200%] before:transition-transform before:duration-1000 after:absolute after:inset-0 after:bg-gradient-to-b after:from-white/20 after:to-transparent after:opacity-0 hover:after:opacity-100 after:transition-opacity after:duration-300 border border-[#f0c987]/20 hover:border-[#f0c987]/40"
+              className="text-sm text-white bg-gradient-to-br from-gray-600 via-gray-700 to-gray-800 rounded-xl hover:from-gray-700 hover:via-gray-800 hover:to-gray-900 transform hover:scale-[1.02] transition-all duration-200 shadow-[0_8px_16px_rgb(0_0_0/0.2)] hover:shadow-[0_12px_24px_rgb(0_0_0/0.3)] relative overflow-hidden border border-gray-600/40 hover:border-gray-500/60 font-medium flex items-center justify-center gap-2"
+              style={{ padding: '10px 18px' }}
             >
-              Volver
+              {/* Efecto de brillo continuo */}
+              <div className="absolute inset-0 bg-gradient-to-r from-transparent via-[#f0cb35]/80 to-transparent animate-[slide_2s_ease-in-out_infinite] z-0"></div>
+              <div className="relative z-10 flex items-center gap-2">
+                Volver
+              </div>
             </button>
           </div>
 
@@ -780,6 +930,7 @@ export default function NuevaRevision() {
                 </label>
                 <div className="relative">
                   <select
+                    ref={fieldRefs.current['casita']}
                     required
                     className={`w-full px-4 py-3 md:py-4 bg-gradient-to-br from-[#1e2538] to-[#2a3347] border border-[#3d4659] rounded-xl text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#c9a45c]/50 focus:border-[#c9a45c]/50 transition-all duration-300 hover:border-[#c9a45c]/30 hover:shadow-lg hover:shadow-[#c9a45c]/10 backdrop-blur-sm appearance-none cursor-pointer ${getHighlightStyle('casita')}`}
                     value={formData.casita}
@@ -822,6 +973,7 @@ export default function NuevaRevision() {
                 ) : (
                   <div className="relative">
                     <select
+                      ref={fieldRefs.current['quien_revisa']}
                       required
                       className="w-full px-4 py-3 md:py-4 bg-gradient-to-br from-[#1e2538] to-[#2a3347] border border-[#3d4659] rounded-xl text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#c9a45c]/50 focus:border-[#c9a45c]/50 transition-all duration-300 hover:border-[#c9a45c]/30 hover:shadow-lg hover:shadow-[#c9a45c]/10 backdrop-blur-sm appearance-none cursor-pointer"
                       value={formData.quien_revisa}
@@ -842,14 +994,16 @@ export default function NuevaRevision() {
               </div>
             </div>
 
-            <ButtonGroup
-              label="Guardado en la caja fuerte?"
-              options={['Si', 'No', 'Check in', 'Check out', 'Upsell', 'Guardar Upsell', 'Back to Back', 'Show Room']}
-              selectedValue={formData.caja_fuerte}
-              onSelect={(value) => handleInputChange('caja_fuerte', value)}
-              required
-              highlight={highlightedField === 'caja_fuerte'}
-            />
+            <div ref={fieldRefs.current['caja_fuerte']}>
+              <ButtonGroup
+                label="Guardado en la caja fuerte?"
+                options={['Si', 'No', 'Check in', 'Check out', 'Upsell', 'Guardar Upsell', 'Back to Back', 'Show Room']}
+                selectedValue={formData.caja_fuerte}
+                onSelect={(value) => handleInputChange('caja_fuerte', value)}
+                required
+                highlight={highlightedField === 'caja_fuerte'}
+              />
+            </div>
             
             <div className="space-y-3">
               <label className="block text-base font-semibold text-[#ff8c42] flex items-center gap-2">
@@ -860,6 +1014,7 @@ export default function NuevaRevision() {
               </label>
               <div className="relative">
                 <input
+                  ref={fieldRefs.current['puertas_ventanas']}
                   type="text"
                   required
                   className={`w-full px-4 py-3 md:py-4 bg-gradient-to-br from-[#1e2538] to-[#2a3347] border border-[#3d4659] rounded-xl text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#c9a45c]/50 focus:border-[#c9a45c]/50 transition-all duration-300 hover:border-[#c9a45c]/30 hover:shadow-lg hover:shadow-[#c9a45c]/10 backdrop-blur-sm ${getHighlightStyle('puertas_ventanas')}`}
@@ -876,62 +1031,76 @@ export default function NuevaRevision() {
             </div>
             
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
-              <ButtonGroup 
-                label="Chromecast" 
-                options={['0', '01', '02', '03', '04']} 
-                selectedValue={formData.chromecast} 
-                onSelect={v => handleInputChange('chromecast', v)} 
-                required 
-                highlight={highlightedField === 'chromecast'}
-              />
-              <ButtonGroup 
-                label="Binoculares" 
-                options={['0', '01', '02', '03']} 
-                selectedValue={formData.binoculares} 
-                onSelect={v => handleInputChange('binoculares', v)} 
-                required 
-                highlight={highlightedField === 'binoculares'}
-              />
-              <ButtonGroup 
-                label="Trapo para los binoculares" 
-                options={['Si', 'No']} 
-                selectedValue={formData.trapo_binoculares} 
-                onSelect={v => handleInputChange('trapo_binoculares', v)} 
-                required 
-                highlight={highlightedField === 'trapo_binoculares'}
-              />
-              <ButtonGroup 
-                label="Speaker" 
-                options={['0', '01', '02', '03']} 
-                selectedValue={formData.speaker} 
-                onSelect={v => handleInputChange('speaker', v)} 
-                required 
-                highlight={highlightedField === 'speaker'}
-              />
-              <ButtonGroup 
-                label="USB Speaker" 
-                options={['0', '01', '02', '03']} 
-                selectedValue={formData.usb_speaker} 
-                onSelect={v => handleInputChange('usb_speaker', v)} 
-                required 
-                highlight={highlightedField === 'usb_speaker'}
-              />
-              <ButtonGroup 
-                label="Controles TV" 
-                options={['0', '01', '02', '03']} 
-                selectedValue={formData.controles_tv} 
-                onSelect={v => handleInputChange('controles_tv', v)} 
-                required 
-                highlight={highlightedField === 'controles_tv'}
-              />
-              <ButtonGroup 
-                label="Secadora" 
-                options={['0', '01', '02', '03']} 
-                selectedValue={formData.secadora} 
-                onSelect={v => handleInputChange('secadora', v)} 
-                required 
-                highlight={highlightedField === 'secadora'}
-              />
+              <div ref={fieldRefs.current['chromecast']}>
+                <ButtonGroup 
+                  label="Chromecast" 
+                  options={['0', '01', '02', '03', '04']} 
+                  selectedValue={formData.chromecast} 
+                  onSelect={v => handleInputChange('chromecast', v)} 
+                  required 
+                  highlight={highlightedField === 'chromecast'}
+                />
+              </div>
+              <div ref={fieldRefs.current['binoculares']}>
+                <ButtonGroup 
+                  label="Binoculares" 
+                  options={['0', '01', '02', '03']} 
+                  selectedValue={formData.binoculares} 
+                  onSelect={v => handleInputChange('binoculares', v)} 
+                  required 
+                  highlight={highlightedField === 'binoculares'}
+                />
+              </div>
+              <div ref={fieldRefs.current['trapo_binoculares']}>
+                <ButtonGroup 
+                  label="Trapo para los binoculares" 
+                  options={['Si', 'No']} 
+                  selectedValue={formData.trapo_binoculares} 
+                  onSelect={v => handleInputChange('trapo_binoculares', v)} 
+                  required 
+                  highlight={highlightedField === 'trapo_binoculares'}
+                />
+              </div>
+              <div ref={fieldRefs.current['speaker']}>
+                <ButtonGroup 
+                  label="Speaker" 
+                  options={['0', '01', '02', '03']} 
+                  selectedValue={formData.speaker} 
+                  onSelect={v => handleInputChange('speaker', v)} 
+                  required 
+                  highlight={highlightedField === 'speaker'}
+                />
+              </div>
+              <div ref={fieldRefs.current['usb_speaker']}>
+                <ButtonGroup 
+                  label="USB Speaker" 
+                  options={['0', '01', '02', '03']} 
+                  selectedValue={formData.usb_speaker} 
+                  onSelect={v => handleInputChange('usb_speaker', v)} 
+                  required 
+                  highlight={highlightedField === 'usb_speaker'}
+                />
+              </div>
+              <div ref={fieldRefs.current['controles_tv']}>
+                <ButtonGroup 
+                  label="Controles TV" 
+                  options={['0', '01', '02', '03']} 
+                  selectedValue={formData.controles_tv} 
+                  onSelect={v => handleInputChange('controles_tv', v)} 
+                  required 
+                  highlight={highlightedField === 'controles_tv'}
+                />
+              </div>
+              <div ref={fieldRefs.current['secadora']}>
+                <ButtonGroup 
+                  label="Secadora" 
+                  options={['0', '01', '02', '03']} 
+                  selectedValue={formData.secadora} 
+                  onSelect={v => handleInputChange('secadora', v)} 
+                  required 
+                  highlight={highlightedField === 'secadora'}
+                />
+              </div>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
@@ -944,6 +1113,7 @@ export default function NuevaRevision() {
                 </label>
                 <div className="relative">
                   <select
+                    ref={fieldRefs.current['accesorios_secadora']}
                     required
                     className={`w-full px-4 py-3 md:py-4 bg-gradient-to-br from-[#1e2538] to-[#2a3347] border border-[#3d4659] rounded-xl text-white focus:outline-none focus:ring-2 focus:ring-[#c9a45c]/50 focus:border-[#c9a45c]/50 transition-all duration-300 hover:border-[#c9a45c]/30 hover:shadow-lg hover:shadow-[#c9a45c]/10 backdrop-blur-sm appearance-none cursor-pointer ${getHighlightStyle('accesorios_secadora')}`}
                     value={formData.accesorios_secadora}
@@ -971,6 +1141,7 @@ export default function NuevaRevision() {
                 </label>
                 <div className="relative">
                   <input
+                    ref={fieldRefs.current['accesorios_secadora_faltante']}
                     type="text"
                     className="w-full px-4 py-3 md:py-4 bg-gradient-to-br from-[#1e2538] to-[#2a3347] border border-[#3d4659] rounded-xl text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#c9a45c]/50 focus:border-[#c9a45c]/50 transition-all duration-300 hover:border-[#c9a45c]/30 hover:shadow-lg hover:shadow-[#c9a45c]/10 backdrop-blur-sm"
                     value={formData.accesorios_secadora_faltante}
@@ -987,73 +1158,89 @@ export default function NuevaRevision() {
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
-              <ButtonGroup 
-                label="Steamer (plancha a vapor)" 
-                options={['0', '01', '02']} 
-                selectedValue={formData.steamer} 
-                onSelect={v => handleInputChange('steamer', v)} 
-                required 
-                highlight={highlightedField === 'steamer'}
-              />
-              <ButtonGroup 
-                label="Bolsa de vapor (plancha vapor)" 
-                options={['Si', 'No']} 
-                selectedValue={formData.bolsa_vapor} 
-                onSelect={v => handleInputChange('bolsa_vapor', v)} 
-                required 
-                highlight={highlightedField === 'bolsa_vapor'}
-              />
-              <ButtonGroup 
-                label="Plancha cabello" 
-                options={['0', '01', '02']} 
-                selectedValue={formData.plancha_cabello} 
-                onSelect={v => handleInputChange('plancha_cabello', v)} 
-                required 
-                highlight={highlightedField === 'plancha_cabello'}
-              />
-              <ButtonGroup 
-                label="Bulto" 
-                options={['0', '01', '02']} 
-                selectedValue={formData.bulto} 
-                onSelect={v => handleInputChange('bulto', v)} 
-                required 
-                highlight={highlightedField === 'bulto'}
-              />
-              <ButtonGroup 
-                label="Sombrero" 
-                options={['0', '01', '02']} 
-                selectedValue={formData.sombrero} 
-                onSelect={v => handleInputChange('sombrero', v)} 
-                required 
-                highlight={highlightedField === 'sombrero'}
-              />
-              <ButtonGroup 
-                label="Bolso yute" 
-                options={['0', '01', '02', '03']} 
-                selectedValue={formData.bolso_yute} 
-                onSelect={v => handleInputChange('bolso_yute', v)} 
-                required 
-                highlight={highlightedField === 'bolso_yute'}
-              />
+              <div ref={fieldRefs.current['steamer']}>
+                <ButtonGroup 
+                  label="Steamer (plancha a vapor)" 
+                  options={['0', '01', '02']} 
+                  selectedValue={formData.steamer} 
+                  onSelect={v => handleInputChange('steamer', v)} 
+                  required 
+                  highlight={highlightedField === 'steamer'}
+                />
+              </div>
+              <div ref={fieldRefs.current['bolsa_vapor']}>
+                <ButtonGroup 
+                  label="Bolsa de vapor (plancha vapor)" 
+                  options={['Si', 'No']} 
+                  selectedValue={formData.bolsa_vapor} 
+                  onSelect={v => handleInputChange('bolsa_vapor', v)} 
+                  required 
+                  highlight={highlightedField === 'bolsa_vapor'}
+                />
+              </div>
+              <div ref={fieldRefs.current['plancha_cabello']}>
+                <ButtonGroup 
+                  label="Plancha cabello" 
+                  options={['0', '01', '02']} 
+                  selectedValue={formData.plancha_cabello} 
+                  onSelect={v => handleInputChange('plancha_cabello', v)} 
+                  required 
+                  highlight={highlightedField === 'plancha_cabello'}
+                />
+              </div>
+              <div ref={fieldRefs.current['bulto']}>
+                <ButtonGroup 
+                  label="Bulto" 
+                  options={['0', '01', '02']} 
+                  selectedValue={formData.bulto} 
+                  onSelect={v => handleInputChange('bulto', v)} 
+                  required 
+                  highlight={highlightedField === 'bulto'}
+                />
+              </div>
+              <div ref={fieldRefs.current['sombrero']}>
+                <ButtonGroup 
+                  label="Sombrero" 
+                  options={['0', '01', '02']} 
+                  selectedValue={formData.sombrero} 
+                  onSelect={v => handleInputChange('sombrero', v)} 
+                  required 
+                  highlight={highlightedField === 'sombrero'}
+                />
+              </div>
+              <div ref={fieldRefs.current['bolso_yute']}>
+                <ButtonGroup 
+                  label="Bolso yute" 
+                  options={['0', '01', '02', '03']} 
+                  selectedValue={formData.bolso_yute} 
+                  onSelect={v => handleInputChange('bolso_yute', v)} 
+                  required 
+                  highlight={highlightedField === 'bolso_yute'}
+                />
+              </div>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
-              <ButtonGroup 
-                label="Camas ordenadas" 
-                options={['Si', 'No']} 
-                selectedValue={formData.camas_ordenadas} 
-                onSelect={v => handleInputChange('camas_ordenadas', v)} 
-                required 
-                highlight={highlightedField === 'camas_ordenadas'}
-              />
-              <ButtonGroup 
-                label="Cola de caballo" 
-                options={['Si', 'No']} 
-                selectedValue={formData.cola_caballo} 
-                onSelect={v => handleInputChange('cola_caballo', v)} 
-                required 
-                highlight={highlightedField === 'cola_caballo'}
-              />
+              <div ref={fieldRefs.current['camas_ordenadas']}>
+                <ButtonGroup 
+                  label="Camas ordenadas" 
+                  options={['Si', 'No']} 
+                  selectedValue={formData.camas_ordenadas} 
+                  onSelect={v => handleInputChange('camas_ordenadas', v)} 
+                  required 
+                  highlight={highlightedField === 'camas_ordenadas'}
+                />
+              </div>
+              <div ref={fieldRefs.current['cola_caballo']}>
+                <ButtonGroup 
+                  label="Cola de caballo" 
+                  options={['Si', 'No']} 
+                  selectedValue={formData.cola_caballo} 
+                  onSelect={v => handleInputChange('cola_caballo', v)} 
+                  required 
+                  highlight={highlightedField === 'cola_caballo'}
+                />
+              </div>
             </div>
 
             {showEvidenceFields && (
@@ -1612,6 +1799,7 @@ export default function NuevaRevision() {
               </label>
               <div className="relative">
                 <textarea
+                  ref={fieldRefs.current['faltantes']}
                   className="w-full px-4 py-3 md:py-4 bg-gradient-to-br from-[#1e2538] to-[#2a3347] border border-[#3d4659] rounded-xl text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#c9a45c]/50 focus:border-[#c9a45c]/50 transition-all duration-300 hover:border-[#c9a45c]/30 hover:shadow-lg hover:shadow-[#c9a45c]/10 backdrop-blur-sm resize-none"
                   value={formData.faltantes}
                   onChange={(e) => handleInputChange('faltantes', e.target.value)}
@@ -1638,7 +1826,7 @@ export default function NuevaRevision() {
                 <div className="bg-gradient-to-r from-blue-500/10 to-green-500/10 border border-blue-500/20 rounded-xl p-4 backdrop-blur-sm">
                   <div className="flex items-center gap-3 mb-3">
                     <div className="w-3 h-3 bg-blue-400 rounded-full animate-pulse"></div>
-                    <span className="text-blue-400 font-medium">Subiendo Imagenes</span>
+                    <span className="text-blue-400 font-medium">Subiendo imágenes a ImageKit.io</span>
                     <span className="text-gray-300 text-sm">
                       ({overallUploadProgress.completedFiles}/{overallUploadProgress.totalFiles})
                     </span>
@@ -1712,8 +1900,8 @@ export default function NuevaRevision() {
                     : 'bg-gradient-to-br from-[#c9a45c] via-[#d4b06c] to-[#f0c987] text-[#1a1f35] border-white/40 hover:border-white/60'
                 } ${
                   loading
-                    ? 'before:absolute before:inset-0 before:bg-gradient-to-r before:from-transparent before:via-white/30 before:to-transparent before:translate-x-[-200%] before:animate-[shimmer_1s_infinite] after:absolute after:inset-0 after:bg-gradient-to-b after:from-white/20 after:to-transparent after:animate-pulse'
-                    : 'before:absolute before:inset-0 before:bg-gradient-to-r before:from-transparent before:via-white/40 before:to-transparent before:translate-x-[-200%] before:animate-shimmer before:transition-transform before:duration-1000 after:absolute after:inset-0 after:bg-gradient-to-b after:from-white/20 after:to-transparent after:opacity-100 after:transition-opacity after:duration-300'
+                    ? 'before:absolute before:inset-0 before:bg-gradient-to-r before:from-transparent before:via-white/30 before:to-transparent before:translate-x-[-200%] before:animate-shimmer-critical after:absolute after:inset-0 after:bg-gradient-to-b after:from-white/20 after:to-transparent after:animate-pulse'
+                    : 'before:absolute before:inset-0 before:bg-gradient-to-r before:from-transparent before:via-white/40 before:to-transparent before:translate-x-[-200%] before:animate-shimmer-critical before:transition-transform before:duration-1000 after:absolute after:inset-0 after:bg-gradient-to-b after:from-white/20 after:to-transparent after:opacity-100 after:transition-opacity after:duration-300'
                 }`}
               >
                 <span className="relative z-10 flex items-center justify-center gap-2">
@@ -1789,20 +1977,20 @@ export default function NuevaRevision() {
                       Reset
                     </button>
                   </div>
-                  
-                  {/* Botón cerrar */}
-                  <button
-                    onClick={closeModal}
-                    className="w-10 h-10 bg-red-500/20 hover:bg-red-500/30 border border-red-500/50 hover:border-red-500/70 rounded-lg flex items-center justify-center transition-all duration-200 backdrop-blur-sm"
-                    title="Cerrar"
-                  >
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                    </svg>
-                  </button>
                 </div>
               </div>
             </div>
+
+            {/* Botón cerrar - SIEMPRE visible con z-index alto */}
+            <button
+              onClick={closeModal}
+              className="fixed top-4 right-4 z-[60] w-12 h-12 bg-red-500/90 hover:bg-red-500 text-white rounded-full flex items-center justify-center transition-all duration-200 backdrop-blur-sm border-2 border-white/20 shadow-2xl"
+              title="Cerrar"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
 
             {/* Contenedor de imagen */}
             <div className="w-full h-full flex items-center justify-center p-4 pt-20">
@@ -1851,14 +2039,29 @@ export default function NuevaRevision() {
                       touch2.clientY - touch1.clientY
                     );
                     const scaleChange = currentDistance / dragStart.x;
-                    setZoom(Math.max(0.5, Math.min(5, zoom * scaleChange)));
+                    const newZoom = Math.max(0.5, Math.min(5, zoom * scaleChange));
+                    setZoom(newZoom);
                     setDragStart({ x: currentDistance, y: 0 });
                   } else if (e.touches.length === 1 && isDragging && zoom > 1) {
                     e.preventDefault();
-                    setPosition({
-                      x: e.touches[0].clientX - dragStart.x,
-                      y: e.touches[0].clientY - dragStart.y
-                    });
+                    const touch = e.touches[0];
+                    const newX = touch.clientX - dragStart.x;
+                    const newY = touch.clientY - dragStart.y;
+                    
+                    const img = imgRef.current;
+                    if (img) {
+                      const rect = img.getBoundingClientRect();
+                      const scaledWidth = rect.width * zoom;
+                      const scaledHeight = rect.height * zoom;
+                      
+                      const maxX = (scaledWidth - rect.width) / 2;
+                      const maxY = (scaledHeight - rect.height) / 2;
+                      
+                      setPosition({
+                        x: Math.min(Math.max(-maxX, newX), maxX),
+                        y: Math.min(Math.max(-maxY, newY), maxY)
+                      });
+                    }
                   }
                 }}
                 onTouchEnd={() => {
@@ -1867,31 +2070,15 @@ export default function NuevaRevision() {
               />
             </div>
 
-            {/* Indicador de instrucciones */}
+            {/* Indicador de instrucciones - Solo para móviles */}
             <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 z-10">
               <div className="bg-black/60 backdrop-blur-sm rounded-lg px-4 py-2 text-white text-sm">
-                <div className="flex items-center gap-4 text-xs">
+                <div className="flex items-center justify-center text-xs">
                   <span className="flex items-center gap-1">
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 15l-2 5L9 9l11 4-5 2zm0 0l5 5M7.188 2.239l.777 2.897M5.136 7.965l-2.898-.777M13.95 4.05l-2.122 2.122m-5.657 5.656l-2.121 2.122" />
-                    </svg>
-                    Rueda del mouse: Zoom
-                  </span>
-                  <span className="flex items-center gap-1">
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 11.5V14m0-2.5v-6a1.5 1.5 0 113 0m-3 6a1.5 1.5 0 00-3 0v2a7.5 7.5 0 0015 0v-5a1.5 1.5 0 00-3 0m-6-3V11m0-5.5v-1a1.5 1.5 0 013 0v1m0 0V11m0-5.5a1.5 1.5 0 013 0v3m0 0V11" />
-                    </svg>
-                    Arrastrar: Mover imagen
-                  </span>
-                  <span className="hidden sm:flex items-center gap-1">
                     <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 18.75a6 6 0 006-6v-1.5m-6 7.5a6 6 0 01-6-6v-1.5m6 7.5v3.75m-3.75 0h7.5M12 15.75a3 3 0 01-3-3V4.5a3 3 0 116 0v8.25a3 3 0 01-3 3z" />
                     </svg>
-                    Pellizcar: Zoom táctil
-                  </span>
-                  <span className="flex items-center gap-1">
-                    <kbd className="px-1 py-0.5 bg-white/20 rounded text-xs">ESC</kbd>
-                    Cerrar
+                    Pellizcar para hacer zoom • Arrastrar para mover
                   </span>
                 </div>
               </div>

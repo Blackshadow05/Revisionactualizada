@@ -2,121 +2,21 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Animaciones personalizadas */
-@keyframes shimmer {
-  0% { transform: translateX(-200%); }
-  100% { transform: translateX(200%); }
-}
-
-@keyframes pulse-green {
-  0%, 100% {
-    background-color: rgb(34, 197, 94);
-    box-shadow: 0 0 20px rgba(34, 197, 94, 0.5);
-  }
-  50% {
-    background-color: rgb(22, 163, 74);
-    box-shadow: 0 0 30px rgba(34, 197, 94, 0.8);
-  }
-}
-
-/* Animación de brillo metálico deslizante */
-@keyframes metallic-shine {
-  0% { 
-    transform: translateX(-100%);
-    opacity: 0;
-  }
-  50% {
-    opacity: 1;
-  }
-  100% { 
-    transform: translateX(100%);
-    opacity: 0;
-  }
-}
-
-.animate-shimmer {
-  animation: shimmer 2s infinite;
-}
-
-.animate-pulse-green {
-  animation: pulse-green 1.5s ease-in-out infinite;
-}
-
-/* Botones con efecto metálico */
-.metallic-button {
-  position: relative;
-  overflow: hidden;
-  background: linear-gradient(135deg, #6b7280 0%, #4b5563 50%, #374151 100%);
-  border: 1px solid #6b7280;
-}
-
-.metallic-button::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: -100%;
-  width: 100%;
-  height: 100%;
-  background: linear-gradient(
-    90deg,
-    transparent,
-    rgba(255, 255, 255, 0.4),
-    transparent
-  );
-  animation: metallic-shine 2.5s ease-in-out infinite;
-  z-index: 1;
-}
-
-.metallic-button-gold::before {
-  background: linear-gradient(
-    90deg,
-    transparent,
-    rgba(201, 164, 92, 0.6),
-    rgba(240, 201, 135, 0.8),
-    rgba(201, 164, 92, 0.6),
-    transparent
-  );
-}
-
-.metallic-button-green::before {
-  background: linear-gradient(
-    90deg,
-    transparent,
-    rgba(34, 197, 94, 0.6),
-    rgba(74, 222, 128, 0.8),
-    rgba(34, 197, 94, 0.6),
-    transparent
-  );
-}
-
-.metallic-button-red::before {
-  background: linear-gradient(
-    90deg,
-    transparent,
-    rgba(239, 68, 68, 0.6),
-    rgba(248, 113, 113, 0.8),
-    rgba(239, 68, 68, 0.6),
-    transparent
-  );
-}
-
-.metallic-button > * {
-  position: relative;
-  z-index: 2;
-}
-
+/* Variables CSS optimizadas */
 :root {
   --foreground-rgb: 255, 255, 255;
   --background-start-rgb: 26, 31, 53;
   --background-end-rgb: 45, 54, 76;
 }
 
+/* Reset básico */
 * {
   box-sizing: border-box;
   margin: 0;
   padding: 0;
 }
 
+/* Body optimizado */
 body {
   color: rgb(var(--foreground-rgb));
   background: linear-gradient(
@@ -128,471 +28,230 @@ body {
   font-size: 16px;
 }
 
-/* Estilos base para mejor legibilidad en móvil */
-@layer base {
-  html {
-    font-size: 16px;
+/* Componentes reutilizables con @layer */
+@layer components {
+  /* Botón metálico básico - solo el efecto esencial */
+  .btn-metallic {
+    @apply relative overflow-hidden bg-gradient-to-br from-gray-500 to-gray-700 border border-gray-500 transition-all duration-300;
+  }
+  
+  .btn-metallic::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.3), transparent);
+    transition: left 0.6s ease;
+    z-index: 1;
+  }
+  
+  .btn-metallic:hover::before {
+    left: 100%;
+  }
+  
+  .btn-metallic > * {
+    position: relative;
+    z-index: 2;
   }
 
-  @media (max-width: 768px) {
-    html {
-      font-size: 18px;
+  /* Botón Nueva Revisión optimizado */
+  .btn-nueva-revision {
+    @apply btn-metallic bg-gradient-to-br from-black via-gray-800 to-black border-gray-700 text-white;
+  }
+  
+  .btn-nueva-revision::before {
+    background: linear-gradient(90deg, transparent, rgba(34, 197, 94, 0.6), transparent);
+  }
+
+  /* Efecto glass ligero */
+  .glass-light {
+    @apply bg-gray-800 bg-opacity-70 backdrop-blur-sm border border-gray-600 border-opacity-30;
+  }
+
+  /* Scrollbar personalizado */
+  .custom-scrollbar::-webkit-scrollbar {
+    @apply w-2 h-2;
+  }
+  
+  .custom-scrollbar::-webkit-scrollbar-track {
+    @apply bg-gray-800 rounded;
+  }
+  
+  .custom-scrollbar::-webkit-scrollbar-thumb {
+    @apply bg-gray-600 rounded hover:bg-gray-500;
+  }
+}
+
+/* Optimizaciones para touch devices */
+@layer utilities {
+  .touch-optimized {
+    @apply touch-manipulation;
+    -webkit-tap-highlight-color: transparent;
+    -webkit-touch-callout: none;
+    user-select: none;
+  }
+  
+  /* Botones táctiles optimizados */
+  .btn-touch {
+    @apply min-h-[44px] min-w-[44px] touch-optimized;
+  }
+  
+  /* Respuesta táctil suave */
+  @media (hover: none) and (pointer: coarse) {
+    .btn-touch:active {
+      @apply scale-95 transition-transform duration-100;
     }
   }
+}
 
-  h1 {
-    font-size: 2rem;
+/* Animaciones críticas únicamente */
+@keyframes shimmer-critical {
+  0% { transform: translateX(-200%); }
+  100% { transform: translateX(200%); }
+}
+
+@keyframes pulse-success {
+  0%, 100% {
+    @apply bg-green-500 shadow-green-500/50;
+  }
+  50% {
+    @apply bg-green-600 shadow-green-500/80;
+  }
+}
+
+/* Clases de animación optimizadas */
+.animate-shimmer-critical {
+  animation: shimmer-critical 2s infinite;
+}
+
+.animate-pulse-success {
+  animation: pulse-success 1.5s ease-in-out infinite;
+}
+
+/* Estilos de tabla optimizados para móvil */
+@media (max-width: 768px) {
+  .table-mobile-optimized {
+    @apply overflow-x-auto -mx-4 w-screen;
+    max-height: 85vh;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .table-mobile-optimized table {
+    @apply text-xs border-separate;
+    border-spacing: 0;
+    min-width: 100%;
+  }
+
+  .table-mobile-optimized th,
+  .table-mobile-optimized td {
+    @apply p-1 text-center whitespace-nowrap min-w-[50px];
     line-height: 1.2;
+  }
+
+  .table-mobile-optimized thead {
+    @apply sticky top-0 z-30;
+  }
+
+  .table-mobile-optimized thead th {
+    @apply bg-gray-800 border-b border-gray-600 text-xs font-medium;
+  }
+
+  /* Columnas fijas críticas */
+  .table-col-fixed-1 {
+    @apply sticky left-0 z-20 bg-gray-800 border-r border-gray-600 min-w-[110px] max-w-[110px] text-xs px-1;
+  }
+
+  .table-col-fixed-2 {
+    @apply sticky z-20 bg-gray-800 border-r border-gray-600 min-w-[60px] text-xs;
+    left: 110px;
+  }
+
+  /* Headers fijos */
+  .table-mobile-optimized thead .table-col-fixed-1,
+  .table-mobile-optimized thead .table-col-fixed-2 {
+    @apply z-40 bg-gray-800;
+  }
+}
+
+/* Estilos de tabla para desktop */
+@media (min-width: 769px) {
+  .table-desktop-optimized {
+    @apply overflow-x-auto mb-4 custom-scrollbar;
+    max-height: 90vh;
+  }
+
+  .table-desktop-optimized thead {
+    @apply sticky top-0 z-30;
+  }
+
+  .table-desktop-optimized thead th {
+    @apply bg-gray-800 border-b border-gray-600;
+  }
+
+  .table-desktop-optimized .table-col-fixed-1 {
+    @apply sticky left-0 z-20 bg-gray-800 border-r border-gray-600;
+  }
+
+  .table-desktop-optimized .table-col-fixed-2 {
+    @apply sticky z-20 bg-gray-800 border-r border-gray-600;
+    left: 110px;
+  }
+
+  .table-desktop-optimized thead .table-col-fixed-1,
+  .table-desktop-optimized thead .table-col-fixed-2 {
+    @apply z-40 bg-gray-800;
+  }
+}
+
+/* Tipografía responsiva usando clamp() para mejor rendimiento */
+@layer base {
+  h1 {
+    font-size: clamp(1.5rem, 4vw, 2rem);
+    line-height: 1.2;
+    letter-spacing: -0.025em;
   }
 
   h2 {
-    font-size: 1.75rem;
+    font-size: clamp(1.25rem, 3vw, 1.75rem);
     line-height: 1.3;
+    letter-spacing: -0.025em;
   }
 
   h3 {
-    font-size: 1.5rem;
+    font-size: clamp(1.125rem, 2.5vw, 1.5rem);
     line-height: 1.4;
-  }
-
-  p, li, button, input, select, textarea {
-    font-size: 1rem;
-    line-height: 1.5;
-  }
-
-  @media (max-width: 768px) {
-    h1 {
-      font-size: 1.75rem;
-    }
-
-    h2 {
-      font-size: 1.5rem;
-    }
-
-    h3 {
-      font-size: 1.25rem;
-    }
-
-    p, li, button, input, select, textarea {
-      font-size: 1.125rem;
-    }
-  }
-}
-
-/* Estilos personalizados para scrollbars */
-::-webkit-scrollbar {
-  width: 10px;
-  height: 10px;
-}
-
-::-webkit-scrollbar-track {
-  background: #1e2538;
-  border-radius: 5px;
-}
-
-::-webkit-scrollbar-thumb {
-  background: #3d4659;
-  border-radius: 5px;
-}
-
-::-webkit-scrollbar-thumb:hover {
-  background: #4a5573;
-}
-
-/* Mejoras para interacción táctil */
-.touch-manipulation {
-  touch-action: manipulation;
-  -webkit-tap-highlight-color: transparent;
-  -webkit-touch-callout: none;
-  -webkit-user-select: none;
-  -moz-user-select: none;
-  -ms-user-select: none;
-  user-select: none;
-}
-
-/* Estilos específicos para botones táctiles */
-button, [role="button"] {
-  touch-action: manipulation;
-  -webkit-tap-highlight-color: transparent;
-}
-
-/* Mejora la respuesta táctil en dispositivos móviles */
-@media (hover: none) and (pointer: coarse) {
-  button:active, [role="button"]:active {
-    transform: scale(0.95);
-    transition: transform 0.1s ease;
-  }
-  
-  .cursor-pointer:active {
-    transform: scale(0.95);
-    transition: transform 0.1s ease;
-  }
-  
-  /* Estilos específicos para el botón del menú en móvil */
-  .menu-dropdown-container [role="button"]:active {
-    background-color: #f0c987 !important;
-    transform: scale(0.95);
-    transition: all 0.1s ease;
-  }
-}
-
-/* Asegurar que los elementos táctiles tengan el tamaño mínimo recomendado */
-[role="button"], button {
-  min-height: 44px;
-  min-width: 44px;
-}
-
-/* Animaciones suaves */
-.transition-all {
-  transition-duration: 300ms;
-}
-
-/* Efectos de hover elegantes */
-.hover\:shadow-gold:hover {
-  box-shadow: 0 0 20px rgba(201, 164, 92, 0.2);
-}
-
-/* Tipografía mejorada */
-@layer base {
-  h1, h2, h3, h4, h5, h6 {
-    font-family: 'Inter', sans-serif;
     letter-spacing: -0.025em;
   }
-}
 
-/* Efectos de glassmorphism */
-.glass-effect {
-  background: rgba(42, 51, 71, 0.7);
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
-  border: 1px solid rgba(61, 70, 89, 0.3);
-}
-
-/* Estilos para tablas en móvil */
-@media (max-width: 768px) {
-  .table-container {
-    overflow-x: auto;
-    -webkit-overflow-scrolling: touch;
-    max-height: 85vh;
-    margin: 0 -1rem;
-    width: calc(100% + 2rem);
-  }
-
-  table {
-    font-size: 0.8rem;
-    width: 100%;
-    border-collapse: separate;
-    border-spacing: 0;
-  }
-
-  th, td {
-    padding: 0.25rem;
-    white-space: nowrap;
-    min-width: 80px;
-    text-align: center;
-    line-height: 1.2;
-  }
-
-  /* Estilos para el encabezado */
-  thead {
-    position: sticky;
-    top: 0;
-    z-index: 30;
-  }
-
-  thead th {
-    background: #1e2538;
-    border-bottom: 1px solid rgba(61, 70, 89, 0.5);
-    padding: 0.25rem;
-    font-size: 0.75rem;
-    font-weight: 500;
-  }
-
-  /* Columnas fijas */
-  .fixed-column-1 {
-    position: sticky !important;
-    left: 0 !important;
-    z-index: 20 !important;
-    background: #1e2538 !important;
-    min-width: 110px !important;
-    max-width: 110px !important;
-    border-right: 1px solid rgba(61, 70, 89, 0.5) !important;
-    font-size: 0.75rem !important;
-    padding: 0.25rem 0.375rem !important;
-    line-height: 1.1 !important;
-  }
-
-  .fixed-column-1 .flex-col {
-    gap: 0.125rem;
-  }
-
-  .fixed-column-1 .text-xs {
-    font-size: 0.75rem;
-    line-height: 1.1;
-    color: #c9a45c;
-  }
-
-  .fixed-column-2 {
-    position: sticky !important;
-    left: 110px !important;
-    z-index: 20 !important;
-    background: #1e2538 !important;
-    min-width: 60px !important;
-    border-right: 1px solid rgba(61, 70, 89, 0.5) !important;
-    font-size: 0.8rem !important;
-  }
-
-  /* Esquinas superiores */
-  thead .fixed-column-1,
-  thead .fixed-column-2 {
-    z-index: 40 !important;
-    background: #1e2538 !important;
-  }
-
-  /* Ajustes para columnas específicas */
-  td:nth-child(3), /* Quien revisa */
-  td:nth-child(4), /* Caja fuerte */
-  td:nth-child(5), /* Puertas/Ventanas */
-  th:nth-child(3),
-  th:nth-child(4),
-  th:nth-child(5) {
-    min-width: 70px !important;
-  }
-
-  /* Ajustes para columnas con contenido corto */
-  td:nth-child(6), /* Chromecast */
-  td:nth-child(7), /* Binoculares */
-  td:nth-child(8), /* Trapo binoculares */
-  td:nth-child(9), /* Speaker */
-  td:nth-child(10), /* USB Speaker */
-  td:nth-child(11), /* Controles TV */
-  th:nth-child(6),
-  th:nth-child(7),
-  th:nth-child(8),
-  th:nth-child(9),
-  th:nth-child(10),
-  th:nth-child(11) {
-    min-width: 55px !important;
-  }
-
-  /* Ajustes para columnas con contenido muy corto */
-  td:nth-child(12), /* Secadora */
-  td:nth-child(13), /* Accesorios secadora */
-  td:nth-child(14), /* Steamer */
-  td:nth-child(15), /* Bolsa vapor */
-  td:nth-child(16), /* Plancha cabello */
-  td:nth-child(17), /* Bulto */
-  td:nth-child(18), /* Sombrero */
-  td:nth-child(19), /* Bolso yute */
-  td:nth-child(20), /* Camas ordenadas */
-  td:nth-child(21), /* Cola caballo */
-  th:nth-child(12),
-  th:nth-child(13),
-  th:nth-child(14),
-  th:nth-child(15),
-  th:nth-child(16),
-  th:nth-child(17),
-  th:nth-child(18),
-  th:nth-child(19),
-  th:nth-child(20),
-  th:nth-child(21) {
-    min-width: 50px !important;
-  }
-
-  /* Ajustes para columnas especiales */
-  td:nth-child(22), /* Notas */
-  th:nth-child(22) {
-    min-width: 65px !important;
-  }
-
-  td:nth-child(23), /* Evidencias */
-  th:nth-child(23) {
-    min-width: 60px !important;
+  p, button, input, select, textarea {
+    font-size: clamp(0.9rem, 2vw, 1rem);
+    line-height: 1.5;
   }
 }
 
-/* Estilos para desktop */
-@media (min-width: 769px) {
-  .table-container {
-    overflow-x: auto;
-    -webkit-overflow-scrolling: touch;
-    max-height: 90vh;
-    margin-bottom: 1rem;
-  }
-
-  table {
-    border-collapse: separate;
-    border-spacing: 0;
-  }
-
-  /* Estilos para el encabezado */
-  thead {
-    position: sticky;
-    top: 0;
-    z-index: 30;
-  }
-
-  thead th {
-    background: #1e2538;
-    border-bottom: 1px solid rgba(61, 70, 89, 0.5);
-    padding: 0.375rem;
-  }
-
-  /* Columnas fijas */
-  .fixed-column-1 {
-    position: sticky !important;
-    left: 0 !important;
-    z-index: 20 !important;
-    background: #1e2538 !important;
-    min-width: 140px !important;
-    max-width: 140px !important;
-    border-right: 1px solid rgba(61, 70, 89, 0.5) !important;
-    color: #c9a45c !important;
-    font-size: 1.1rem !important;
-  }
-
-  .fixed-column-2 {
-    position: sticky !important;
-    left: 140px !important;
-    z-index: 20 !important;
-    background: #1e2538 !important;
-    min-width: 70px !important;
-    border-right: 1px solid rgba(61, 70, 89, 0.5) !important;
-  }
-
-  /* Esquinas superiores */
-  thead .fixed-column-1,
-  thead .fixed-column-2 {
-    z-index: 40 !important;
-    background: #1e2538 !important;
-  }
-
-  td {
-    padding: 0.375rem;
-  }
-
-  /* Ajustes para columnas específicas */
-  td:nth-child(3), /* Quien revisa */
-  td:nth-child(4), /* Caja fuerte */
-  td:nth-child(5), /* Puertas/Ventanas */
-  th:nth-child(3),
-  th:nth-child(4),
-  th:nth-child(5) {
-    min-width: 85px !important;
-  }
-
-  /* Ajustes para columnas con contenido corto */
-  td:nth-child(6), /* Chromecast */
-  td:nth-child(7), /* Binoculares */
-  td:nth-child(8), /* Trapo binoculares */
-  td:nth-child(9), /* Speaker */
-  td:nth-child(10), /* USB Speaker */
-  td:nth-child(11), /* Controles TV */
-  th:nth-child(6),
-  th:nth-child(7),
-  th:nth-child(8),
-  th:nth-child(9),
-  th:nth-child(10),
-  th:nth-child(11) {
-    min-width: 65px !important;
-  }
-
-  /* Ajustes para columnas con contenido muy corto */
-  td:nth-child(12), /* Secadora */
-  td:nth-child(13), /* Accesorios secadora */
-  td:nth-child(14), /* Steamer */
-  td:nth-child(15), /* Bolsa vapor */
-  td:nth-child(16), /* Plancha cabello */
-  td:nth-child(17), /* Bulto */
-  td:nth-child(18), /* Sombrero */
-  td:nth-child(19), /* Bolso yute */
-  td:nth-child(20), /* Camas ordenadas */
-  td:nth-child(21), /* Cola caballo */
-  th:nth-child(12),
-  th:nth-child(13),
-  th:nth-child(14),
-  th:nth-child(15),
-  th:nth-child(16),
-  th:nth-child(17),
-  th:nth-child(18),
-  th:nth-child(19),
-  th:nth-child(20),
-  th:nth-child(21) {
-    min-width: 60px !important;
-  }
-
-  /* Ajustes para columnas especiales */
-  td:nth-child(22), /* Notas */
-  th:nth-child(22) {
-    min-width: 75px !important;
-  }
-
-  td:nth-child(23), /* Evidencias */
-  th:nth-child(23) {
-    min-width: 120px !important;
-  }
+/* Prevenir FOUC y mejorar CLS */
+.prevent-fouc {
+  @apply opacity-0 animate-fade-in;
 }
 
-@keyframes shimmer {
-  0% {
-    transform: translateX(-100%);
-  }
-  100% {
-    transform: translateX(100%);
-  }
+/* Utilidades de rendimiento */
+.will-change-transform {
+  will-change: transform;
 }
 
-@keyframes shimmer-mobile {
-  0% {
-    background-position: -200% 0;
-  }
-  100% {
-    background-position: 200% 0;
-  }
+.will-change-opacity {
+  will-change: opacity;
 }
 
-.animate-shimmer {
-  animation: shimmer 1.5s infinite;
-  -webkit-animation: shimmer 1.5s infinite;
-}
-
-.animate-shimmer-mobile {
-  background: linear-gradient(
-    90deg,
-    transparent 0%,
-    rgba(255, 255, 255, 0.4) 50%,
-    transparent 100%
-  );
-  background-size: 200% 100%;
-  animation: shimmer-mobile 1.5s infinite;
-  -webkit-animation: shimmer-mobile 1.5s infinite;
-}
-
-@keyframes spin {
-  from {
-    transform: rotate(0deg);
-  }
-  to {
-    transform: rotate(360deg);
-  }
-}
-
-.animate-spin {
-  animation: spin 1s linear infinite;
-  -webkit-animation: spin 1s linear infinite;
-}
-
-/* Estilos específicos para móvil */
-@media (max-width: 768px) {
-  .animate-shimmer {
-    animation: shimmer 1.5s infinite;
-    -webkit-animation: shimmer 1.5s infinite;
-    will-change: transform;
-  }
-
-  .animate-spin {
-    animation: spin 1s linear infinite;
-    -webkit-animation: spin 1s linear infinite;
-    will-change: transform;
+/* Reducir motion para usuarios que lo prefieren */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
   }
 } 

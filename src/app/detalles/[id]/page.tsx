@@ -1,18 +1,42 @@
 'use client';
 
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState, useRef, useMemo, memo } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { supabase } from '@/lib/supabase';
-import { compressImage } from '@/lib/imageUtils';
+import { compressImage as compressImageUtil } from '@/lib/imageUtils';
 import { getWeek } from 'date-fns';
 import { useAuth } from '@/context/AuthContext';
 import { uploadToImageKitClient } from '@/lib/imagekit-client';
+import { useSpectacularBackground } from '@/hooks/useSpectacularBackground';
+import { useToast } from '@/context/ToastContext';
 
-interface RevisionData {
-  id?: string;
-  created_at: string;
+// Componente memoizado para las imágenes de evidencia
+const EvidenceImage = memo(({ src, alt, onClick }: { src: string; alt: string; onClick: () => void }) => (
+  <div className="relative group cursor-pointer" onClick={onClick}>
+    <img 
+      src={src} 
+      alt={alt} 
+      loading="lazy"
+      className="w-full h-48 object-cover rounded-lg transition-all duration-300 group-hover:scale-[1.02] group-hover:shadow-2xl"
+      onError={(e) => {
+        const target = e.target as HTMLImageElement;
+        target.src = '/placeholder-image.png';
+      }}
+    />
+    <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-all duration-300 rounded-lg flex items-center justify-center">
+      <div className="opacity-0 group-hover:opacity-100 transition-opacity duration-300 bg-white/20 backdrop-blur-sm rounded-full p-3">
+        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-6 h-6 text-white">
+          <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" />
+        </svg>
+      </div>
+    </div>
+  </div>
+));
+
+interface Revision {
+  id: number;
   casita: string;
   quien_revisa: string;
   caja_fuerte: string;
@@ -25,25 +49,19 @@ interface RevisionData {
   controles_tv: string;
   secadora: string;
   accesorios_secadora: string;
-  accesorios_secadora_faltante: string;
-  faltantes: string;
   steamer: string;
   bolsa_vapor: string;
   plancha_cabello: string;
   bulto: string;
   sombrero: string;
   bolso_yute: string;
+  camas_ordenadas: string;
+  cola_caballo: string;
   evidencia_01: string;
   evidencia_02: string;
   evidencia_03: string;
-  fecha_edicion: string;
-  quien_edito: string;
-  datos_anteriores: any;
-  datos_actuales: any;
-  fecha_creacion: string;
-  camas_ordenadas: string;
-  cola_caballo: string;
-  Notas: string;
+  notas: string;
+  created_at: string;
 }
 
 interface Nota {
@@ -65,10 +83,11 @@ interface RegistroEdicion {
   Dato_nuevo: string;
 }
 
-export default function DetallesRevision() {
-  const params = useParams();
+export default function DetalleRevision({ params }: { params: { id: string } }) {
   const router = useRouter();
-  const [data, setData] = useState<RevisionData | null>(null);
+  const { showSuccess, showError } = useToast();
+  const spectacularBg = useSpectacularBackground();
+  const [revision, setRevision] = useState<Revision | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
@@ -78,11 +97,13 @@ export default function DetallesRevision() {
   const [isDragging, setIsDragging] = useState(false);
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
   const imgRef = useRef<HTMLImageElement>(null);
+  const [notasModalOpen, setNotasModalOpen] = useState(false);
   const [notas, setNotas] = useState<Nota[]>([]);
+  const [notasLoading, setNotasLoading] = useState(false);
   const [showNotaForm, setShowNotaForm] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
-  const [editedData, setEditedData] = useState<RevisionData | null>(null);
+  const [editedData, setEditedData] = useState<Revision | null>(null);
   const { userRole, user } = useAuth();
   const [registroEdiciones, setRegistroEdiciones] = useState<RegistroEdicion[]>([]);
   const [nuevaNota, setNuevaNota] = useState({
@@ -98,34 +119,49 @@ export default function DetallesRevision() {
     'Cristopher G', 'Emerson S', 'Joseph R'
   ];
 
+  // Función para formatear fechas para mostrar en el frontend
+  const formatearFechaParaMostrar = (fechaISO: string): string => {
+    try {
+      const fecha = new Date(fechaISO);
+      const dia = fecha.getDate().toString().padStart(2, '0');
+      const mes = (fecha.getMonth() + 1).toString().padStart(2, '0');
+      const año = fecha.getFullYear();
+      const horas = fecha.getHours().toString().padStart(2, '0');
+      const minutos = fecha.getMinutes().toString().padStart(2, '0');
+      return `${dia}-${mes}-${año} ${horas}:${minutos}`;
+    } catch (error) {
+      return fechaISO; // Si hay error, devolver la fecha original
+    }
+  };
+
   // Mapeo de nombres de campos técnicos a nombres legibles
   const fieldLabels: Record<string, string> = {
+    id: 'ID',
     casita: 'Casita',
-    quien_revisa: 'Quien revisa',
-    caja_fuerte: 'Caja fuerte',
-    puertas_ventanas: 'Puertas y ventanas',
+    quien_revisa: 'Quien Revisa',
+    caja_fuerte: 'Caja Fuerte',
+    puertas_ventanas: 'Puertas y Ventanas',
     chromecast: 'Chromecast',
     binoculares: 'Binoculares',
-    trapo_binoculares: 'Trapo binoculares',
+    trapo_binoculares: 'Trapo Binoculares',
     speaker: 'Speaker',
     usb_speaker: 'USB Speaker',
     controles_tv: 'Controles TV',
     secadora: 'Secadora',
-    accesorios_secadora: 'Accesorios secadora',
-    accesorios_secadora_faltante: 'Accesorios secadora faltante',
+    accesorios_secadora: 'Accesorios Secadora',
     steamer: 'Steamer',
-    bolsa_vapor: 'Bolsa vapor',
-    plancha_cabello: 'Plancha cabello',
+    bolsa_vapor: 'Bolsa Vapor',
+    plancha_cabello: 'Plancha Cabello',
     bulto: 'Bulto',
     sombrero: 'Sombrero',
-    bolso_yute: 'Bolso yute',
-    camas_ordenadas: 'Camas ordenadas',
-    cola_caballo: 'Cola caballo',
+    bolso_yute: 'Bolso Yute',
+    camas_ordenadas: 'Camas Ordenadas',
+    cola_caballo: 'Cola Caballo',
     evidencia_01: 'Evidencia 1',
     evidencia_02: 'Evidencia 2',
     evidencia_03: 'Evidencia 3',
-    faltantes: 'Faltantes',
-    Notas: 'Notas'
+    notas: 'Notas',
+    created_at: 'Fecha de Creación'
   };
 
   // Función para extraer el nombre del campo y valor de los datos de edición
@@ -155,59 +191,46 @@ export default function DetallesRevision() {
         throw new Error('No se pudo conectar con la base de datos');
       }
 
-      console.log('🆔 ID de la revisión (params.id):', params.id);
-      console.log('🆔 Tipo de params.id:', typeof params.id);
+      // Ejecutar todas las consultas en paralelo para mejor rendimiento
+      const [
+        { data: revisionData, error: revisionError },
+        { data: notasData, error: notasError },
+        { data: edicionesData, error: edicionesError }
+      ] = await Promise.all([
+        // Consulta principal de la revisión
+        supabase
+          .from('revisiones_casitas')
+          .select('*')
+          .eq('id', params.id)
+          .single(),
 
-      const { data: revisionData, error: revisionError } = await supabase
-        .from('revisiones_casitas')
-        .select('*')
-        .eq('id', params.id)
-        .single();
+        // Consulta de notas asociadas a esta revisión
+        supabase
+          .from('Notas')
+          .select('*')
+          .eq('revision_id', String(params.id))
+          .order('id', { ascending: false }),
 
+        // Consulta optimizada de ediciones - usar like para filtrar directamente en la DB
+        supabase
+          .from('Registro_ediciones')
+          .select('*')
+          .or(`Dato_anterior.like.[${params.id}]%,Dato_nuevo.like.[${params.id}]%`)
+          .order('created_at', { ascending: false })
+      ]);
+
+      // Manejar errores de cada consulta
       if (revisionError) throw revisionError;
-      setData(revisionData);
-
-      // Obtener notas asociadas a esta revisión específica
-      console.log('🔍 Buscando notas para revision_id:', params.id);
-      
-      const { data: notasData, error: notasError } = await supabase
-        .from('Notas')
-        .select('*')
-        .eq('revision_id', String(params.id)) // Convertir a string para la búsqueda
-        .order('id', { ascending: false });
-      
-      console.log('📝 Notas encontradas:', notasData);
-      console.log('📝 Cantidad de notas:', notasData?.length || 0);
-      
-      // También vamos a verificar todas las notas de esta casita para debug
-      const { data: todasLasNotas } = await supabase
-        .from('Notas')
-        .select('*')
-        .eq('Casita', revisionData.casita)
-        .order('id', { ascending: false });
-      
-      console.log('🏠 Todas las notas de casita', revisionData.casita + ':', todasLasNotas);
-
       if (notasError) throw notasError;
-      setNotas(notasData || []);
-
-      // Obtener el historial de ediciones y filtrar por el ID de la revisión actual
-      const { data: edicionesData, error: edicionesError } = await supabase
-        .from('Registro_ediciones')
-        .select('*')
-        .order('created_at', { ascending: false });
-
       if (edicionesError) throw edicionesError;
-      
-      // Filtrar las ediciones que corresponden a esta revisión
-      const edicionesFiltradas = edicionesData?.filter(edicion => 
-        edicion.Dato_anterior.startsWith(`[${params.id}]`) || 
-        edicion.Dato_nuevo.startsWith(`[${params.id}]`)
-      ) || [];
-      
-      setRegistroEdiciones(edicionesFiltradas);
+
+      // Establecer los datos obtenidos
+      setRevision(revisionData);
+      setNotas(notasData || []);
+      setRegistroEdiciones(edicionesData || []);
+
     } catch (error: any) {
-      console.error('Error:', error);
+      console.error('Error al cargar datos:', error);
       setError(error.message);
     } finally {
       setLoading(false);
@@ -220,7 +243,7 @@ export default function DetallesRevision() {
 
   const handleSubmitNota = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!data || !supabase) return;
+    if (!revision || !supabase) return;
     
     try {
       setIsSubmitting(true);
@@ -242,7 +265,7 @@ export default function DetallesRevision() {
       
       const notaData = {
         fecha: fechaLocal.toISOString(),
-        Casita: data.casita,
+        Casita: revision.casita,
         revision_id: String(params.id), // Convertir explícitamente a string
         Usuario: nuevaNota.Usuario,
         nota: nuevaNota.nota,
@@ -261,6 +284,30 @@ export default function DetallesRevision() {
       console.log('❌ Error de inserción:', error);
 
       if (error) throw error;
+
+      // Actualizar el contador de notas en la tabla revisiones_casitas
+      const { data: countData, error: countError } = await supabase
+        .from('Notas')
+        .select('id', { count: 'exact' })
+        .eq('revision_id', String(params.id));
+
+      if (countError) {
+        console.error('Error al contar notas:', countError);
+      } else {
+        const notasCount = countData?.length || 0;
+        
+        // Actualizar el campo notas_count en revisiones_casitas
+        const { error: updateError } = await supabase
+          .from('revisiones_casitas')
+          .update({ notas_count: notasCount })
+          .eq('id', params.id);
+
+        if (updateError) {
+          console.error('Error al actualizar notas_count:', updateError);
+        } else {
+          console.log('✅ notas_count actualizado a:', notasCount);
+        }
+      }
 
       setNuevaNota({
         fecha: new Date().toISOString().split('T')[0],
@@ -291,6 +338,25 @@ export default function DetallesRevision() {
     setZoom(1);
     setPosition({ x: 0, y: 0 });
   };
+
+  // Efecto para manejar tecla ESC
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape' && modalOpen) {
+        closeModal();
+      }
+    };
+
+    if (modalOpen) {
+      document.addEventListener('keydown', handleKeyDown);
+      document.body.style.overflow = 'hidden'; // Prevenir scroll del fondo
+    }
+
+    return () => {
+      document.removeEventListener('keydown', handleKeyDown);
+      document.body.style.overflow = 'unset';
+    };
+  }, [modalOpen]);
 
   const handleWheel = (e: React.WheelEvent) => {
     e.preventDefault();
@@ -353,22 +419,22 @@ export default function DetallesRevision() {
   };
 
   const handleEdit = () => {
-    if (!data) return;
-    setEditedData({ ...data });
+    if (!revision) return;
+    setEditedData({ ...revision });
     setIsEditing(true);
   };
 
   const handleSaveEdit = async () => {
-    if (!data || !editedData || !supabase) return;
+    if (!revision || !editedData || !supabase) return;
 
     try {
       setIsSubmitting(true);
-      // Obtener fecha y hora local del dispositivo sin zona horaria
+      // Obtener fecha y hora local del dispositivo en formato ISO para PostgreSQL
       const now = new Date();
-      // Crear fecha en formato ISO local (sin ajustes de zona horaria)
-      const fechaLocal = new Date(now.getTime() - (now.getTimezoneOffset() * 60000)).toISOString().slice(0, 19).replace('T', ' ');
+      // Crear timestamp en formato ISO local (sin zona horaria UTC)
+      const fechaFormateada = new Date(now.getTime() - (now.getTimezoneOffset() * 60000)).toISOString();
 
-      console.log('Fecha local generada:', fechaLocal);
+      console.log('Fecha local generada:', fechaFormateada);
       console.log('Iniciando actualización...');
 
       // Actualizar los datos en revisiones_casitas
@@ -376,10 +442,9 @@ export default function DetallesRevision() {
         .from('revisiones_casitas')
         .update({
           ...editedData,
-          fecha_edicion: fechaLocal,
-          quien_edito: user || 'Usuario'
+          created_at: fechaFormateada
         })
-        .eq('id', data.id);
+        .eq('id', revision.id);
 
       if (updateError) {
         console.error('Error al actualizar revisiones_casitas:', updateError);
@@ -394,14 +459,14 @@ export default function DetallesRevision() {
             key === 'quien_edito' || key === 'datos_anteriores' || key === 'datos_actuales') {
           return acc;
         }
-        const valorAnterior = data[key as keyof RevisionData];
+        const valorAnterior = revision[key as keyof Revision];
         if (value !== valorAnterior) {
-          const registro = {
-            "Usuario que Edito": user || 'Usuario',
-            Dato_anterior: `[${data.id}] ${key}: ${String(valorAnterior || '')}`,
-            Dato_nuevo: `[${data.id}] ${key}: ${String(value || '')}`,
-            created_at: fechaLocal
-          };
+                  const registro = {
+          "Usuario que Edito": user || 'Usuario',
+          Dato_anterior: `[${revision.id}] ${key}: ${String(valorAnterior || '')}`,
+          Dato_nuevo: `[${revision.id}] ${key}: ${String(value || '')}`,
+          created_at: fechaFormateada
+        };
           console.log('Registro a insertar:', registro);
           acc.push(registro);
         }
@@ -444,67 +509,329 @@ export default function DetallesRevision() {
     setEditedData(null);
   };
 
-  const handleInputChange = (field: keyof RevisionData, value: string) => {
+  const handleInputChange = (field: keyof Revision, value: string) => {
     if (!editedData) return;
     setEditedData({ ...editedData, [field]: value });
   };
 
-  // Función para comprimir imagen usando canvas
-  const compressImage = (file: File, maxWidth = 1920, maxHeight = 1080, quality = 0.8): Promise<File> => {
+  // Función para comprimir imagen usando canvas (configuración estándar)
+  const compressImage = (file: File): Promise<File> => {
     return new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.readAsDataURL(file);
-      reader.onload = (event) => {
-        const img = new Image();
-        img.src = event.target?.result as string;
-        img.onload = () => {
-          let width = img.width;
-          let height = img.height;
-
-          // Redimensionar manteniendo la proporción
-          if (width > height) {
-            if (width > maxWidth) {
-              height *= maxWidth / width;
-              width = maxWidth;
-            }
-          } else {
-            if (height > maxHeight) {
-              width *= maxHeight / height;
-              height = maxHeight;
-            }
-          }
-
-          const canvas = document.createElement('canvas');
-          canvas.width = width;
-          canvas.height = height;
-          const ctx = canvas.getContext('2d');
-          ctx?.drawImage(img, 0, 0, width, height);
-
-          // Convertir canvas a blob
+      const canvas = document.createElement('canvas');
+      const ctx = canvas.getContext('2d');
+      const img = new Image();
+      
+      img.onload = () => {
+        // Mantener proporción original, limitando el ancho máximo a 1920px (configuración estándar)
+        const maxWidth = 1920;
+        let { width, height } = img;
+        
+        if (width > maxWidth) {
+          const ratio = maxWidth / width;
+          width = maxWidth;
+          height = height * ratio;
+        }
+        
+        canvas.width = width;
+        canvas.height = height;
+        
+        if (ctx) {
+          // Configurar contexto para mejor calidad (configuración estándar)
+          ctx.imageSmoothingEnabled = true;
+          ctx.imageSmoothingQuality = 'high';
+          
+          // Dibujar imagen manteniendo su proporción original
+          ctx.drawImage(img, 0, 0, width, height);
+          
+          // Convertir a blob WebP con calidad 70% (configuración estándar)
           canvas.toBlob((blob) => {
             if (!blob) {
               reject(new Error('No se pudo comprimir la imagen'));
               return;
             }
-            const compressedFile = new File([blob], file.name, {
-              type: file.type,
+            
+            // Crear nombre con extensión .webp
+            const originalName = file.name.replace(/\.[^/.]+$/, '');
+            const webpName = `${originalName}.webp`;
+            
+            const compressedFile = new File([blob], webpName, {
+              type: 'image/webp',
               lastModified: Date.now()
             });
+            
             resolve(compressedFile);
-          }, file.type, quality);
-        };
-        img.onerror = reject;
+          }, 'image/webp', 0.70); // Calidad 70% - configuración estándar
+        } else {
+          reject(new Error('No se pudo obtener el contexto del canvas'));
+        }
       };
-      reader.onerror = reject;
+      
+      img.onerror = () => reject(new Error('Error al cargar la imagen'));
+      img.src = URL.createObjectURL(file);
     });
   };
 
+  const renderField = (key: keyof Revision, value: any) => {
+    // Ocultar campos vacíos (excepto los que ya tienen lógica especial)
+    if (
+      key !== 'casita' &&
+      key !== 'created_at' &&
+      key !== 'quien_revisa' &&
+      key !== 'caja_fuerte' &&
+      key !== 'notas' &&
+      (!value || value === '' || value === '0')
+    ) {
+      return null;
+    }
+    
+    const label = fieldLabels[key];
+    
+    // Campos que no se pueden editar: casita, quien_revisa, created_at, evidencias
+    const nonEditableFields = ['id', 'casita', 'quien_revisa', 'created_at', 'evidencia_01', 'evidencia_02', 'evidencia_03'];
+    
+    // Campos principales con estilo especial
+    if (key === 'casita') {
+      return (
+        <div key={key} className="bg-gradient-to-br from-[#c9a45c]/20 to-[#f0c987]/20 backdrop-blur-sm p-6 rounded-xl border border-[#c9a45c]/40 shadow-lg hover:shadow-xl transition-all duration-300 relative overflow-hidden">
+          <div className="absolute top-0 right-0 w-20 h-20 bg-gradient-to-br from-[#c9a45c]/10 to-transparent rounded-full -translate-y-6 translate-x-6"></div>
+          <div className="relative">
+            <div className="flex items-center gap-3 mb-3">
+              <div className="w-8 h-8 bg-gradient-to-br from-[#c9a45c] to-[#f0c987] rounded-lg flex items-center justify-center shadow-md">
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-[#1a1f35]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
+                </svg>
+              </div>
+              <h3 className="text-lg font-bold bg-gradient-to-r from-[#c9a45c] to-[#f0c987] bg-clip-text text-transparent">{label}</h3>
+            </div>
+            <p className="text-2xl font-black text-white drop-shadow-lg">
+              {value && value !== '' && value !== '0' ? (value as string) : (
+                <span className="text-gray-400 italic text-lg">Sin información</span>
+              )}
+            </p>
+          </div>
+        </div>
+      );
+    }
+
+    if (key === 'created_at') {
+      return (
+        <div key={key} className="bg-gradient-to-br from-blue-500/20 to-blue-600/20 backdrop-blur-sm p-6 rounded-xl border border-blue-500/40 shadow-lg hover:shadow-xl transition-all duration-300 relative overflow-hidden">
+          <div className="absolute top-0 right-0 w-20 h-20 bg-gradient-to-br from-blue-500/10 to-transparent rounded-full -translate-y-6 translate-x-6"></div>
+          <div className="relative">
+            <div className="flex items-center gap-3 mb-3">
+              <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-blue-600 rounded-lg flex items-center justify-center shadow-md">
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                </svg>
+              </div>
+              <h3 className="text-lg font-bold bg-gradient-to-r from-blue-400 to-blue-500 bg-clip-text text-transparent">Fecha de Revisión</h3>
+            </div>
+            <p className="text-xl font-bold text-white drop-shadow-lg">
+              {value && value !== '' && value !== '0' ? formatearFechaParaMostrar(value as string) : (
+                <span className="text-gray-400 italic text-base">Sin información</span>
+              )}
+            </p>
+          </div>
+        </div>
+      );
+    }
+
+    if (key === 'quien_revisa') {
+      return (
+        <div key={key} className="bg-gradient-to-br from-green-500/20 to-green-600/20 backdrop-blur-sm p-6 rounded-xl border border-green-500/40 shadow-lg hover:shadow-xl transition-all duration-300 relative overflow-hidden">
+          <div className="absolute top-0 right-0 w-20 h-20 bg-gradient-to-br from-green-500/10 to-transparent rounded-full -translate-y-6 translate-x-6"></div>
+          <div className="relative">
+            <div className="flex items-center gap-3 mb-3">
+              <div className="w-8 h-8 bg-gradient-to-br from-green-500 to-green-600 rounded-lg flex items-center justify-center shadow-md">
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                </svg>
+              </div>
+              <h3 className="text-lg font-bold bg-gradient-to-r from-green-400 to-green-500 bg-clip-text text-transparent">Revisado por</h3>
+            </div>
+            <p className="text-xl font-bold text-white drop-shadow-lg">
+              {value && value !== '' && value !== '0' ? (value as string) : (
+                <span className="text-gray-400 italic text-base">Sin información</span>
+              )}
+            </p>
+          </div>
+        </div>
+      );
+    }
+
+    if (key === 'caja_fuerte') {
+      return (
+        <div key={key} className="bg-gradient-to-br from-purple-500/20 to-purple-600/20 backdrop-blur-sm p-6 rounded-xl border border-purple-500/40 shadow-lg hover:shadow-xl transition-all duration-300 relative overflow-hidden">
+          <div className="absolute top-0 right-0 w-20 h-20 bg-gradient-to-br from-purple-500/10 to-transparent rounded-full -translate-y-6 translate-x-6"></div>
+          <div className="relative">
+            <div className="flex items-center gap-3 mb-3">
+              <div className="w-8 h-8 bg-gradient-to-br from-purple-500 to-purple-600 rounded-lg flex items-center justify-center shadow-md">
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                </svg>
+              </div>
+              <h3 className="text-lg font-bold bg-gradient-to-r from-purple-400 to-purple-500 bg-clip-text text-transparent">{label}</h3>
+            </div>
+            {isEditing && editedData ? (
+              <input
+                type="text"
+                value={editedData[key] as string}
+                onChange={(e) => handleInputChange(key, e.target.value)}
+                className="w-full px-4 py-3 bg-[#1e2538]/80 border border-purple-500/50 rounded-lg text-white text-xl font-bold focus:outline-none focus:ring-2 focus:ring-purple-500/50 focus:border-purple-500/70 transition-all backdrop-blur-sm"
+                placeholder={`Editar ${label.toLowerCase()}...`}
+              />
+            ) : (
+              <p className="text-xl font-bold text-white drop-shadow-lg">
+                {value && value !== '' && value !== '0' ? (value as string) : (
+                  <span className="text-gray-400 italic text-base">Sin información</span>
+                )}
+              </p>
+            )}
+          </div>
+        </div>
+      );
+    }
+    
+    // Campos de imagen
+    if (key === 'evidencia_01' || key === 'evidencia_02' || key === 'evidencia_03') {
+      return (
+        <div key={key} className="bg-gray-800/50 backdrop-blur-sm p-4 rounded-lg border border-gray-600/50">
+          <h3 className="text-sm font-semibold text-[#ff8c42] mb-2 flex items-center gap-2">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-4 h-4">
+              <path strokeLinecap="round" strokeLinejoin="round" d="m2.25 15.75 5.159-5.159a2.25 2.25 0 0 1 3.182 0l5.159 5.159m-1.5-1.5 1.409-1.409a2.25 2.25 0 0 1 3.182 0l2.909 2.909m-18 3.75h16.5a1.5 1.5 0 0 0 1.5-1.5V6a1.5 1.5 0 0 0-1.5-1.5H3.75A1.5 1.5 0 0 0 2.25 6v12a1.5 1.5 0 0 0 1.5 1.5Zm10.5-11.25h.008v.008h-.008V8.25Z" />
+            </svg>
+            {label}
+          </h3>
+          <EvidenceImage 
+            src={value as string} 
+            alt={label} 
+            onClick={() => openModal(value as string)} 
+          />
+        </div>
+      );
+    }
+    
+    // Campo especial para notas
+    if (key === 'notas') {
+      return (
+        <div key={key} className="bg-gray-800/50 backdrop-blur-sm p-4 rounded-lg border border-gray-600/50">
+          <h3 className="text-sm font-semibold text-[#ff8c42] mb-2 flex items-center gap-2">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-4 h-4">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L6.832 19.82a4.5 4.5 0 01-1.897 1.13l-2.685.8.8-2.685a4.5 4.5 0 011.13-1.897L16.863 4.487zm0 0L19.5 7.125" />
+            </svg>
+            {label}
+          </h3>
+          {isEditing && editedData ? (
+            <textarea
+              value={editedData[key] as string}
+              onChange={(e) => handleInputChange(key, e.target.value)}
+              className="w-full px-3 py-2 bg-[#1e2538] border border-[#3d4659] rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-[#c9a45c]/50 focus:border-[#c9a45c]/50 transition-all resize-none"
+              rows={4}
+              placeholder="Escribe las notas aquí..."
+            />
+          ) : (
+            <p className="text-gray-300 whitespace-pre-wrap leading-relaxed">
+              {value && value !== '' && value !== '0' ? (value as string) : (
+                <span className="text-gray-500 italic">Sin notas registradas</span>
+              )}
+            </p>
+          )}
+        </div>
+      );
+    }
+
+    // Campos regulares con estilo sutil
+    return (
+      <div key={key} className="bg-gradient-to-br from-gray-800/60 to-gray-900/60 backdrop-blur-sm p-4 rounded-lg border border-gray-600/40 shadow-md hover:shadow-lg hover:border-gray-500/50 transition-all duration-300 relative group">
+        <div className="absolute top-0 right-0 w-12 h-12 bg-gradient-to-br from-gray-600/5 to-transparent rounded-full -translate-y-3 translate-x-3 group-hover:from-gray-500/10"></div>
+        <div className="relative">
+          <div className="flex items-center gap-2 mb-2">
+            <div className="w-2 h-2 bg-gradient-to-r from-orange-400 to-orange-500 rounded-full"></div>
+            <h3 className="text-sm font-semibold text-orange-400/90 group-hover:text-orange-400 transition-colors">{label}</h3>
+          </div>
+          {isEditing && editedData && !nonEditableFields.includes(key) ? (
+            <input
+              type="text"
+              value={editedData[key] as string}
+              onChange={(e) => handleInputChange(key, e.target.value)}
+              className="w-full px-3 py-2 bg-[#1e2538]/80 border border-gray-600/50 rounded-lg text-white font-medium focus:outline-none focus:ring-2 focus:ring-orange-400/30 focus:border-orange-400/50 transition-all backdrop-blur-sm"
+              placeholder={`Editar ${label.toLowerCase()}...`}
+            />
+          ) : (
+            <p className="text-gray-200 font-medium group-hover:text-white transition-colors">
+              {value && value !== '' && value !== '0' ? (value as string) : (
+                <span className="text-gray-500 italic">Sin información</span>
+              )}
+            </p>
+          )}
+        </div>
+      </div>
+    );
+  };
+
   if (loading) return (
-    <div className="min-h-screen bg-gradient-to-br from-[#0f1419] via-[#1a1f35] to-[#1e2538] flex items-center justify-center relative overflow-hidden">
+    <div className="min-h-screen bg-gradient-to-br from-[#0f1419] via-[#1a1f35] to-[#1e2538] relative overflow-hidden">
       <div className="absolute inset-0 bg-[url('data:image/svg+xml,%3Csvg%20width%3D%2260%22%20height%3D%2260%22%20viewBox%3D%220%200%2060%2060%22%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%3E%3Cg%20fill%3D%22none%22%20fill-rule%3D%22evenodd%22%3E%3Cg%20fill%3D%22%23c9a45c%22%20fill-opacity%3D%220.03%22%3E%3Ccircle%20cx%3D%2230%22%20cy%3D%2230%22%20r%3D%222%22/%3E%3C/g%3E%3C/g%3E%3C/svg%3E')] opacity-50"></div>
-      <div className="relative z-10 flex flex-col items-center gap-4">
-        <div className="w-12 h-12 border-4 border-[#c9a45c]/30 border-t-[#c9a45c] rounded-full animate-spin"></div>
-        <p className="text-white text-lg font-medium">Cargando detalles...</p>
+      
+      {/* Loading skeleton que simula la estructura real */}
+      <div className="relative z-10 max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
+        <div className="bg-gradient-to-br from-[#1e2538]/80 to-[#2a3347]/80 backdrop-blur-md rounded-2xl shadow-2xl border border-[#3d4659]/50 overflow-hidden">
+          
+          {/* Header skeleton */}
+          <div className="bg-gradient-to-r from-[#c9a45c]/10 to-[#f0c987]/10 border-b border-[#3d4659]/30 p-4 sm:p-6">
+            <div className="flex items-center gap-3">
+              <div className="w-12 h-12 bg-[#c9a45c]/20 rounded-xl animate-pulse"></div>
+              <div className="space-y-2">
+                <div className="h-8 bg-[#c9a45c]/20 rounded-lg w-64 animate-pulse"></div>
+                <div className="h-6 bg-[#c9a45c]/10 rounded-lg w-32 animate-pulse"></div>
+              </div>
+            </div>
+          </div>
+          
+          <div className="space-y-6 p-6">
+            {/* Info general skeleton */}
+            <div className="bg-gradient-to-br from-[#2a3347]/60 to-[#1e2538]/60 backdrop-blur-sm rounded-xl p-6 border border-[#3d4659]/30">
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                {[...Array(4)].map((_, i) => (
+                  <div key={i} className="bg-[#1e2538]/40 rounded-lg p-4 border border-[#3d4659]/20">
+                    <div className="h-4 bg-[#c9a45c]/20 rounded w-24 mb-2 animate-pulse"></div>
+                    <div className="h-6 bg-[#c9a45c]/10 rounded w-32 animate-pulse"></div>
+                  </div>
+                ))}
+              </div>
+            </div>
+            
+            {/* Accesorios skeleton */}
+            <div className="bg-gradient-to-br from-[#2a3347]/60 to-[#1e2538]/60 backdrop-blur-sm rounded-xl p-6 border border-[#3d4659]/30">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                {[...Array(9)].map((_, i) => (
+                  <div key={i} className="bg-[#1e2538]/50 rounded-lg p-4 border border-[#3d4659]/20">
+                    <div className="h-4 bg-orange-500/20 rounded w-20 mb-2 animate-pulse"></div>
+                    <div className="h-5 bg-orange-500/10 rounded w-16 animate-pulse"></div>
+                  </div>
+                ))}
+              </div>
+            </div>
+            
+            {/* Evidencias skeleton */}
+            <div className="bg-gradient-to-br from-[#2a3347]/60 to-[#1e2538]/60 backdrop-blur-sm rounded-xl p-6 border border-[#3d4659]/30">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                {[...Array(3)].map((_, i) => (
+                  <div key={i} className="bg-[#1e2538]/50 rounded-lg p-4 border border-[#3d4659]/20">
+                    <div className="h-4 bg-blue-500/20 rounded w-20 mb-2 animate-pulse"></div>
+                    <div className="h-48 bg-blue-500/10 rounded-lg animate-pulse"></div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+        
+        {/* Loading indicator */}
+        <div className="fixed bottom-8 right-8 flex items-center gap-3 bg-[#1e2538]/90 backdrop-blur-sm rounded-full px-4 py-3 border border-[#3d4659]/50">
+          <div className="w-5 h-5 border-2 border-[#c9a45c]/30 border-t-[#c9a45c] rounded-full animate-spin"></div>
+          <span className="text-[#c9a45c] font-medium text-sm">Cargando detalles...</span>
+        </div>
       </div>
     </div>
   );
@@ -526,7 +853,7 @@ export default function DetallesRevision() {
     </div>
   );
   
-  if (!data) return (
+  if (!revision) return (
     <div className="min-h-screen bg-gradient-to-br from-[#0f1419] via-[#1a1f35] to-[#1e2538] flex items-center justify-center relative overflow-hidden">
       <div className="absolute inset-0 bg-[url('data:image/svg+xml,%3Csvg%20width%3D%2260%22%20height%3D%2260%22%20viewBox%3D%220%200%2060%2060%22%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%3E%3Cg%20fill%3D%22none%22%20fill-rule%3D%22evenodd%22%3E%3Cg%20fill%3D%22%23c9a45c%22%20fill-opacity%3D%220.03%22%3E%3Ccircle%20cx%3D%2230%22%20cy%3D%2230%22%20r%3D%222%22/%3E%3C/g%3E%3C/g%3E%3C/svg%3E')] opacity-50"></div>
       <div className="relative z-10 bg-gradient-to-br from-[#1e2538]/80 to-[#2a3347]/80 backdrop-blur-md rounded-2xl p-8 border border-[#3d4659]/50 max-w-md mx-4">
@@ -544,15 +871,7 @@ export default function DetallesRevision() {
   );
 
   return (
-    <main className="min-h-screen bg-gradient-to-br from-[#0f1419] via-[#1a1f35] to-[#1e2538] relative overflow-hidden">
-      {/* Efectos de fondo */}
-      <div className="absolute inset-0 bg-[url('data:image/svg+xml,%3Csvg%20width%3D%2260%22%20height%3D%2260%22%20viewBox%3D%220%200%2060%2060%22%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%3E%3Cg%20fill%3D%22none%22%20fill-rule%3D%22evenodd%22%3E%3Cg%20fill%3D%22%23c9a45c%22%20fill-opacity%3D%220.03%22%3E%3Ccircle%20cx%3D%2230%22%20cy%3D%2230%22%20r%3D%222%22/%3E%3C/g%3E%3C/g%3E%3C/svg%3E')] opacity-50"></div>
-      <div className="absolute top-0 left-0 w-full h-full bg-gradient-to-b from-transparent via-transparent to-[#0f1419]/20"></div>
-      
-      {/* Orbes decorativos */}
-      <div className="absolute top-20 left-10 w-32 h-32 bg-[#c9a45c]/10 rounded-full blur-3xl animate-pulse"></div>
-      <div className="absolute bottom-20 right-10 w-40 h-40 bg-[#f0c987]/10 rounded-full blur-3xl animate-pulse delay-1000"></div>
-      <div className="absolute top-1/2 left-1/4 w-24 h-24 bg-[#c9a45c]/5 rounded-full blur-2xl animate-pulse delay-500"></div>
+    <main style={spectacularBg} className="relative overflow-hidden">
 
       {/* Modal de imagen mejorado */}
       {modalOpen && modalImg && (
@@ -597,21 +916,31 @@ export default function DetallesRevision() {
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
                       </svg>
                     </button>
+                    <button
+                      onClick={() => {
+                        setZoom(1);
+                        setPosition({ x: 0, y: 0 });
+                      }}
+                      className="ml-1 px-2 py-1 text-white hover:bg-white/20 rounded-md text-xs transition-all duration-200"
+                      title="Restablecer"
+                    >
+                      Reset
+                    </button>
                   </div>
-                  
-                  {/* Botón cerrar */}
-                  <button
-                    onClick={closeModal}
-                    className="w-10 h-10 bg-red-500/20 hover:bg-red-500/30 border border-red-500/50 hover:border-red-500/70 rounded-lg flex items-center justify-center transition-all duration-200 backdrop-blur-sm"
-                    title="Cerrar"
-                  >
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                    </svg>
-                  </button>
                 </div>
               </div>
             </div>
+
+            {/* Botón cerrar - SIEMPRE visible con z-index alto */}
+            <button
+              onClick={closeModal}
+              className="fixed top-4 right-4 z-[60] w-12 h-12 bg-red-500/90 hover:bg-red-500 text-white rounded-full flex items-center justify-center transition-all duration-200 backdrop-blur-sm border-2 border-white/20 shadow-2xl"
+              title="Cerrar"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
 
             {/* Contenedor de imagen */}
             <div className="w-full h-full flex items-center justify-center p-4 pt-20">
@@ -622,14 +951,15 @@ export default function DetallesRevision() {
                 className="max-w-full max-h-full object-contain rounded-lg shadow-2xl"
                 style={{
                   transform: `scale(${zoom}) translate(${position.x}px, ${position.y}px)`,
-                  cursor: zoom > 1 ? 'grab' : 'default',
-                  transition: 'transform 0.1s ease-out',
+                  cursor: zoom > 1 ? (isDragging ? 'grabbing' : 'grab') : 'default',
+                  transition: isDragging ? 'none' : 'transform 0.1s ease-out',
                   touchAction: 'none'
                 }}
                 onWheel={handleWheel}
                 onMouseDown={handleMouseDownImage}
                 onMouseMove={handleMouseMoveImage}
                 onMouseUp={handleMouseUpImage}
+                onMouseLeave={handleMouseUpImage}
                 onTouchStart={(e) => {
                   if (e.touches.length === 2) {
                     e.preventDefault();
@@ -658,11 +988,11 @@ export default function DetallesRevision() {
                       touch2.clientX - touch1.clientX,
                       touch2.clientY - touch1.clientY
                     );
-                    const scale = currentDistance / dragStart.x;
-                    const newZoom = Math.min(Math.max(zoom * scale, 1), 5);
+                    const scaleChange = currentDistance / dragStart.x;
+                    const newZoom = Math.max(1, Math.min(5, zoom * scaleChange));
                     setZoom(newZoom);
                     setDragStart({ x: currentDistance, y: 0 });
-                  } else if (isDragging && zoom > 1) {
+                  } else if (e.touches.length === 1 && isDragging && zoom > 1) {
                     e.preventDefault();
                     const touch = e.touches[0];
                     const newX = touch.clientX - dragStart.x;
@@ -691,31 +1021,15 @@ export default function DetallesRevision() {
               />
             </div>
 
-            {/* Indicador de instrucciones */}
+            {/* Indicador de instrucciones - Solo para móviles */}
             <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 z-10">
               <div className="bg-black/60 backdrop-blur-sm rounded-lg px-4 py-2 text-white text-sm">
-                <div className="flex items-center gap-4 text-xs">
+                <div className="flex items-center justify-center text-xs">
                   <span className="flex items-center gap-1">
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 15l-2 5L9 9l11 4-5 2zm0 0l5 5M7.188 2.239l.777 2.897M5.136 7.965l-2.898-.777M13.95 4.05l-2.122 2.122m-5.657 5.656l-2.121 2.122" />
-                    </svg>
-                    Rueda del mouse: Zoom
-                  </span>
-                  <span className="flex items-center gap-1">
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 11.5V14m0-2.5v-6a1.5 1.5 0 113 0m-3 6a1.5 1.5 0 00-3 0v2a7.5 7.5 0 0015 0v-5a1.5 1.5 0 00-3 0m-6-3V11m0-5.5v-1a1.5 1.5 0 013 0v1m0 0V11m0-5.5a1.5 1.5 0 013 0v3m0 0V11" />
-                    </svg>
-                    Arrastrar: Mover imagen
-                  </span>
-                  <span className="hidden sm:flex items-center gap-1">
                     <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 18.75a6 6 0 006-6v-1.5m-6 7.5a6 6 0 01-6-6v-1.5m6 7.5v3.75m-3.75 0h7.5M12 15.75a3 3 0 01-3-3V4.5a3 3 0 116 0v8.25a3 3 0 01-3 3z" />
                     </svg>
-                    Pellizcar: Zoom táctil
-                  </span>
-                  <span className="flex items-center gap-1">
-                    <kbd className="px-1 py-0.5 bg-white/20 rounded text-xs">ESC</kbd>
-                    Cerrar
+                    Pellizcar para hacer zoom • Arrastrar para mover
                   </span>
                 </div>
               </div>
@@ -753,7 +1067,7 @@ export default function DetallesRevision() {
                     <div className="inline-flex items-center gap-2 mt-4 px-4 py-2 bg-gradient-to-r from-[#c9a45c]/20 to-[#f0c987]/20 backdrop-blur-sm rounded-full border border-[#c9a45c]/30">
                       <div className="w-2 h-2 bg-gradient-to-r from-[#c9a45c] to-[#f0c987] rounded-full animate-pulse"></div>
                       <span className="text-[#f0c987] font-semibold text-sm tracking-wide">
-                        CASITA {data?.casita}
+                        CASITA {revision?.casita}
                       </span>
                     </div>
                   </div>
@@ -810,90 +1124,24 @@ export default function DetallesRevision() {
                 )}
                 <button
                   onClick={() => router.back()}
-                  className="flex-1 sm:flex-none px-4 py-2.5 bg-gradient-to-r from-gray-600 to-gray-700 text-white rounded-xl hover:from-gray-700 hover:to-gray-800 transition-all duration-300 transform hover:scale-[1.02] shadow-lg hover:shadow-xl font-medium flex items-center justify-center gap-2 border border-gray-600/20"
+                  className="bg-gradient-to-r from-gray-600 to-gray-700 text-white rounded-xl hover:from-gray-700 hover:to-gray-800 transition-all duration-300 transform hover:scale-[1.02] shadow-lg hover:shadow-xl font-medium flex items-center justify-center gap-2 border border-gray-600/20 relative overflow-hidden"
+                  style={{ padding: '10px 18px' }}
                 >
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
-                  </svg>
-                  Volver
+                  {/* Efecto de brillo continuo */}
+                  <div className="absolute inset-0 bg-gradient-to-r from-transparent via-[#f0cb35]/80 to-transparent animate-[slide_2s_ease-in-out_infinite] z-0"></div>
+                  <div className="relative z-10 flex items-center gap-2">
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+                    </svg>
+                    Volver
+                  </div>
                 </button>
               </div>
             </div>
           </div>
 
           <div className="space-y-6">
-            {/* Información General */}
-            <div className="bg-gradient-to-br from-[#2a3347]/60 to-[#1e2538]/60 backdrop-blur-sm rounded-xl p-4 sm:p-6 border border-[#3d4659]/30 shadow-lg">
-              <div className="flex items-center gap-3 mb-4 sm:mb-6">
-                <div className="w-10 h-10 bg-gradient-to-br from-[#c9a45c] to-[#f0c987] rounded-lg flex items-center justify-center">
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-[#1a1f35]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                  </svg>
-                </div>
-                <h2 className="text-xl sm:text-2xl font-bold bg-gradient-to-r from-white via-[#c9a45c] to-[#f0c987] bg-clip-text text-transparent">
-                  Información General
-                </h2>
-              </div>
-              
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
-                <div className="space-y-4">
-                  <div className="bg-gradient-to-r from-[#1e2538]/40 to-[#2a3347]/40 rounded-lg p-4 border border-[#3d4659]/20">
-                    <div className="flex items-center gap-2 mb-2">
-                      <div className="w-2 h-2 bg-[#c9a45c] rounded-full"></div>
-                      <span className="text-gray-400 text-sm font-medium">Casita</span>
-                    </div>
-                    <p className="text-lg sm:text-xl font-bold text-[#c9a45c]">{data?.casita}</p>
-                  </div>
-                  
-                  <div className="bg-gradient-to-r from-[#1e2538]/40 to-[#2a3347]/40 rounded-lg p-4 border border-[#3d4659]/20">
-                    <div className="flex items-center gap-2 mb-2">
-                      <div className="w-2 h-2 bg-blue-400 rounded-full"></div>
-                      <span className="text-gray-400 text-sm font-medium">Fecha de Revisión</span>
-                    </div>
-                    <p className="text-base sm:text-lg text-white font-medium">
-                      {data?.created_at.split('.')[0].replace('T', ' ')}
-                    </p>
-                  </div>
-                </div>
-                
-                <div className="space-y-4">
-                  <div className="bg-gradient-to-r from-[#1e2538]/40 to-[#2a3347]/40 rounded-lg p-4 border border-[#3d4659]/20">
-                    <div className="flex items-center gap-2 mb-2">
-                      <div className="w-2 h-2 bg-green-400 rounded-full"></div>
-                      <span className="text-gray-400 text-sm font-medium">Revisado por</span>
-                    </div>
-                    <p className="text-base sm:text-lg text-white font-medium">{data?.quien_revisa}</p>
-                  </div>
-                  
-                  <div className="bg-gradient-to-r from-[#1e2538]/40 to-[#2a3347]/40 rounded-lg p-4 border border-[#3d4659]/20">
-                    <div className="flex items-center gap-2 mb-2">
-                      <div className="w-2 h-2 bg-purple-400 rounded-full"></div>
-                      <span className="text-gray-400 text-sm font-medium">Caja Fuerte</span>
-                    </div>
-                    {isEditing ? (
-                      <select
-                        value={editedData?.caja_fuerte}
-                        onChange={(e) => handleInputChange('caja_fuerte', e.target.value)}
-                        className="w-full px-3 py-2 bg-[#1e2538] border border-[#3d4659] rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-[#c9a45c]/50 focus:border-[#c9a45c]/50 transition-all"
-                      >
-                        <option value="Si">Si</option>
-                        <option value="No">No</option>
-                        <option value="Check in">Check in</option>
-                        <option value="Check out">Check out</option>
-                        <option value="Upsell">Upsell</option>
-                        <option value="Guardar Upsell">Guardar Upsell</option>
-                        <option value="Back to Back">Back to Back</option>
-                        <option value="Show Room">Show Room</option>
-                      </select>
-                    ) : (
-                      <p className="text-base sm:text-lg text-white font-medium">{data?.caja_fuerte}</p>
-                    )}
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Accesorios */}
+            {/* Información de la Revisión */}
             <div className="bg-gradient-to-br from-[#2a3347]/60 to-[#1e2538]/60 backdrop-blur-sm rounded-xl p-4 sm:p-6 border border-[#3d4659]/30 shadow-lg">
               <div className="flex items-center gap-3 mb-4 sm:mb-6">
                 <div className="w-10 h-10 bg-gradient-to-br from-orange-500 to-orange-600 rounded-lg flex items-center justify-center">
@@ -902,145 +1150,30 @@ export default function DetallesRevision() {
                   </svg>
                 </div>
                 <h2 className="text-xl sm:text-2xl font-bold bg-gradient-to-r from-orange-400 to-orange-500 bg-clip-text text-transparent">
-                  Accesorios y Estado
+                  Información de la Revisión
                 </h2>
               </div>
               
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                {Object.entries(data || {}).map(([key, value]) => {
-                  if (key === 'id' || key === 'created_at' || key === 'casita' || 
-                      key === 'quien_revisa' || key === 'caja_fuerte' || 
-                      key === 'fecha_edicion' || key === 'quien_edito' || 
-                      key === 'datos_anteriores' || key === 'datos_actuales' || 
-                      key === 'fecha_creacion' || key === 'Notas' ||
-                      key.startsWith('evidencia_')) {
-                    return null;
-                  }
-
-                  const label = key.split('_').map(word => 
-                    word.charAt(0).toUpperCase() + word.slice(1)
-                  ).join(' ');
-
-                  return (
-                    <div key={key} className="bg-gradient-to-br from-[#1e2538]/50 to-[#2a3347]/50 rounded-lg p-4 border border-[#3d4659]/20 hover:border-[#c9a45c]/30 transition-all duration-300 hover:shadow-lg">
-                      <div className="flex items-center gap-2 mb-3">
-                        <div className="w-2 h-2 bg-orange-400 rounded-full"></div>
-                        <h3 className="text-sm font-semibold text-orange-400 uppercase tracking-wide">{label}</h3>
-                      </div>
-                      {isEditing ? (
-                        <input
-                          type="text"
-                          value={editedData?.[key as keyof RevisionData] || ''}
-                          onChange={(e) => handleInputChange(key as keyof RevisionData, e.target.value)}
-                          className="w-full px-3 py-2 bg-[#1e2538] border border-[#3d4659] rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-[#c9a45c]/50 focus:border-[#c9a45c]/50 transition-all text-sm"
-                        />
-                      ) : (
-                        <p className="text-white font-medium text-sm sm:text-base break-words">{value}</p>
-                      )}
-                    </div>
-                  );
-                })}
+                {[
+                  'casita', 'quien_revisa', 'created_at', 'caja_fuerte',
+                  'puertas_ventanas', 'chromecast', 'binoculares', 'trapo_binoculares',
+                  'speaker', 'usb_speaker', 'controles_tv', 'secadora',
+                  'accesorios_secadora', 'steamer', 'bolsa_vapor', 'plancha_cabello',
+                  'bulto', 'sombrero', 'bolso_yute', 'camas_ordenadas', 'cola_caballo',
+                  'evidencia_01', 'evidencia_02', 'evidencia_03', 'notas'
+                ].filter((key) => {
+                  // Mostrar siempre los campos especiales, los demás solo si tienen valor válido
+                  if ([
+                    'casita', 'quien_revisa', 'created_at', 'caja_fuerte',
+                    'notas'
+                  ].includes(key)) return true;
+                  const val = revision?.[key as keyof Revision];
+                  return val && val !== '' && val !== '0';
+                }).map((key) => renderField(key as keyof Revision, revision?.[key as keyof Revision]))}
               </div>
             </div>
 
-            {/* Evidencias */}
-            {(data.evidencia_01 || data.evidencia_02 || data.evidencia_03) && (
-              <div className="bg-gradient-to-br from-[#2a3347]/60 to-[#1e2538]/60 backdrop-blur-sm rounded-xl p-4 sm:p-6 border border-[#3d4659]/30 shadow-lg">
-                <div className="flex items-center gap-3 mb-4 sm:mb-6">
-                  <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-blue-600 rounded-lg flex items-center justify-center">
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                    </svg>
-                  </div>
-                  <h2 className="text-xl sm:text-2xl font-bold bg-gradient-to-r from-blue-400 to-blue-500 bg-clip-text text-transparent">
-                    Evidencias Fotográficas
-                  </h2>
-                </div>
-                
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {data.evidencia_01 && (
-                    <div className="bg-gradient-to-br from-[#1e2538]/50 to-[#2a3347]/50 rounded-lg p-4 border border-[#3d4659]/20 hover:border-blue-400/30 transition-all duration-300 hover:shadow-lg group">
-                      <div className="flex items-center justify-between mb-3">
-                        <div className="flex items-center gap-2">
-                          <div className="w-2 h-2 bg-blue-400 rounded-full"></div>
-                          <span className="text-blue-400 font-semibold text-sm">Evidencia 1</span>
-                        </div>
-                        <div className="w-6 h-6 bg-blue-500/20 rounded-full flex items-center justify-center">
-                          <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 text-blue-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                          </svg>
-                        </div>
-                      </div>
-                      <button
-                        onClick={() => openModal(data.evidencia_01)}
-                        className="w-full px-4 py-3 bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-lg hover:from-blue-600 hover:to-blue-700 transition-all duration-300 transform hover:scale-[1.02] shadow-lg hover:shadow-xl font-medium flex items-center justify-center gap-2 group-hover:shadow-blue-500/25"
-                      >
-                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                        </svg>
-                        Ver Imagen
-                      </button>
-                    </div>
-                  )}
-                  
-                  {data.evidencia_02 && (
-                    <div className="bg-gradient-to-br from-[#1e2538]/50 to-[#2a3347]/50 rounded-lg p-4 border border-[#3d4659]/20 hover:border-blue-400/30 transition-all duration-300 hover:shadow-lg group">
-                      <div className="flex items-center justify-between mb-3">
-                        <div className="flex items-center gap-2">
-                          <div className="w-2 h-2 bg-blue-400 rounded-full"></div>
-                          <span className="text-blue-400 font-semibold text-sm">Evidencia 2</span>
-                        </div>
-                        <div className="w-6 h-6 bg-blue-500/20 rounded-full flex items-center justify-center">
-                          <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 text-blue-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                          </svg>
-                        </div>
-                      </div>
-                      <button
-                        onClick={() => openModal(data.evidencia_02)}
-                        className="w-full px-4 py-3 bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-lg hover:from-blue-600 hover:to-blue-700 transition-all duration-300 transform hover:scale-[1.02] shadow-lg hover:shadow-xl font-medium flex items-center justify-center gap-2 group-hover:shadow-blue-500/25"
-                      >
-                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                        </svg>
-                        Ver Imagen
-                      </button>
-                    </div>
-                  )}
-                  
-                  {data.evidencia_03 && (
-                    <div className="bg-gradient-to-br from-[#1e2538]/50 to-[#2a3347]/50 rounded-lg p-4 border border-[#3d4659]/20 hover:border-blue-400/30 transition-all duration-300 hover:shadow-lg group">
-                      <div className="flex items-center justify-between mb-3">
-                        <div className="flex items-center gap-2">
-                          <div className="w-2 h-2 bg-blue-400 rounded-full"></div>
-                          <span className="text-blue-400 font-semibold text-sm">Evidencia 3</span>
-                        </div>
-                        <div className="w-6 h-6 bg-blue-500/20 rounded-full flex items-center justify-center">
-                          <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 text-blue-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                          </svg>
-                        </div>
-                      </div>
-                      <button
-                        onClick={() => openModal(data.evidencia_03)}
-                        className="w-full px-4 py-3 bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-lg hover:from-blue-600 hover:to-blue-700 transition-all duration-300 transform hover:scale-[1.02] shadow-lg hover:shadow-xl font-medium flex items-center justify-center gap-2 group-hover:shadow-blue-500/25"
-                      >
-                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                        </svg>
-                        Ver Imagen
-                      </button>
-                    </div>
-                  )}
-                </div>
-              </div>
-            )}
 
             {/* Notas */}
             <div className="bg-gradient-to-br from-[#2a3347]/60 to-[#1e2538]/60 backdrop-blur-sm rounded-xl p-4 sm:p-6 border border-[#3d4659]/30 shadow-lg">
@@ -1092,7 +1225,7 @@ export default function DetallesRevision() {
                         </label>
                         <select
                           required
-                          className="w-full px-4 py-3 bg-gradient-to-r from-[#1e2538] to-[#2a3347] border border-[#3d4659] rounded-xl text-white focus:outline-none focus:ring-2 focus:ring-purple-500/50 focus:border-purple-500/50 transition-all"
+                          className="w-full px-4 py-3 bg-gradient-to-r from-[#1e2538] to-[#2a3347] border border-[#3d4659] rounded-xl text-black focus:outline-none focus:ring-2 focus:ring-purple-500/50 focus:border-purple-500/50 transition-all"
                           value={nuevaNota.Usuario}
                           onChange={(e) => setNuevaNota({ ...nuevaNota, Usuario: e.target.value })}
                         >
@@ -1266,7 +1399,7 @@ export default function DetallesRevision() {
                               {nota.Usuario}
                             </p>
                             <p className="text-gray-400 text-xs">
-                              {nota.fecha.split('.')[0].replace('T', ' ')}
+                              {formatearFechaParaMostrar(nota.fecha)}
                             </p>
                           </div>
                         </div>
@@ -1335,7 +1468,7 @@ export default function DetallesRevision() {
                             {edicion["Usuario que Edito"]}
                           </p>
                           <p className="text-gray-400 text-xs">
-                            {edicion.created_at ? edicion.created_at.split('+')[0].replace('T', ' ') : ''}
+                            {edicion.created_at ? formatearFechaParaMostrar(edicion.created_at) : 'Fecha no disponible'}
                           </p>
                         </div>
                       </div>
