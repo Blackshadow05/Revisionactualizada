@@ -130,173 +130,78 @@ body {
   animation: pulse-success 1.5s ease-in-out infinite;
 }
 
-/* Estilos de tabla optimizados - Columnas fijas funcionales */
-
-/* Estilos base para todas las tablas */
-.table-container {
-  @apply overflow-x-auto custom-scrollbar;
-  max-height: 85vh;
-  -webkit-overflow-scrolling: touch;
-}
-
-.table-container table {
-  @apply border-separate;
-  border-spacing: 0;
-  min-width: 100%;
-}
-
-/* Encabezado siempre fijo */
-.table-container thead {
-  position: sticky !important;
-  top: 0 !important;
-  z-index: 30 !important;
-}
-
-.table-container thead th {
-  @apply bg-gray-800 border-b border-gray-600;
-  background: linear-gradient(to right, #1e2538cc, #2a3347cc) !important;
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
-}
-
-/* Columnas fijas - Primera columna (Fecha) */
-.table-col-fixed-1 {
-  position: sticky !important;
-  left: 0 !important;
-  z-index: 20 !important;
-  background: linear-gradient(to right, #1e2538, #2a3347) !important;
-  border-right: 1px solid rgba(61, 70, 89, 0.5) !important;
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
-  min-width: 110px !important;
-  max-width: 110px !important;
-}
-
-/* Columnas fijas - Segunda columna (Casita) */
-.table-col-fixed-2 {
-  position: sticky !important;
-  left: 110px !important;
-  z-index: 20 !important;
-  background: linear-gradient(to right, #1e2538, #2a3347) !important;
-  border-right: 1px solid rgba(61, 70, 89, 0.5) !important;
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
-  min-width: 70px !important;
-}
-
-/* Headers de columnas fijas con z-index más alto */
-.table-container thead .table-col-fixed-1,
-.table-container thead .table-col-fixed-2 {
-  z-index: 40 !important;
-  background: linear-gradient(to right, #1e2538, #2a3347) !important;
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
-}
-
-/* Estilos específicos para móvil */
+/* Estilos de tabla optimizados para móvil */
 @media (max-width: 768px) {
-  .table-container {
-    margin: 0 -1rem;
-    width: calc(100% + 2rem);
+  .table-mobile-optimized {
+    @apply overflow-x-auto -mx-4 w-screen;
     max-height: 85vh;
+    -webkit-overflow-scrolling: touch;
   }
 
-  .table-container table {
-    @apply text-xs;
-    font-size: 0.8rem;
+  .table-mobile-optimized table {
+    @apply text-xs border-separate;
+    border-spacing: 0;
+    min-width: 100%;
   }
 
-  .table-container th,
-  .table-container td {
-    @apply p-1 text-center whitespace-nowrap;
-    padding: 0.25rem 0.375rem;
+  .table-mobile-optimized th,
+  .table-mobile-optimized td {
+    @apply p-1 text-center whitespace-nowrap min-w-[50px];
     line-height: 1.2;
-    min-width: 50px;
   }
 
+  .table-mobile-optimized thead {
+    @apply sticky top-0 z-30;
+  }
+
+  .table-mobile-optimized thead th {
+    @apply bg-gray-800 border-b border-gray-600 text-xs font-medium;
+  }
+
+  /* Columnas fijas críticas */
   .table-col-fixed-1 {
-    font-size: 0.75rem !important;
-    padding: 0.25rem 0.375rem !important;
-    line-height: 1.1 !important;
-  }
-
-  .table-col-fixed-1 .flex-col {
-    gap: 0.125rem;
-  }
-
-  .table-col-fixed-1 .text-xs {
-    font-size: 0.75rem;
-    line-height: 1.1;
-    color: #c9a45c;
+    @apply sticky left-0 z-20 bg-gray-800 border-r border-gray-600 min-w-[110px] max-w-[110px] text-xs px-1;
   }
 
   .table-col-fixed-2 {
-    font-size: 0.8rem !important;
-    min-width: 60px !important;
+    @apply sticky z-20 bg-gray-800 border-r border-gray-600 min-w-[60px] text-xs;
+    left: 110px;
   }
 
-  /* Ajustes específicos para columnas en móvil */
-  .table-container td:nth-child(3), /* Quien revisa */
-  .table-container td:nth-child(4), /* Caja fuerte */
-  .table-container td:nth-child(5), /* Puertas/Ventanas */
-  .table-container th:nth-child(3),
-  .table-container th:nth-child(4),
-  .table-container th:nth-child(5) {
-    min-width: 70px !important;
-  }
-
-  .table-container td:nth-child(22), /* Notas */
-  .table-container th:nth-child(22) {
-    min-width: 65px !important;
-  }
-
-  .table-container td:nth-child(23), /* Evidencias */
-  .table-container th:nth-child(23) {
-    min-width: 60px !important;
+  /* Headers fijos */
+  .table-mobile-optimized thead .table-col-fixed-1,
+  .table-mobile-optimized thead .table-col-fixed-2 {
+    @apply z-40 bg-gray-800;
   }
 }
 
-/* Estilos específicos para desktop */
+/* Estilos de tabla para desktop */
 @media (min-width: 769px) {
-  .table-container {
+  .table-desktop-optimized {
+    @apply overflow-x-auto mb-4 custom-scrollbar;
     max-height: 90vh;
-    margin-bottom: 1rem;
   }
 
-  .table-col-fixed-1 {
-    min-width: 140px !important;
-    max-width: 140px !important;
-    color: #c9a45c !important;
-    font-size: 1.1rem !important;
+  .table-desktop-optimized thead {
+    @apply sticky top-0 z-30;
   }
 
-  .table-col-fixed-2 {
-    left: 140px !important;
-    min-width: 70px !important;
+  .table-desktop-optimized thead th {
+    @apply bg-gray-800 border-b border-gray-600;
   }
 
-  .table-container td {
-    @apply p-3;
+  .table-desktop-optimized .table-col-fixed-1 {
+    @apply sticky left-0 z-20 bg-gray-800 border-r border-gray-600;
   }
 
-  /* Ajustes específicos para columnas en desktop */
-  .table-container td:nth-child(3), /* Quien revisa */
-  .table-container td:nth-child(4), /* Caja fuerte */
-  .table-container td:nth-child(5), /* Puertas/Ventanas */
-  .table-container th:nth-child(3),
-  .table-container th:nth-child(4),
-  .table-container th:nth-child(5) {
-    min-width: 85px !important;
+  .table-desktop-optimized .table-col-fixed-2 {
+    @apply sticky z-20 bg-gray-800 border-r border-gray-600;
+    left: 110px;
   }
 
-  .table-container td:nth-child(22), /* Notas */
-  .table-container th:nth-child(22) {
-    min-width: 75px !important;
-  }
-
-  .table-container td:nth-child(23), /* Evidencias */
-  .table-container th:nth-child(23) {
-    min-width: 120px !important;
+  .table-desktop-optimized thead .table-col-fixed-1,
+  .table-desktop-optimized thead .table-col-fixed-2 {
+    @apply z-40 bg-gray-800;
   }
 }
 
