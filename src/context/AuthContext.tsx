@@ -7,6 +7,7 @@ interface AuthContextType {
   isLoggedIn: boolean;
   userRole: string | null;
   user: string | null;
+  isLoading: boolean;
   login: (usuario: string, password: string) => Promise<void>;
   logout: () => void;
 }
@@ -17,16 +18,55 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [userRole, setUserRole] = useState<string | null>(null);
   const [user, setUser] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    // Verificar si hay una sesión guardada al cargar la página
-    const storedSession = localStorage.getItem('userSession');
-    if (storedSession) {
-      const { usuario, role } = JSON.parse(storedSession);
-      setIsLoggedIn(true);
-      setUserRole(role);
-      setUser(usuario);
-    }
+    // 🚀 Verificar sesión con manejo de SSR y producción
+    const checkAuthStatus = async () => {
+      try {
+        // Verificar si estamos en el cliente
+        if (typeof window === 'undefined') {
+          setIsLoading(false);
+          return;
+        }
+
+        // Pequeño delay para evitar problemas de hidratación
+        await new Promise(resolve => setTimeout(resolve, 50));
+
+        const storedSession = localStorage.getItem('userSession');
+        if (storedSession) {
+          try {
+            const { usuario, role, timestamp } = JSON.parse(storedSession);
+            
+            // Verificar que la sesión no sea muy antigua (24 horas)
+            const now = new Date().getTime();
+            const sessionAge = now - timestamp;
+            const maxAge = 24 * 60 * 60 * 1000; // 24 horas
+            
+            if (sessionAge < maxAge) {
+              console.log('✅ Sesión válida encontrada:', usuario);
+              setIsLoggedIn(true);
+              setUserRole(role);
+              setUser(usuario);
+            } else {
+              console.warn('⚠️ Sesión expirada, limpiando...');
+              localStorage.removeItem('userSession');
+            }
+          } catch (parseError) {
+            console.error('❌ Error parsing session:', parseError);
+            localStorage.removeItem('userSession');
+          }
+        } else {
+          console.log('ℹ️ No hay sesión guardada');
+        }
+      } catch (error) {
+        console.error('❌ Error checking auth status:', error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    checkAuthStatus();
   }, []);
 
   const login = async (usuario: string, password: string) => {
@@ -77,7 +117,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   return (
-    <AuthContext.Provider value={{ isLoggedIn, userRole, user, login, logout }}>
+    <AuthContext.Provider value={{ isLoggedIn, userRole, user, isLoading, login, logout }}>
       {children}
     </AuthContext.Provider>
   );
