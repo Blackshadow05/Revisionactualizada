@@ -1,18 +1,18 @@
 'use client';
 
-import { useState, useEffect, useRef, useMemo, useCallback, memo } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { supabase, checkSupabaseConnection } from '@/lib/supabase';
 import { useRouter } from 'next/navigation';
+import { MagnifyingGlassIcon } from '@heroicons/react/24/outline';
 
 import Link from 'next/link';
 import { useAuth } from '@/context/AuthContext';
 import { useSpectacularBackground } from '@/hooks/useSpectacularBackground';
 
-// Tipos optimizados
 interface RevisionData {
-  id: string;
+  id?: string;
   created_at: string;
   casita: string;
   quien_revisa: string;
@@ -26,196 +26,105 @@ interface RevisionData {
   controles_tv: string;
   secadora: string;
   accesorios_secadora: string;
+  faltantes: string;
   steamer: string;
   bolsa_vapor: string;
   plancha_cabello: string;
   bulto: string;
   sombrero: string;
   bolso_yute: string;
-  evidencia_01?: string;
-  evidencia_02?: string;
-  evidencia_03?: string;
-  notas?: string;
-  notas_count?: number;
+  evidencia_01: string;
+  evidencia_02: string;
+  evidencia_03: string;
+  fecha_edicion: string;
+  quien_edito: string;
+  datos_anteriores: any;
+  datos_actuales: any;
+
   camas_ordenadas: string;
   cola_caballo: string;
+  notas: string;
+  notas_count: number;
 }
-
-// Estados consolidados
-interface UIState {
-  showLoginModal: boolean;
-  showMenuDropdown: boolean;
-  showReportModal: boolean;
-  isSearchFocused: boolean;
-}
-
-interface ModalState {
-  isOpen: boolean;
-  imageUrl: string | null;
-  zoom: number;
-  position: { x: number; y: number };
-  isDragging: boolean;
-  dragStart: { x: number; y: number };
-}
-
-interface LoginState {
-  usuario: string;
-  password: string;
-  error: string | null;
-}
-
-interface ReportState {
-  dateFrom: string;
-  dateTo: string;
-}
-
-// Componente memoizado para cada fila de la tabla
-const TableRow = memo(({ 
-  row, 
-  router, 
-  openModal 
-}: { 
-  row: RevisionData; 
-  router: any;
-  openModal: (url: string) => void;
-}) => (
-  <tr className="border-t border-[#3d4659]/50 text-gray-300 hover:bg-[#1e2538]/50 transition-colors duration-200">
-                    <td className="table-col-fixed-1">
-      <div className="flex flex-col whitespace-nowrap">
-        <span className="text-[13px] md:text-xs text-[#c9a45c]">
-          {row.created_at.split('+')[0].split('T')[0]}
-        </span>
-        <span className="text-[13px] md:text-xs text-[#c9a45c]">
-          {row.created_at.split('+')[0].split('T')[1].split(':').slice(0,2).join(':')}
-        </span>
-      </div>
-    </td>
-                    <td className="table-col-fixed-2">
-      <button
-        onClick={() => router.push(`/detalles/${row.id}`)}
-        className={
-          (row.notas_count && row.notas_count > 0
-            ? 'text-orange-400 font-extrabold underline underline-offset-4 decoration-orange-400/60 hover:text-orange-300 hover:decoration-orange-300/80 scale-105'
-            : 'text-sky-400 hover:text-sky-300 underline decoration-sky-400/30 hover:decoration-sky-300/50') +
-          ' transition-colors duration-200 hover:scale-105 transform'
-        }
-      >
-        {row.casita}
-      </button>
-    </td>
-    <td className="px-3 py-2 md:px-4 md:py-3">{row.quien_revisa}</td>
-    <td className="px-3 py-2 md:px-4 md:py-3">{row.caja_fuerte}</td>
-    <td className="px-3 py-2 md:px-4 md:py-3">{row.puertas_ventanas}</td>
-    <td className="px-3 py-2 md:px-4 md:py-3">{row.chromecast}</td>
-    <td className="px-3 py-2 md:px-4 md:py-3">{row.binoculares}</td>
-    <td className="px-3 py-2 md:px-4 md:py-3">{row.trapo_binoculares}</td>
-    <td className="px-3 py-2 md:px-4 md:py-3">{row.speaker}</td>
-    <td className="px-3 py-2 md:px-4 md:py-3">{row.usb_speaker}</td>
-    <td className="px-3 py-2 md:px-4 md:py-3">{row.controles_tv}</td>
-    <td className="px-3 py-2 md:px-4 md:py-3">{row.secadora}</td>
-    <td className="px-3 py-2 md:px-4 md:py-3">{row.accesorios_secadora}</td>
-    <td className="px-3 py-2 md:px-4 md:py-3">{row.steamer}</td>
-    <td className="px-3 py-2 md:px-4 md:py-3">{row.bolsa_vapor}</td>
-    <td className="px-3 py-2 md:px-4 md:py-3">{row.plancha_cabello}</td>
-    <td className="px-3 py-2 md:px-4 md:py-3">{row.bulto}</td>
-    <td className="px-3 py-2 md:px-4 md:py-3">{row.sombrero}</td>
-    <td className="px-3 py-2 md:px-4 md:py-3">{row.bolso_yute}</td>
-    <td className="px-3 py-2 md:px-4 md:py-3">{row.camas_ordenadas}</td>
-    <td className="px-3 py-2 md:px-4 md:py-3">{row.cola_caballo}</td>
-    <td className="px-3 py-2 md:px-4 md:py-3">{row.notas}</td>
-    <td className="px-3 py-2 md:px-4 md:py-3">
-      <div className="flex items-center gap-1 flex-nowrap">
-        {row.evidencia_01 && (
-          <button
-            type="button"
-            onClick={() => openModal(row.evidencia_01!)}
-            className="text-[#c9a45c] hover:text-[#f0c987] underline cursor-pointer hover:scale-110 transform duration-200 bg-[#1e2538]/50 px-1.5 py-0.5 rounded text-xs shadow-[0_2px_4px_rgb(0_0_0/0.2)] hover:shadow-[0_2px_4px_rgb(0_0_0/0.3)] transition-all duration-200 min-w-[20px] flex-shrink-0"
-            title="Ver evidencia 1"
-          >
-            1
-          </button>
-        )}
-        {row.evidencia_02 && (
-          <button
-            type="button"
-            onClick={() => openModal(row.evidencia_02!)}
-            className="text-[#c9a45c] hover:text-[#f0c987] underline cursor-pointer hover:scale-110 transform duration-200 bg-[#1e2538]/50 px-1.5 py-0.5 rounded text-xs shadow-[0_2px_4px_rgb(0_0_0/0.2)] hover:shadow-[0_2px_4px_rgb(0_0_0/0.3)] transition-all duration-200 min-w-[20px] flex-shrink-0"
-            title="Ver evidencia 2"
-          >
-            2
-          </button>
-        )}
-        {row.evidencia_03 && (
-          <button
-            type="button"
-            onClick={() => openModal(row.evidencia_03!)}
-            className="text-[#c9a45c] hover:text-[#f0c987] underline cursor-pointer hover:scale-110 transform duration-200 bg-[#1e2538]/50 px-1.5 py-0.5 rounded text-xs shadow-[0_2px_4px_rgb(0_0_0/0.3)] transition-all duration-200 min-w-[20px] flex-shrink-0"
-            title="Ver evidencia 3"
-          >
-            3
-          </button>
-        )}
-      </div>
-    </td>
-  </tr>
-));
-
-TableRow.displayName = 'TableRow';
-
-// Constantes
-const CAJA_FUERTE_OPTIONS = [
-  'Si', 'No', 'Check in', 'Check out', 'Upsell', 'Guardar Upsell', 'Back to Back', 'Show Room'
-] as const;
 
 export default function Home() {
   const router = useRouter();
   const { isLoggedIn, userRole, login, logout, user } = useAuth();
-  
-  // Estados consolidados
   const [data, setData] = useState<RevisionData[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
+  const [isSearchFocused, setIsSearchFocused] = useState(false);
   const [cajaFuerteFilter, setCajaFuerteFilter] = useState('');
-  
-  const [uiState, setUiState] = useState<UIState>({
-    showLoginModal: false,
-    showMenuDropdown: false,
-    showReportModal: false,
-    isSearchFocused: false,
-  });
-  
-  const [modalState, setModalState] = useState<ModalState>({
-    isOpen: false,
-    imageUrl: null,
-    zoom: 1,
-    position: { x: 0, y: 0 },
-    isDragging: false,
-    dragStart: { x: 0, y: 0 },
-  });
-  
-  const [loginState, setLoginState] = useState<LoginState>({
-    usuario: '',
-    password: '',
-    error: null,
-  });
-  
-  const [reportState, setReportState] = useState<ReportState>({
-    dateFrom: '',
-    dateTo: '',
-  });
-
-  // Refs
-  const tableContainerRef = useRef<HTMLDivElement>(null);
+  const [modalOpen, setModalOpen] = useState(false);
+  const [modalImg, setModalImg] = useState<string | null>(null);
+  const [zoom, setZoom] = useState(1);
+  const [position, setPosition] = useState({ x: 0, y: 0 });
+  const [isDragging, setIsDragging] = useState(false);
+  const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
   const imgRef = useRef<HTMLImageElement>(null);
-  const searchInputRef = useRef<HTMLInputElement>(null);
-  const [tableScroll, setTableScroll] = useState({ startX: 0, scrollLeft: 0 });
+  const [showLoginModal, setShowLoginModal] = useState(false);
+  const [loginData, setLoginData] = useState({
+    usuario: '',
+    password: ''
+  });
+  const [loginError, setLoginError] = useState<string | null>(null);
+  const [showMenuDropdown, setShowMenuDropdown] = useState(false);
+  const [showReportModal, setShowReportModal] = useState(false);
+  const [reportDateFrom, setReportDateFrom] = useState('');
+  const [reportDateTo, setReportDateTo] = useState('');
+  // Función para manejar el toggle del menú
+  const handleMenuToggle = () => {
+    setShowMenuDropdown(prev => !prev);
+  };
 
+  const tableContainerRef = useRef<HTMLDivElement>(null);
+  const [startX, setStartX] = useState(0);
+  const [scrollLeft, setScrollLeft] = useState(0);
+
+  const cajaFuerteOptions = [
+    'Si', 'No', 'Check in', 'Check out', 'Upsell', 'Guardar Upsell', 'Back to Back', 'Show Room'
+  ];
+
+
+  const searchInputRef = useRef<HTMLInputElement>(null);
+  
   // Hook para el fondo espectacular
   const spectacularBg = useSpectacularBackground();
 
-  // Función optimizada para obtener revisiones
-  const fetchRevisiones = useCallback(async () => {
+  useEffect(() => {
+    fetchRevisiones();
+  }, []);
+
+  useEffect(() => {
+    const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+    if (isMobile && searchInputRef.current) {
+      searchInputRef.current.focus();
+    }
+  }, []);
+
+  // Cerrar menú desplegable al hacer clic fuera
+  useEffect(() => {
+    const handleClickOutside = (event: Event) => {
+      if (showMenuDropdown) {
+        const target = event.target as Element;
+        if (!target.closest('.menu-dropdown-container')) {
+          setShowMenuDropdown(false);
+        }
+      }
+    };
+
+    // Usar eventos más específicos para mejor compatibilidad móvil
+    document.addEventListener('click', handleClickOutside, true);
+    document.addEventListener('touchend', handleClickOutside, true);
+    
+    return () => {
+      document.removeEventListener('click', handleClickOutside, true);
+      document.removeEventListener('touchend', handleClickOutside, true);
+    };
+  }, [showMenuDropdown]);
+
+  const fetchRevisiones = async () => {
     try {
       setLoading(true);
       setError(null);
@@ -226,40 +135,10 @@ export default function Home() {
         throw new Error('No se pudo conectar con la base de datos. Por favor, verifica tu conexión.');
       }
       
-      // Consulta optimizada: solo campos necesarios
       const { data: revisiones, error } = await supabase
         .from('revisiones_casitas')
-        .select(`
-          id,
-          created_at,
-          casita,
-          quien_revisa,
-          caja_fuerte,
-          puertas_ventanas,
-          chromecast,
-          binoculares,
-          trapo_binoculares,
-          speaker,
-          usb_speaker,
-          controles_tv,
-          secadora,
-          accesorios_secadora,
-          steamer,
-          bolsa_vapor,
-          plancha_cabello,
-          bulto,
-          sombrero,
-          bolso_yute,
-          camas_ordenadas,
-          cola_caballo,
-          evidencia_01,
-          evidencia_02,
-          evidencia_03,
-          notas,
-          notas_count
-        `)
-        .order('created_at', { ascending: false })
-        .limit(1000); // Limitar a 1000 registros más recientes
+        .select('*')
+        .order('created_at', { ascending: false });
 
       if (error) {
         console.error('Error fetching data:', error);
@@ -270,164 +149,285 @@ export default function Home() {
         throw new Error('No se encontraron datos');
       }
 
-      setData(revisiones as RevisionData[]);
+      setData(revisiones);
     } catch (error: any) {
       console.error('Error in fetchData:', error);
       setError(error.message || 'Error al cargar los datos');
     } finally {
       setLoading(false);
     }
-  }, []);
+  };
 
-  // Filtrado optimizado con useMemo
-  const filteredData = useMemo(() => {
-    if (!data.length) return [];
+  const filteredData = data.filter(row => {
+    const searchLower = searchTerm.toLowerCase();
     
-    return data.filter(row => {
-      // Filtro por caja fuerte
-      const cajaFuerteMatch = !cajaFuerteFilter || row.caja_fuerte === cajaFuerteFilter;
-      
-      // Si no hay término de búsqueda, solo aplicar filtro de caja fuerte
-      if (!searchTerm.trim()) {
-        return cajaFuerteMatch;
-      }
-      
-      // Filtro por término de búsqueda (optimizado)
-      const searchLower = searchTerm.toLowerCase().trim();
-      const searchMatch = 
-        row.casita.toLowerCase() === searchLower || 
-        row.quien_revisa.toLowerCase().includes(searchLower) ||
-        row.caja_fuerte.toLowerCase().includes(searchLower);
+    const cajaFuerteMatch = !cajaFuerteFilter || row.caja_fuerte === cajaFuerteFilter;
 
-      return cajaFuerteMatch && searchMatch;
-    });
-  }, [data, searchTerm, cajaFuerteFilter]);
-
-  // Handlers optimizados con useCallback
-  const openModal = useCallback((imgUrl: string) => {
-    setModalState({
-      isOpen: true,
-      imageUrl: imgUrl,
-      zoom: 1,
-      position: { x: 0, y: 0 },
-      isDragging: false,
-      dragStart: { x: 0, y: 0 },
-    });
-  }, []);
-
-  const closeModal = useCallback(() => {
-    setModalState(prev => ({
-      ...prev,
-      isOpen: false,
-      imageUrl: null,
-      zoom: 1,
-      position: { x: 0, y: 0 },
-    }));
-  }, []);
-
-  const handleMenuToggle = useCallback(() => {
-    setUiState(prev => ({
-      ...prev,
-      showMenuDropdown: !prev.showMenuDropdown
-    }));
-  }, []);
-
-  const handleLogin = useCallback(async (e: React.FormEvent) => {
-    e.preventDefault();
-    setLoginState(prev => ({ ...prev, error: null }));
-
-    try {
-      await login(loginState.usuario, loginState.password);
-      setUiState(prev => ({ ...prev, showLoginModal: false }));
-      setLoginState({ usuario: '', password: '', error: null });
-    } catch (error: any) {
-      console.error('Error al iniciar sesión:', error);
-      setLoginState(prev => ({ ...prev, error: 'Error al iniciar sesión' }));
+    if (!searchTerm) {
+      return cajaFuerteMatch;
     }
-  }, [login, loginState.usuario, loginState.password]);
+    
+    const searchMatch = 
+      row.casita.toLowerCase() === searchLower || 
+      row.quien_revisa.toLowerCase().includes(searchLower) ||
+      row.caja_fuerte.toLowerCase().includes(searchLower);
 
-  // Handlers de tabla optimizados
-  const handleTableMouseDown = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
-    if (tableContainerRef.current) {
-      const startX = e.pageX - tableContainerRef.current.offsetLeft;
-      const scrollLeft = tableContainerRef.current.scrollLeft;
-      setTableScroll({ startX, scrollLeft });
-      tableContainerRef.current.style.cursor = 'grabbing';
-      tableContainerRef.current.style.userSelect = 'none';
-    }
-  }, []);
+    return cajaFuerteMatch && searchMatch;
+  });
 
-  const handleTableMouseMove = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
-    if (tableScroll.startX && tableContainerRef.current) {
-      e.preventDefault();
-      const x = e.pageX - tableContainerRef.current.offsetLeft;
-      const walk = (x - tableScroll.startX) * 2;
-      const newScrollLeft = tableScroll.scrollLeft - walk;
-      
-      const maxScroll = tableContainerRef.current.scrollWidth - tableContainerRef.current.clientWidth;
-      tableContainerRef.current.scrollLeft = Math.max(0, Math.min(newScrollLeft, maxScroll));
-    }
-  }, [tableScroll]);
+  const openModal = (imgUrl: string) => {
+    setModalImg(imgUrl);
+    setZoom(1);
+    setPosition({ x: 0, y: 0 });
+    setModalOpen(true);
+  };
 
-  const handleTableMouseUp = useCallback(() => {
-    if (tableContainerRef.current) {
-      tableContainerRef.current.style.cursor = 'grab';
-      tableContainerRef.current.style.userSelect = 'auto';
-    }
-    setTableScroll({ startX: 0, scrollLeft: 0 });
-  }, []);
+  const closeModal = () => {
+    setModalOpen(false);
+    setModalImg(null);
+    setZoom(1);
+    setPosition({ x: 0, y: 0 });
+  };
 
-  // Efectos optimizados
+  // Efecto para manejar tecla ESC
   useEffect(() => {
-    fetchRevisiones();
-  }, [fetchRevisiones]);
-
-  // Efecto consolidado para eventos del DOM
-  useEffect(() => {
-    const handleClickOutside = (event: Event) => {
-      if (uiState.showMenuDropdown) {
-        const target = event.target as Element;
-        if (!target.closest('.menu-dropdown-container')) {
-          setUiState(prev => ({ ...prev, showMenuDropdown: false }));
-        }
-      }
-    };
-
     const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape' && modalState.isOpen) {
+      if (event.key === 'Escape' && modalOpen) {
         closeModal();
       }
     };
 
-    // Event listeners
-    if (uiState.showMenuDropdown) {
-      document.addEventListener('click', handleClickOutside, true);
-      document.addEventListener('touchend', handleClickOutside, true);
-    }
-    
-    if (modalState.isOpen) {
+    if (modalOpen) {
       document.addEventListener('keydown', handleKeyDown);
-      document.body.style.overflow = 'hidden';
-    } else {
-      document.body.style.overflow = 'unset';
+      document.body.style.overflow = 'hidden'; // Prevenir scroll del fondo
     }
 
-    // Cleanup
     return () => {
-      document.removeEventListener('click', handleClickOutside, true);
-      document.removeEventListener('touchend', handleClickOutside, true);
       document.removeEventListener('keydown', handleKeyDown);
       document.body.style.overflow = 'unset';
     };
-  }, [uiState.showMenuDropdown, modalState.isOpen, closeModal]);
+  }, [modalOpen]);
 
-  // Efecto para mobile focus
-  useEffect(() => {
-    const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
-    if (isMobile && searchInputRef.current) {
-      searchInputRef.current.focus();
+  const handleWheel = (e: React.WheelEvent) => {
+    e.preventDefault();
+    const delta = e.deltaY;
+    const newZoom = delta < 0 ? zoom * 1.1 : zoom / 1.1;
+    setZoom(Math.min(Math.max(1, newZoom), 5));
+  };
+
+  const handleMouseDownImage = (e: React.MouseEvent) => {
+    if (zoom > 1) {
+      e.preventDefault();
+      setIsDragging(true);
+      setDragStart({
+        x: e.clientX - position.x,
+        y: e.clientY - position.y
+      });
     }
-  }, []);
+  };
+
+  const handleMouseMoveImage = (e: React.MouseEvent) => {
+    if (isDragging && zoom > 1) {
+      e.preventDefault();
+      const newX = e.clientX - dragStart.x;
+      const newY = e.clientY - dragStart.y;
+      
+      // Obtener las dimensiones de la imagen
+      const img = imgRef.current;
+      if (img) {
+        const rect = img.getBoundingClientRect();
+        const scaledWidth = rect.width * zoom;
+        const scaledHeight = rect.height * zoom;
+        
+        // Calcular los límites de arrastre
+        const maxX = (scaledWidth - rect.width) / 2;
+        const maxY = (scaledHeight - rect.height) / 2;
+        
+        // Limitar el arrastre a los límites de la imagen
+        setPosition({
+          x: Math.min(Math.max(-maxX, newX), maxX),
+          y: Math.min(Math.max(-maxY, newY), maxY)
+        });
+      }
+    }
+  };
+
+  const handleMouseUpImage = () => {
+    setIsDragging(false);
+  };
+
+  const handleZoomIn = () => {
+    setZoom(prev => Math.min(prev * 1.2, 5));
+  };
+
+  const handleZoomOut = () => {
+    setZoom(prev => Math.max(prev / 1.2, 1));
+    if (zoom <= 1) {
+      setPosition({ x: 0, y: 0 });
+    }
+  };
+
+  const handleContextMenu = (e: React.MouseEvent) => {
+    e.preventDefault();
+  };
+
+  const handleMouseDown = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (tableContainerRef.current) {
+      setStartX(e.pageX - tableContainerRef.current.offsetLeft);
+      setScrollLeft(tableContainerRef.current.scrollLeft);
+      tableContainerRef.current.style.cursor = 'grabbing';
+      tableContainerRef.current.style.userSelect = 'none';
+    }
+  };
+
+  const handleMouseLeave = () => {
+    if (tableContainerRef.current) {
+      tableContainerRef.current.style.cursor = 'grab';
+      tableContainerRef.current.style.userSelect = 'auto';
+    }
+    setStartX(0);
+    setScrollLeft(0);
+  };
+
+  const handleMouseUp = () => {
+    if (tableContainerRef.current) {
+      tableContainerRef.current.style.cursor = 'grab';
+      tableContainerRef.current.style.userSelect = 'auto';
+    }
+    setStartX(0);
+    setScrollLeft(0);
+  };
+
+  const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (startX && tableContainerRef.current) {
+      e.preventDefault();
+      const x = e.pageX - tableContainerRef.current.offsetLeft;
+      const walk = (x - startX) * 2;
+      const newScrollLeft = scrollLeft - walk;
+      
+      // Prevenir el scroll más allá de los límites
+      const maxScroll = tableContainerRef.current.scrollWidth - tableContainerRef.current.clientWidth;
+      tableContainerRef.current.scrollLeft = Math.max(0, Math.min(newScrollLeft, maxScroll));
+    }
+  };
+
+  const handleLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoginError(null);
+
+    try {
+      await login(loginData.usuario, loginData.password);
+      setShowLoginModal(false);
+      setLoginData({ usuario: '', password: '' });
+    } catch (error: any) {
+      console.error('Error al iniciar sesión:', error);
+      setLoginError('Error al iniciar sesión');
+    }
+  };
+
+  const handleDelete = async (id: string) => {
+    if (!supabase) {
+      setError('No se pudo conectar con la base de datos');
+      return;
+    }
+
+    if (!confirm('¿Estás seguro de que deseas eliminar esta revisión?')) return;
+
+    try {
+      const { error } = await supabase
+        .from('revisiones_casitas')
+        .delete()
+        .eq('id', id);
+
+      if (error) throw error;
+      fetchRevisiones();
+    } catch (error: any) {
+      console.error('Error al eliminar la revisión:', error);
+      setError(error.message);
+    }
+  };
+
+  const handleExportExcel = async () => {
+    try {
+      // Filtrar datos por rango de fechas
+      const filteredDataForExport = data.filter(row => {
+        const rowDate = new Date(row.created_at).toISOString().split('T')[0];
+        return rowDate >= reportDateFrom && rowDate <= reportDateTo;
+      });
+
+      if (filteredDataForExport.length === 0) {
+        alert('No hay datos en el rango de fechas seleccionado');
+        return;
+      }
+
+      // Preparar datos para Excel
+      const excelData = filteredDataForExport.map(row => {
+        // Usar la fecha tal como está almacenada, sin conversiones de zona horaria
+        const fechaOriginal = row.created_at;
+        const fechaFormateada = fechaOriginal.replace('T', ' ').substring(0, 16); // YYYY-MM-DD HH:MM
+        const [fecha, hora] = fechaFormateada.split(' ');
+        const [year, month, day] = fecha.split('-');
+        const fechaFinal = `${day}/${month}/${year} ${hora}`;
+        
+        return {
+        'Fecha': fechaFinal,
+        'Casita': row.casita,
+        'Quien Revisa': row.quien_revisa,
+        'Caja Fuerte': row.caja_fuerte,
+        'Puertas/Ventanas': row.puertas_ventanas,
+        'Chromecast': row.chromecast,
+        'Binoculares': row.binoculares,
+        'Trapo Binoculares': row.trapo_binoculares,
+        'Speaker': row.speaker,
+        'USB Speaker': row.usb_speaker,
+        'Controles TV': row.controles_tv,
+        'Secadora': row.secadora,
+        'Accesorios Secadora': row.accesorios_secadora,
+        'Steamer': row.steamer,
+        'Bolsa Vapor': row.bolsa_vapor,
+        'Plancha Cabello': row.plancha_cabello,
+        'Bulto': row.bulto,
+        'Sombrero': row.sombrero,
+        'Bolso Yute': row.bolso_yute,
+        'Camas Ordenadas': row.camas_ordenadas,
+        'Cola Caballo': row.cola_caballo,
+        'Notas': row.notas || '',
+        'Evidencia 1': row.evidencia_01 ? 'Sí' : 'No',
+        'Evidencia 2': row.evidencia_02 ? 'Sí' : 'No',
+        'Evidencia 3': row.evidencia_03 ? 'Sí' : 'No'
+        };
+      });
+
+      // Crear archivo Excel usando una implementación simple
+      const csvContent = [
+        Object.keys(excelData[0]).join(','),
+        ...excelData.map(row => Object.values(row).map(val => `"${val}"`).join(','))
+      ].join('\n');
+
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+      const link = document.createElement('a');
+      const url = URL.createObjectURL(blob);
+      link.setAttribute('href', url);
+      link.setAttribute('download', `Reporte_Revisiones_${reportDateFrom}_${reportDateTo}.csv`);
+      link.style.visibility = 'hidden';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+
+      // Cerrar modal y limpiar campos
+      setShowReportModal(false);
+      setShowMenuDropdown(false);
+      setReportDateFrom('');
+      setReportDateTo('');
+      
+      alert(`Reporte exportado exitosamente como CSV`);
+    } catch (error) {
+      console.error('Error al exportar:', error);
+      alert('Error al exportar el reporte');
+    }
+  };
+
+
 
   return (
     <main style={spectacularBg} className="relative overflow-hidden">
@@ -449,7 +449,7 @@ export default function Home() {
           </button>
           
           {/* Menú Desplegable */}
-          {uiState.showMenuDropdown && (
+          {showMenuDropdown && (
             <div className="absolute top-14 right-0 w-64 bg-gradient-to-br from-[#1e2538]/95 to-[#2a3347]/95 backdrop-blur-md rounded-xl border border-[#3d4659]/50 shadow-2xl z-50">
               <div className="p-2">
                 <div className="px-3 py-2 text-xs font-medium text-[#c9a45c] uppercase tracking-wider border-b border-[#3d4659]/30 mb-2">
@@ -457,7 +457,7 @@ export default function Home() {
                 </div>
                 <Link
                   href="/unir-imagenes"
-                  onClick={() => setUiState(prev => ({ ...prev, showMenuDropdown: false }))}
+                  onClick={() => setShowMenuDropdown(false)}
                   className="w-full flex items-center gap-3 px-3 py-2.5 text-white hover:bg-[#3d4659]/30 rounded-lg transition-all duration-200 text-left"
                 >
                   <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5 text-blue-400">
@@ -469,7 +469,7 @@ export default function Home() {
                 {isLoggedIn && (
                   <Link
                     href="/estadisticas"
-                    onClick={() => setUiState(prev => ({ ...prev, showMenuDropdown: false }))}
+                    onClick={() => setShowMenuDropdown(false)}
                     className="w-full flex items-center gap-3 px-3 py-2.5 text-white hover:bg-[#3d4659]/30 rounded-lg transition-all duration-200 text-left"
                   >
                     <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5 text-yellow-400">
@@ -486,8 +486,8 @@ export default function Home() {
                 {userRole === 'SuperAdmin' && (
                   <button
                     onClick={() => {
-                      setUiState(prev => ({ ...prev, showReportModal: true }));
-                      setUiState(prev => ({ ...prev, showMenuDropdown: false }));
+                      setShowReportModal(true);
+                      setShowMenuDropdown(false);
                     }}
                     className="w-full flex items-center gap-3 px-3 py-2.5 text-white hover:bg-[#3d4659]/30 rounded-lg transition-all duration-200 text-left"
                   >
@@ -563,7 +563,7 @@ export default function Home() {
               {isLoggedIn ? (
                 <button
                   onClick={logout}
-                  className="btn-metallic bg-gradient-to-br from-red-600 to-red-800 border-red-600 px-4 py-2.5 text-white rounded-xl hover:shadow-lg hover:shadow-red-500/25 transition-all duration-300 transform hover:scale-[1.02] flex items-center gap-2 font-medium"
+                  className="metallic-button metallic-button-red px-4 py-2.5 text-white rounded-xl hover:shadow-lg hover:shadow-red-500/25 transition-all duration-300 transform hover:scale-[1.02] flex items-center gap-2 font-medium"
                 >
                   <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-4 h-4">
                     <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 9V5.25A2.25 2.25 0 0013.5 3h-6a2.25 2.25 0 00-2.25 2.25v13.5A2.25 2.25 0 007.5 21h6a2.25 2.25 0 002.25-2.25V15M12 9l-3 3m0 0l3 3m-3-3h12.75" />
@@ -572,8 +572,8 @@ export default function Home() {
                 </button>
               ) : (
                 <button
-                  onClick={() => setUiState(prev => ({ ...prev, showLoginModal: true }))}
-                  className="btn-metallic bg-gradient-to-br from-yellow-600 to-yellow-800 border-yellow-600 px-4 py-2.5 text-white rounded-xl hover:shadow-lg hover:shadow-yellow-500/40 transition-all duration-300 transform hover:scale-[1.02] flex items-center gap-2 font-medium"
+                  onClick={() => setShowLoginModal(true)}
+                  className="metallic-button metallic-button-gold px-4 py-2.5 text-white rounded-xl hover:shadow-lg hover:shadow-[#c9a45c]/40 transition-all duration-300 transform hover:scale-[1.02] flex items-center gap-2 font-medium"
                 >
                   <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-4 h-4">
                     <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0A17.933 17.933 0 0112 21.75c-2.676 0-5.216-.584-7.499-1.632z" />
@@ -582,15 +582,15 @@ export default function Home() {
                 </button>
               )}
 
-              <Link
-                href="/nueva-revision"
-                className="btn-nueva-revision px-8 py-3 text-white rounded-xl hover:shadow-lg hover:shadow-green-500/40 transition-all duration-300 transform hover:scale-[1.02] flex items-center gap-3 font-medium text-lg min-w-[200px] justify-center"
+              <button
+                onClick={() => router.push('/nueva-revision?new=true')}
+                className="nueva-revision-button px-8 py-3 text-white rounded-xl hover:shadow-lg hover:shadow-[#098042]/40 transition-all duration-300 transform hover:scale-[1.02] flex items-center gap-3 font-medium text-lg min-w-[200px] justify-center"
               >
                 <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5">
                   <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
                 </svg>
                 Nueva Revisión
-              </Link>
+              </button>
 
 
             </div>
@@ -614,8 +614,8 @@ export default function Home() {
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className="w-full pl-12 pr-4 py-3 bg-gradient-to-r from-[#1a1f35] to-[#1e2538] border border-[#3d4659] rounded-xl text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#c9a45c]/50 focus:border-[#c9a45c]/50 transition-all duration-300 hover:border-[#c9a45c]/30"
-                onFocus={() => setUiState(prev => ({ ...prev, isSearchFocused: true }))}
-                onBlur={() => setUiState(prev => ({ ...prev, isSearchFocused: false }))}
+                onFocus={() => setIsSearchFocused(true)}
+                onBlur={() => setIsSearchFocused(false)}
               />
               {searchTerm && (
                 <button
@@ -637,7 +637,7 @@ export default function Home() {
                 className="w-full lg:w-48 px-4 py-3 bg-gradient-to-r from-[#1a1f35] to-[#1e2538] border border-[#3d4659] rounded-xl text-white focus:outline-none focus:ring-2 focus:ring-[#c9a45c]/50 focus:border-[#c9a45c]/50 transition-all duration-300 hover:border-[#c9a45c]/30 appearance-none cursor-pointer"
               >
                 <option value="">Todas las cajas</option>
-                {CAJA_FUERTE_OPTIONS.map(option => (
+                {cajaFuerteOptions.map(option => (
                   <option key={option} value={option} className="bg-[#1e2538]">{option}</option>
                 ))}
               </select>
@@ -673,17 +673,17 @@ export default function Home() {
                 <div className="overflow-hidden rounded-xl shadow-[0_8px_32px_rgb(0_0_0/0.2)] backdrop-blur-md bg-[#1e2538]/80 border border-[#3d4659]/50">
                   <div 
                     ref={tableContainerRef} 
-                    className="table-mobile-optimized md:table-desktop-optimized overflow-x-auto relative cursor-grab"
-                    onMouseDown={handleTableMouseDown}
-                    onMouseLeave={handleTableMouseUp}
-                    onMouseUp={handleTableMouseUp}
-                    onMouseMove={handleTableMouseMove}
+                    className="table-container overflow-x-auto relative cursor-grab"
+                    onMouseDown={handleMouseDown}
+                    onMouseLeave={handleMouseLeave}
+                    onMouseUp={handleMouseUp}
+                    onMouseMove={handleMouseMove}
                   >
                     <table className="min-w-full divide-y divide-[#3d4659]/50">
                       <thead className="sticky top-0 z-30">
                         <tr className="bg-gradient-to-r from-[#1e2538]/90 to-[#2a3347]/90 backdrop-blur-md text-gray-300 text-left">
-                          <th className="table-col-fixed-1">Fecha</th>
-                          <th className="table-col-fixed-2">Casita</th>
+                          <th className="fixed-column-1 bg-gradient-to-r from-[#1e2538]/90 to-[#2a3347]/90 backdrop-blur-md px-3 py-2 md:px-4 md:py-3 border-r border-[#3d4659]/50">Fecha</th>
+                          <th className="fixed-column-2 bg-gradient-to-r from-[#1e2538]/90 to-[#2a3347]/90 backdrop-blur-md px-3 py-2 md:px-4 md:py-3 border-r border-[#3d4659]/50">Casita</th>
                           <th className="px-3 py-2 md:px-4 md:py-3">Quien revisa</th>
                           <th className="px-3 py-2 md:px-4 md:py-3">Caja fuerte</th>
                           <th className="px-3 py-2 md:px-4 md:py-3">Puertas/Ventanas</th>
@@ -709,12 +709,91 @@ export default function Home() {
                       </thead>
                       <tbody className="divide-y divide-[#3d4659]/50">
                         {filteredData.map((row, index) => (
-                          <TableRow
+                          <tr
                             key={row.id || index}
-                            row={row}
-                            router={router}
-                            openModal={openModal}
-                          />
+                            className="border-t border-[#3d4659]/50 text-gray-300 hover:bg-[#1e2538]/50 transition-colors duration-200"
+                          >
+                            <td className="fixed-column-1 w-[320px] md:w-[200px]">
+                              <div className="flex flex-col whitespace-nowrap">
+                                <span className="text-[13px] md:text-xs text-[#c9a45c]">
+                                  {row.created_at.split('+')[0].split('T')[0]}
+                                </span>
+                                <span className="text-[13px] md:text-xs text-[#c9a45c]">
+                                  {row.created_at.split('+')[0].split('T')[1].split(':').slice(0,2).join(':')}
+                                </span>
+                              </div>
+                            </td>
+                            <td className="fixed-column-2 bg-gradient-to-r from-[#1a1f35]/90 to-[#1c2138]/90 backdrop-blur-md px-3 py-2 md:px-4 md:py-3 border-r border-[#3d4659]/50">
+                              <button
+                                onClick={() => {
+                                  console.log('ID de la revisión:', row.id);
+                                  router.push(`/detalles/${row.id}`);
+                                }}
+                                className={
+                                  (row.notas_count && row.notas_count > 0
+                                    ? 'text-orange-400 font-extrabold underline underline-offset-4 decoration-orange-400/60 hover:text-orange-300 hover:decoration-orange-300/80 scale-105'
+                                    : 'text-sky-400 hover:text-sky-300 underline decoration-sky-400/30 hover:decoration-sky-300/50') +
+                                  ' transition-colors duration-200 hover:scale-105 transform'
+                                }
+                              >
+                                {row.casita}
+                              </button>
+                            </td>
+                            <td className="px-3 py-2 md:px-4 md:py-3">{row.quien_revisa}</td>
+                            <td className="px-3 py-2 md:px-4 md:py-3">{row.caja_fuerte}</td>
+                            <td className="px-3 py-2 md:px-4 md:py-3">{row.puertas_ventanas}</td>
+                            <td className="px-3 py-2 md:px-4 md:py-3">{row.chromecast}</td>
+                            <td className="px-3 py-2 md:px-4 md:py-3">{row.binoculares}</td>
+                            <td className="px-3 py-2 md:px-4 md:py-3">{row.trapo_binoculares}</td>
+                            <td className="px-3 py-2 md:px-4 md:py-3">{row.speaker}</td>
+                            <td className="px-3 py-2 md:px-4 md:py-3">{row.usb_speaker}</td>
+                            <td className="px-3 py-2 md:px-4 md:py-3">{row.controles_tv}</td>
+                            <td className="px-3 py-2 md:px-4 md:py-3">{row.secadora}</td>
+                            <td className="px-3 py-2 md:px-4 md:py-3">{row.accesorios_secadora}</td>
+                            <td className="px-3 py-2 md:px-4 md:py-3">{row.steamer}</td>
+                            <td className="px-3 py-2 md:px-4 md:py-3">{row.bolsa_vapor}</td>
+                            <td className="px-3 py-2 md:px-4 md:py-3">{row.plancha_cabello}</td>
+                            <td className="px-3 py-2 md:px-4 md:py-3">{row.bulto}</td>
+                            <td className="px-3 py-2 md:px-4 md:py-3">{row.sombrero}</td>
+                            <td className="px-3 py-2 md:px-4 md:py-3">{row.bolso_yute}</td>
+                            <td className="px-3 py-2 md:px-4 md:py-3">{row.camas_ordenadas}</td>
+                            <td className="px-3 py-2 md:px-4 md:py-3">{row.cola_caballo}</td>
+                            <td className="px-3 py-2 md:px-4 md:py-3">{row.notas}</td>
+                            <td className="px-3 py-2 md:px-4 md:py-3">
+                              <div className="flex items-center gap-1 flex-nowrap">
+                                {row.evidencia_01 && (
+                                  <button
+                                    type="button"
+                                    onClick={() => openModal(row.evidencia_01)}
+                                    className="text-[#c9a45c] hover:text-[#f0c987] underline cursor-pointer hover:scale-110 transform duration-200 bg-[#1e2538]/50 px-1.5 py-0.5 rounded text-xs shadow-[0_2px_4px_rgb(0_0_0/0.2)] hover:shadow-[0_2px_4px_rgb(0_0_0/0.3)] transition-all duration-200 min-w-[20px] flex-shrink-0"
+                                    title="Ver evidencia 1"
+                                  >
+                                    1
+                                  </button>
+                                )}
+                                {row.evidencia_02 && (
+                                  <button
+                                    type="button"
+                                    onClick={() => openModal(row.evidencia_02)}
+                                    className="text-[#c9a45c] hover:text-[#f0c987] underline cursor-pointer hover:scale-110 transform duration-200 bg-[#1e2538]/50 px-1.5 py-0.5 rounded text-xs shadow-[0_2px_4px_rgb(0_0_0/0.2)] hover:shadow-[0_2px_4px_rgb(0_0_0/0.3)] transition-all duration-200 min-w-[20px] flex-shrink-0"
+                                    title="Ver evidencia 2"
+                                  >
+                                    2
+                                  </button>
+                                )}
+                                {row.evidencia_03 && (
+                                  <button
+                                    type="button"
+                                    onClick={() => openModal(row.evidencia_03)}
+                                    className="text-[#c9a45c] hover:text-[#f0c987] underline cursor-pointer hover:scale-110 transform duration-200 bg-[#1e2538]/50 px-1.5 py-0.5 rounded text-xs shadow-[0_2px_4px_rgb(0_0_0/0.2)] hover:shadow-[0_2px_4px_rgb(0_0_0/0.3)] transition-all duration-200 min-w-[20px] flex-shrink-0"
+                                    title="Ver evidencia 3"
+                                  >
+                                    3
+                                  </button>
+                                )}
+                              </div>
+                            </td>
+                          </tr>
                         ))}
                       </tbody>
                     </table>
@@ -736,7 +815,7 @@ export default function Home() {
         )}
 
         {/* Modal de imagen mejorado */}
-        {modalState.isOpen && modalState.imageUrl && (
+        {modalOpen && modalImg && (
           <div className="fixed inset-0 bg-black/90 backdrop-blur-sm flex items-center justify-center z-50 overflow-hidden">
             <div className="relative w-full h-full max-w-7xl max-h-screen overflow-hidden">
               {/* Barra superior con controles */}
@@ -750,7 +829,7 @@ export default function Home() {
                     </div>
                     <div>
                       <h3 className="text-white font-semibold text-lg">Evidencia Fotográfica</h3>
-                      <p className="text-gray-300 text-sm">Zoom: {Math.round(modalState.zoom * 100)}%</p>
+                      <p className="text-gray-300 text-sm">Zoom: {Math.round(zoom * 100)}%</p>
                     </div>
                   </div>
                   
@@ -758,10 +837,7 @@ export default function Home() {
                     {/* Controles de zoom */}
                     <div className="flex items-center gap-1 bg-black/40 backdrop-blur-sm rounded-lg p-1">
                       <button
-                        onClick={() => {
-                          const newZoom = Math.max(1, Math.min(5, modalState.zoom / 1.2));
-                          setModalState(prev => ({ ...prev, zoom: newZoom }));
-                        }}
+                        onClick={handleZoomOut}
                         className="w-8 h-8 text-white hover:bg-white/20 rounded-md flex items-center justify-center transition-all duration-200"
                         title="Alejar"
                       >
@@ -770,13 +846,10 @@ export default function Home() {
                         </svg>
                       </button>
                       <div className="px-2 py-1 text-white text-xs font-medium min-w-[50px] text-center">
-                        {Math.round(modalState.zoom * 100)}%
+                        {Math.round(zoom * 100)}%
                       </div>
                       <button
-                        onClick={() => {
-                          const newZoom = Math.min(5, modalState.zoom * 1.2);
-                          setModalState(prev => ({ ...prev, zoom: newZoom }));
-                        }}
+                        onClick={handleZoomIn}
                         className="w-8 h-8 text-white hover:bg-white/20 rounded-md flex items-center justify-center transition-all duration-200"
                         title="Acercar"
                       >
@@ -786,7 +859,8 @@ export default function Home() {
                       </button>
                       <button
                         onClick={() => {
-                          setModalState(prev => ({ ...prev, zoom: 1, position: { x: 0, y: 0 } }));
+                          setZoom(1);
+                          setPosition({ x: 0, y: 0 });
                         }}
                         className="ml-1 px-2 py-1 text-white hover:bg-white/20 rounded-md text-xs transition-all duration-200"
                         title="Restablecer"
@@ -813,52 +887,20 @@ export default function Home() {
               <div className="w-full h-full flex items-center justify-center p-4 pt-20">
                 <img
                   ref={imgRef}
-                  src={modalState.imageUrl}
+                  src={modalImg}
                   alt="Evidencia"
                   className="max-w-full max-h-full object-contain rounded-lg shadow-2xl"
                   style={{
-                    transform: `scale(${modalState.zoom}) translate(${modalState.position.x}px, ${modalState.position.y}px)`,
-                    cursor: modalState.zoom > 1 ? (modalState.isDragging ? 'grabbing' : 'grab') : 'default',
-                    transition: modalState.isDragging ? 'none' : 'transform 0.1s ease-out',
+                    transform: `scale(${zoom}) translate(${position.x}px, ${position.y}px)`,
+                    cursor: zoom > 1 ? (isDragging ? 'grabbing' : 'grab') : 'default',
+                    transition: isDragging ? 'none' : 'transform 0.1s ease-out',
                     touchAction: 'none'
                   }}
-                  onWheel={(e: React.WheelEvent) => {
-                    e.preventDefault();
-                    const delta = e.deltaY;
-                    const newZoom = delta < 0 ? modalState.zoom * 1.1 : modalState.zoom / 1.1;
-                    setModalState(prev => ({ ...prev, zoom: Math.min(Math.max(1, newZoom), 5) }));
-                  }}
-                  onMouseDown={(e) => {
-                    if (modalState.zoom > 1) {
-                      e.preventDefault();
-                      setModalState(prev => ({ ...prev, isDragging: true, dragStart: { x: e.clientX - modalState.position.x, y: e.clientY - modalState.position.y } }));
-                    }
-                  }}
-                  onMouseMove={(e) => {
-                    if (modalState.isDragging && modalState.zoom > 1) {
-                      e.preventDefault();
-                      const newX = e.clientX - modalState.dragStart.x;
-                      const newY = e.clientY - modalState.dragStart.y;
-                      
-                      const img = imgRef.current;
-                      if (img) {
-                        const rect = img.getBoundingClientRect();
-                        const scaledWidth = rect.width * modalState.zoom;
-                        const scaledHeight = rect.height * modalState.zoom;
-                        
-                        const maxX = (scaledWidth - rect.width) / 2;
-                        const maxY = (scaledHeight - rect.height) / 2;
-                        
-                        setModalState(prev => ({ ...prev, position: { x: Math.min(Math.max(-maxX, newX), maxX), y: Math.min(Math.max(-maxY, newY), maxY) } }));
-                      }
-                    }
-                  }}
-                  onMouseUp={() => {
-                    setModalState(prev => ({ ...prev, isDragging: false }));
-                  }}
-                  onMouseLeave={() => {
-                    setModalState(prev => ({ ...prev, isDragging: false }));
-                  }}
+                  onWheel={handleWheel}
+                  onMouseDown={handleMouseDownImage}
+                  onMouseMove={handleMouseMoveImage}
+                  onMouseUp={handleMouseUpImage}
+                  onMouseLeave={handleMouseUpImage}
                   onTouchStart={(e) => {
                     if (e.touches.length === 2) {
                       e.preventDefault();
@@ -868,10 +910,14 @@ export default function Home() {
                         touch2.clientX - touch1.clientX,
                         touch2.clientY - touch1.clientY
                       );
-                      setModalState(prev => ({ ...prev, dragStart: { x: initialDistance, y: 0 } }));
-                    } else if (e.touches.length === 1 && modalState.zoom > 1) {
+                      setDragStart({ x: initialDistance, y: 0 });
+                    } else if (e.touches.length === 1 && zoom > 1) {
                       e.preventDefault();
-                      setModalState(prev => ({ ...prev, isDragging: true, dragStart: { x: e.touches[0].clientX - modalState.position.x, y: e.touches[0].clientY - modalState.position.y } }));
+                      setIsDragging(true);
+                      setDragStart({
+                        x: e.touches[0].clientX - position.x,
+                        y: e.touches[0].clientY - position.y
+                      });
                     }
                   }}
                   onTouchMove={(e) => {
@@ -883,34 +929,36 @@ export default function Home() {
                         touch2.clientX - touch1.clientX,
                         touch2.clientY - touch1.clientY
                       );
-                      const scaleChange = currentDistance / modalState.dragStart.x;
-                      const newZoom = Math.max(1, Math.min(5, modalState.zoom * scaleChange));
-                      setModalState(prev => ({ ...prev, zoom: newZoom, dragStart: { x: currentDistance, y: 0 } }));
-                    } else if (e.touches.length === 1 && modalState.isDragging && modalState.zoom > 1) {
+                      const scaleChange = currentDistance / dragStart.x;
+                      const newZoom = Math.max(1, Math.min(5, zoom * scaleChange));
+                      setZoom(newZoom);
+                      setDragStart({ x: currentDistance, y: 0 });
+                    } else if (e.touches.length === 1 && isDragging && zoom > 1) {
                       e.preventDefault();
                       const touch = e.touches[0];
-                      const newX = touch.clientX - modalState.dragStart.x;
-                      const newY = touch.clientY - modalState.dragStart.y;
+                      const newX = touch.clientX - dragStart.x;
+                      const newY = touch.clientY - dragStart.y;
                       
                       const img = imgRef.current;
                       if (img) {
                         const rect = img.getBoundingClientRect();
-                        const scaledWidth = rect.width * modalState.zoom;
-                        const scaledHeight = rect.height * modalState.zoom;
+                        const scaledWidth = rect.width * zoom;
+                        const scaledHeight = rect.height * zoom;
                         
                         const maxX = (scaledWidth - rect.width) / 2;
                         const maxY = (scaledHeight - rect.height) / 2;
                         
-                        setModalState(prev => ({ ...prev, position: { x: Math.min(Math.max(-maxX, newX), maxX), y: Math.min(Math.max(-maxY, newY), maxY) } }));
+                        setPosition({
+                          x: Math.min(Math.max(-maxX, newX), maxX),
+                          y: Math.min(Math.max(-maxY, newY), maxY)
+                        });
                       }
                     }
                   }}
                   onTouchEnd={() => {
-                    setModalState(prev => ({ ...prev, isDragging: false }));
+                    setIsDragging(false);
                   }}
-                  onContextMenu={(e) => {
-                    e.preventDefault();
-                  }}
+                  onContextMenu={handleContextMenu}
                 />
               </div>
 
@@ -932,7 +980,7 @@ export default function Home() {
         )}
 
         {/* Modal de Login Modernizado */}
-        {uiState.showLoginModal && (
+        {showLoginModal && (
           <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-4">
             <div className="bg-gradient-to-br from-[#1e2538] to-[#2a3347] p-8 rounded-2xl shadow-2xl w-full max-w-md border border-[#3d4659]/50 backdrop-blur-md">
               <div className="text-center mb-8">
@@ -957,8 +1005,8 @@ export default function Home() {
                   </label>
                   <input
                     type="text"
-                    value={loginState.usuario}
-                    onChange={(e) => setLoginState({ ...loginState, usuario: e.target.value })}
+                    value={loginData.usuario}
+                    onChange={(e) => setLoginData({ ...loginData, usuario: e.target.value })}
                     className="w-full px-4 py-3 bg-gradient-to-r from-[#1a1f35] to-[#1e2538] border border-[#3d4659] rounded-xl text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#c9a45c]/50 focus:border-[#c9a45c]/50 transition-all duration-300 hover:border-[#c9a45c]/30"
                     placeholder="Ingresa tu usuario"
                     required
@@ -974,21 +1022,21 @@ export default function Home() {
                   </label>
                   <input
                     type="password"
-                    value={loginState.password}
-                    onChange={(e) => setLoginState({ ...loginState, password: e.target.value })}
+                    value={loginData.password}
+                    onChange={(e) => setLoginData({ ...loginData, password: e.target.value })}
                     className="w-full px-4 py-3 bg-gradient-to-r from-[#1a1f35] to-[#1e2538] border border-[#3d4659] rounded-xl text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#c9a45c]/50 focus:border-[#c9a45c]/50 transition-all duration-300 hover:border-[#c9a45c]/30"
                     placeholder="Ingresa tu contraseña"
                     required
                   />
                 </div>
                 
-                {loginState.error && (
+                {loginError && (
                   <div className="bg-red-500/10 border border-red-500/20 rounded-xl p-3">
                     <p className="text-red-400 text-sm flex items-center gap-2">
                       <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-4 h-4">
                         <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z" />
                       </svg>
-                      {loginState.error}
+                      {loginError}
                     </p>
                   </div>
                 )}
@@ -996,7 +1044,7 @@ export default function Home() {
                 <div className="flex gap-3 pt-4">
                   <button
                     type="button"
-                    onClick={() => setUiState(prev => ({ ...prev, showLoginModal: false }))}
+                    onClick={() => setShowLoginModal(false)}
                     className="flex-1 px-4 py-3 bg-gradient-to-r from-gray-600 to-gray-700 text-white rounded-xl hover:from-gray-700 hover:to-gray-800 transition-all duration-300 transform hover:scale-[1.02] shadow-lg hover:shadow-gray-600/25 font-medium"
                   >
                     Cancelar
@@ -1014,7 +1062,7 @@ export default function Home() {
         )}
 
         {/* Modal de Reportes */}
-        {uiState.showReportModal && (
+        {showReportModal && (
           <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-4">
             <div className="bg-gradient-to-br from-[#1e2538] to-[#2a3347] p-8 rounded-2xl shadow-2xl w-full max-w-md border border-[#3d4659]/50 backdrop-blur-md">
               <div className="text-center mb-8">
@@ -1039,8 +1087,8 @@ export default function Home() {
                   </label>
                   <input
                     type="date"
-                    value={reportState.dateFrom}
-                    onChange={(e) => setReportState({ ...reportState, dateFrom: e.target.value })}
+                    value={reportDateFrom}
+                    onChange={(e) => setReportDateFrom(e.target.value)}
                     className="w-full px-4 py-3 bg-gradient-to-r from-[#1a1f35] to-[#1e2538] border border-[#3d4659] rounded-xl text-white focus:outline-none focus:ring-2 focus:ring-green-500/50 focus:border-green-500/50 transition-all duration-300 hover:border-green-500/30"
                     required
                   />
@@ -1055,8 +1103,8 @@ export default function Home() {
                   </label>
                   <input
                     type="date"
-                    value={reportState.dateTo}
-                    onChange={(e) => setReportState({ ...reportState, dateTo: e.target.value })}
+                    value={reportDateTo}
+                    onChange={(e) => setReportDateTo(e.target.value)}
                     className="w-full px-4 py-3 bg-gradient-to-r from-[#1a1f35] to-[#1e2538] border border-[#3d4659] rounded-xl text-white focus:outline-none focus:ring-2 focus:ring-green-500/50 focus:border-green-500/50 transition-all duration-300 hover:border-green-500/30"
                     required
                   />
@@ -1066,8 +1114,9 @@ export default function Home() {
                   <button
                     type="button"
                     onClick={() => {
-                      setUiState(prev => ({ ...prev, showReportModal: false }));
-                      setReportState({ dateFrom: '', dateTo: '' });
+                      setShowReportModal(false);
+                      setReportDateFrom('');
+                      setReportDateTo('');
                     }}
                     className="flex-1 px-4 py-3 bg-gradient-to-r from-gray-600 to-gray-700 text-white rounded-xl hover:from-gray-700 hover:to-gray-800 transition-all duration-300 transform hover:scale-[1.02] shadow-lg hover:shadow-gray-600/25 font-medium"
                   >
@@ -1075,11 +1124,8 @@ export default function Home() {
                   </button>
                   <button
                     type="button"
-                    onClick={() => {
-                      setUiState(prev => ({ ...prev, showReportModal: false }));
-                      setReportState({ dateFrom: '', dateTo: '' });
-                    }}
-                    disabled={!reportState.dateFrom || !reportState.dateTo}
+                    onClick={handleExportExcel}
+                    disabled={!reportDateFrom || !reportDateTo}
                     className="flex-1 px-4 py-3 bg-gradient-to-r from-green-500 to-green-600 text-white rounded-xl hover:from-green-600 hover:to-green-700 transition-all duration-300 transform hover:scale-[1.02] shadow-lg hover:shadow-green-500/25 font-medium disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
                   >
                     Exportar CSV
