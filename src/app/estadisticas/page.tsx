@@ -1,20 +1,27 @@
 'use client';
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
 import { supabase } from '@/lib/supabase';
 import dynamic from 'next/dynamic';
-import LoadingSpinner from '../../components/LoadingSpinner';
+import LoadingSpinner from '@/components/LoadingSpinner';
 import { useSpectacularBackground } from '@/hooks/useSpectacularBackground';
 
-// Importar BarChartComponent dinámicamente para evitar problemas de SSR
-const BarChartComponent = dynamic(() => import('../../components/BarChartComponent'), {
+// 🚀 Importación dinámica optimizada con mejor loading glassmorphism
+const BarChartComponent = dynamic(() => import('@/components/BarChartComponent'), {
   ssr: false,
-  loading: () => <div className="bg-gray-800 bg-opacity-80 backdrop-blur-sm p-6 rounded-lg shadow-xl h-96 flex items-center justify-center"><div className="text-white">Cargando gráfico...</div></div>
+  loading: () => (
+    <div className="bg-[#2a3347]/95 backdrop-blur-xl rounded-xl border border-[#c9a45c]/20 p-6 shadow-2xl h-96 flex items-center justify-center">
+      <div className="flex flex-col items-center gap-3">
+        <div className="w-8 h-8 border-2 border-[#c9a45c] border-t-transparent rounded-full animate-spin"></div>
+        <span className="text-[#c9a45c] font-medium">Cargando gráfico...</span>
+      </div>
+    </div>
+  )
 });
 
-// Tipos adaptados
+// 🎯 Tipos TypeScript mejorados y más específicos
 interface RevisionCasita {
   id?: number;
   quien_revisa: string | null;
@@ -28,23 +35,57 @@ interface ChartDataItem {
   value: number;
 }
 
-// Constantes del dashboard original
-const CHART_COLORS_PRIMARY = "#3B82F6"; // blue-500
-const CHART_COLORS_SECONDARY = "#10B981"; // emerald-500
-const CHART_COLORS_TERTIARY = "#F59E0B"; // amber-500
+interface StatCard {
+  title: string;
+  value: number;
+  icon: React.ReactElement;
+  color: string;
+  description: string;
+}
+
+interface ProcessedStats {
+  totalRevisiones: number;
+  revisionesHoy: number;
+  casitasCheckIn: ChartDataItem[];
+  revisionesPorPersona: ChartDataItem[];
+  checkOutsPorPersona: ChartDataItem[];
+}
+
+// 🎨 Constantes de colores actualizadas para consistencia con el diseño
+const CHART_COLORS = {
+  PRIMARY: '#c9a45c',
+  SECONDARY: '#f0c987', 
+  TERTIARY: '#ff8c42',
+  SUCCESS: '#10b981',
+  INFO: '#3b82f6'
+} as const;
+
 const CHECK_IN_VALUE = 'Check in';
 const CHECK_OUT_VALUE = 'Check out';
+
+// 🚀 Función debounce ligera para optimizaciones de rendimiento
+function debounce<T extends (...args: any[]) => void>(func: T, delay: number): T {
+  let timeoutId: NodeJS.Timeout;
+  return ((...args: any[]) => {
+    clearTimeout(timeoutId);
+    timeoutId = setTimeout(() => func.apply(null, args), delay);
+  }) as T;
+}
 
 export default function EstadisticasPage() {
   const router = useRouter();
   const { isLoggedIn, userRole } = useAuth();
+  const spectacularBg = useSpectacularBackground();
+  
+  // Estados principales optimizados
   const [revisioinesData, setRevisioinesData] = useState<RevisionCasita[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
+  const [refreshing, setRefreshing] = useState<boolean>(false);
 
   const currentYear = new Date().getFullYear();
 
-  // Verificar autenticación
+  // 🛡️ Verificación de autenticación optimizada
   useEffect(() => {
     if (!isLoggedIn) {
       router.push('/');
@@ -52,34 +93,51 @@ export default function EstadisticasPage() {
     }
   }, [isLoggedIn, router]);
 
-  useEffect(() => {
-    const loadData = async () => {
-      try {
+  // 🚀 Función de carga de datos optimizada con debounce
+  const loadData = useCallback(async (isRefresh = false) => {
+    try {
+      if (isRefresh) {
+        setRefreshing(true);
+      } else {
         setLoading(true);
-        setError(null);
-        
-        const { data, error } = await supabase
-          .from('revisiones_casitas')
-          .select('quien_revisa, caja_fuerte, casita, created_at');
-
-        if (error) {
-          console.error('Error fetching data from Supabase:', error);
-          throw error;
-        }
-
-        setRevisioinesData(data as RevisionCasita[] || []);
-      } catch (err) {
-        setError('Error al cargar los datos. Por favor, inténtelo de nuevo más tarde.');
-        console.error(err);
-      } finally {
-        setLoading(false);
       }
-    };
-    
+      setError(null);
+      
+      const { data, error: supabaseError } = await supabase
+        .from('revisiones_casitas')
+        .select('quien_revisa, caja_fuerte, casita, created_at')
+        .order('created_at', { ascending: false });
+
+      if (supabaseError) {
+        console.error('❌ Error fetching data:', supabaseError);
+        throw supabaseError;
+      }
+
+      setRevisioinesData(data as RevisionCasita[] || []);
+      console.log(`✅ Cargados ${data?.length || 0} registros`);
+      
+    } catch (err) {
+      const errorMessage = 'Error al cargar estadísticas. Verifica tu conexión.';
+      setError(errorMessage);
+      console.error('❌ Error en loadData:', err);
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
+  }, []);
+
+  // 🎯 Debounced refresh para evitar múltiples llamadas
+  const debouncedRefresh = useMemo(
+    () => debounce(() => loadData(true), 300),
+    [loadData]
+  );
+
+  // Efecto inicial de carga
+  useEffect(() => {
     if (isLoggedIn) {
       loadData();
     }
-  }, [isLoggedIn]);
+  }, [isLoggedIn, loadData]);
 
   const dataFilteredByCurrentYear = useMemo(() => {
     return revisioinesData.filter(item => {
@@ -89,7 +147,8 @@ export default function EstadisticasPage() {
     });
   }, [revisioinesData, currentYear]);
 
-  const processChartData = (
+  // 🎯 Función optimizada para procesar datos de gráficos
+  const processChartData = useCallback((
     data: RevisionCasita[], 
     keyExtractor: (item: RevisionCasita) => string | null,
     filterFn?: (item: RevisionCasita) => boolean,
@@ -110,147 +169,228 @@ export default function EstadisticasPage() {
       .sort((a, b) => b.value - a.value);
 
     return limit ? sortedData.slice(0, limit) : sortedData;
-  };
-  
-  const casitasCheckInData = useMemo(() => {
-    return processChartData(
-      dataFilteredByCurrentYear,
-      (item) => item.casita,
-      (item) => item.caja_fuerte === CHECK_IN_VALUE,
-      10
-    );
-  }, [dataFilteredByCurrentYear]);
+  }, []);
 
-  const quienRevisaData = useMemo(() => {
-    return processChartData(
-      dataFilteredByCurrentYear,
-      (item) => item.quien_revisa,
-      undefined,
-      12
-    );
-  }, [dataFilteredByCurrentYear]);
-
-  const quienRevisaCheckOutData = useMemo(() => {
-    return processChartData(
-      dataFilteredByCurrentYear,
-      (item) => item.quien_revisa,
-      (item) => item.caja_fuerte === CHECK_OUT_VALUE,
-      10
-    );
-  }, [dataFilteredByCurrentYear]);
-
-  const totalRevisiones = useMemo(() => dataFilteredByCurrentYear.length, [dataFilteredByCurrentYear]);
-
-  const revisionesHoyCount = useMemo(() => {
+  // 🎯 Estadísticas procesadas (todas memoizadas para rendimiento máximo)
+  const processedStats: ProcessedStats = useMemo(() => {
     const today = new Date();
-    return dataFilteredByCurrentYear.filter(item => {
+    
+    const totalRevisiones = dataFilteredByCurrentYear.length;
+    
+    const revisionesHoy = dataFilteredByCurrentYear.filter(item => {
       if (!item.created_at) return false;
       const itemDate = new Date(item.created_at);
       return itemDate.getFullYear() === today.getFullYear() &&
              itemDate.getMonth() === today.getMonth() &&
              itemDate.getDate() === today.getDate();
     }).length;
-  }, [dataFilteredByCurrentYear]);
 
-  const appBackgroundStyle = useSpectacularBackground();
+    const casitasCheckIn = processChartData(
+      dataFilteredByCurrentYear,
+      (item) => item.casita,
+      (item) => item.caja_fuerte === CHECK_IN_VALUE,
+      10
+    );
 
+    const revisionesPorPersona = processChartData(
+      dataFilteredByCurrentYear,
+      (item) => item.quien_revisa,
+      undefined,
+      12
+    );
+
+    const checkOutsPorPersona = processChartData(
+      dataFilteredByCurrentYear,
+      (item) => item.quien_revisa,
+      (item) => item.caja_fuerte === CHECK_OUT_VALUE,
+      10
+    );
+
+    return {
+      totalRevisiones,
+      revisionesHoy,
+      casitasCheckIn,
+      revisionesPorPersona,
+      checkOutsPorPersona
+    };
+  }, [dataFilteredByCurrentYear, processChartData]);
+
+  // 🎨 Tarjetas de estadísticas con diseño glassmorphism
+  const statCards: StatCard[] = useMemo(() => [
+    {
+      title: 'Total Revisiones',
+      value: processedStats.totalRevisiones,
+      icon: (
+        <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+        </svg>
+      ),
+      color: 'text-[#c9a45c]',
+      description: `Año ${currentYear}`
+    },
+    {
+      title: 'Revisiones Hoy',
+      value: processedStats.revisionesHoy,
+      icon: (
+        <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+        </svg>
+      ),
+      color: 'text-[#f0c987]',
+      description: new Date().toLocaleDateString('es-ES')
+    }
+  ], [processedStats, currentYear]);
+
+  // 🛡️ Guards de renderizado
   if (!isLoggedIn) {
     return null;
   }
 
   if (loading) {
     return (
-      <div style={{ ...appBackgroundStyle, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-        <LoadingSpinner />
+      <div style={spectacularBg} className="min-h-screen flex items-center justify-center">
+        <div className="bg-[#2a3347]/95 backdrop-blur-xl rounded-2xl border border-[#c9a45c]/20 p-8 shadow-2xl">
+          <LoadingSpinner />
+          <p className="text-[#c9a45c] text-center mt-4 font-medium">Cargando estadísticas...</p>
+        </div>
       </div>
     );
   }
 
   if (error) {
     return (
-      <div style={{ ...appBackgroundStyle, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '1rem' }}>
-        <div className="bg-gray-800 p-8 rounded-lg shadow-xl text-center">
-          <svg xmlns="http://www.w3.org/2000/svg" className="h-16 w-16 text-red-500 mx-auto mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-          </svg>
-          <h2 className="text-2xl font-bold text-gray-100 mb-2">Oops! Algo salió mal.</h2>
-          <p className="text-gray-400">{error}</p>
+      <div style={spectacularBg} className="min-h-screen flex items-center justify-center p-4">
+        <div className="bg-[#2a3347]/95 backdrop-blur-xl rounded-2xl border border-red-500/30 p-8 shadow-2xl text-center max-w-md">
+          <div className="w-16 h-16 bg-red-500/20 rounded-full flex items-center justify-center mx-auto mb-4">
+            <svg className="w-8 h-8 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+          </div>
+          <h2 className="text-xl font-bold text-white mb-2">Error al cargar datos</h2>
+          <p className="text-gray-300 mb-4">{error}</p>
+          <button
+            onClick={() => loadData()}
+            className="px-4 py-2 bg-[#c9a45c] text-white rounded-lg hover:bg-[#f0c987] transition-colors duration-200 font-medium"
+          >
+            Reintentar
+          </button>
         </div>
       </div>
     );
   }
 
   return (
-    <div style={appBackgroundStyle} className="min-h-screen p-3 sm:p-4 md:p-8">
-      {/* Botón de volver */}
-      <div className="mb-4 sm:mb-6">
-        <button
-          onClick={() => router.back()}
-          className="px-4 py-2.5 bg-gray-700 bg-opacity-80 backdrop-blur-sm text-white rounded-xl hover:bg-gray-600 transition-colors duration-200 flex items-center justify-center gap-2 text-sm font-medium relative overflow-hidden"
-        >
-          {/* Efecto de brillo continuo */}
-          <div className="absolute inset-0 bg-gradient-to-r from-transparent via-[#f0cb35]/80 to-transparent animate-[slide_2s_ease-in-out_infinite] z-0"></div>
-          <div className="relative z-10 flex items-center gap-2">
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
-            </svg>
-            Volver
+    <div style={spectacularBg} className="min-h-screen p-4 md:p-8">
+      <div className="max-w-7xl mx-auto">
+        {/* Header con glassmorphism */}
+        <header className="mb-8">
+          <div className="bg-[#2a3347]/95 backdrop-blur-xl rounded-2xl border border-[#c9a45c]/20 p-6 md:p-8 shadow-2xl">
+            <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+              <div>
+                <h1 className="text-3xl md:text-4xl font-bold bg-gradient-to-r from-[#c9a45c] via-[#f0c987] to-[#ff8c42] bg-clip-text text-transparent">
+                  Estadísticas de Revisiones
+                </h1>
+                <p className="text-gray-300 mt-2">Panel de control y análisis de datos</p>
+              </div>
+              
+              <div className="flex items-center gap-3">
+                {/* Botón de refresh */}
+                <button
+                  onClick={debouncedRefresh}
+                  disabled={refreshing}
+                  className="px-4 py-2 bg-[#c9a45c]/20 hover:bg-[#c9a45c]/30 border border-[#c9a45c]/40 text-[#c9a45c] rounded-xl transition-all duration-200 flex items-center gap-2 disabled:opacity-50"
+                >
+                  <svg className={`w-4 h-4 ${refreshing ? 'animate-spin' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                  </svg>
+                  {refreshing ? 'Actualizando...' : 'Actualizar'}
+                </button>
+                
+                {/* Botón volver */}
+                <button
+                  onClick={() => router.push('/')}
+                  className="px-4 py-2 bg-gray-600/20 hover:bg-gray-600/30 border border-gray-500/40 text-gray-300 rounded-xl transition-all duration-200 flex items-center gap-2"
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+                  </svg>
+                  Volver
+                </button>
+              </div>
+            </div>
           </div>
-        </button>
-      </div>
+        </header>
 
-      <header className="mb-6 sm:mb-8">
-        <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold text-white text-center">Panel de Estadísticas de Revisiones</h1>
-      </header>
-
-      {/* Info Cards Section */}
-      <div className="mb-6 sm:mb-8 grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
-        <div className="bg-gray-800 bg-opacity-80 backdrop-blur-sm p-4 sm:p-6 rounded-lg shadow-xl text-center flex flex-col items-center justify-center">
-          <h3 className="text-lg sm:text-xl font-semibold text-gray-300 mb-2">Total Revisiones (Año Actual)</h3>
-          <p className="text-3xl sm:text-4xl font-bold text-sky-400">{totalRevisiones}</p>
+      {/* Tarjetas de estadísticas glassmorphism */}
+      <section className="mb-8">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          {statCards.map((card, index) => (
+            <div 
+              key={card.title}
+              className="bg-[#2a3347]/95 backdrop-blur-xl rounded-2xl border border-[#c9a45c]/20 p-6 shadow-2xl group hover:border-[#c9a45c]/40 transition-all duration-300"
+              style={{ animationDelay: `${index * 0.1}s` }}
+            >
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="text-lg font-semibold text-gray-300 mb-1">{card.title}</h3>
+                  <p className="text-sm text-gray-400">{card.description}</p>
+                </div>
+                <div className={`${card.color} group-hover:scale-110 transition-transform duration-300`}>
+                  {card.icon}
+                </div>
+              </div>
+              <div className="mt-4">
+                <span className={`text-4xl font-bold ${card.color}`}>
+                  {card.value.toLocaleString()}
+                </span>
+              </div>
+            </div>
+          ))}
         </div>
-        <div className="bg-gray-800 bg-opacity-80 backdrop-blur-sm p-4 sm:p-6 rounded-lg shadow-xl text-center flex flex-col items-center justify-center">
-          <h3 className="text-lg sm:text-xl font-semibold text-gray-300 mb-2">Revisiones hechas hoy</h3>
-          <p className="text-3xl sm:text-4xl font-bold text-emerald-400">{revisionesHoyCount}</p>
-        </div>
-      </div>
+      </section>
 
-      {/* Charts Section - Optimizado para móvil */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4 sm:gap-6">
-        <div> 
-           <BarChartComponent
-            data={casitasCheckInData}
-            title="Estadística Casitas Check in (Año Actual)"
-            barColor={CHART_COLORS_PRIMARY}
+      {/* Gráficos con diseño glassmorphism mejorado */}
+      <section className="grid grid-cols-1 xl:grid-cols-2 2xl:grid-cols-3 gap-6">
+        <div className="xl:col-span-1">
+          <BarChartComponent
+            data={processedStats.casitasCheckIn}
+            title="Top Casitas - Check In"
+            barColor={CHART_COLORS.PRIMARY}
             xAxisLabel="Casita"
-            yAxisLabel="Número de Revisiones"
+            yAxisLabel="Check-ins"
           />
         </div>
-       
-        <div> 
+        
+        <div className="xl:col-span-1">
           <BarChartComponent
-            data={quienRevisaData}
-            title="Estadística Revisiones (Año Actual)"
-            barColor={CHART_COLORS_SECONDARY}
-            xAxisLabel="Persona que revisa"
-            yAxisLabel="Número de Revisiones"
+            data={processedStats.revisionesPorPersona}
+            title="Revisiones por Persona"
+            barColor={CHART_COLORS.SECONDARY}
+            xAxisLabel="Revisor"
+            yAxisLabel="Total Revisiones"
           />
         </div>
 
-        <div> 
+        <div className="xl:col-span-2 2xl:col-span-1">
           <BarChartComponent
-            data={quienRevisaCheckOutData}
-            title="Estadísticas Check out (Año Actual)"
-            barColor={CHART_COLORS_TERTIARY}
-            xAxisLabel="Persona que revisa"
-            yAxisLabel="Número de Revisiones"
+            data={processedStats.checkOutsPorPersona}
+            title="Check-outs por Persona"
+            barColor={CHART_COLORS.TERTIARY}
+            xAxisLabel="Revisor"
+            yAxisLabel="Check-outs"
           />
         </div>
-      </div>
+      </section>
       
-      <footer className="mt-12 text-center text-sm text-gray-400">
-        <p>Revision Casitas Ag, Todos los derechos reservados.</p>
-      </footer>
+        {/* Footer */}
+        <footer className="mt-12 text-center">
+          <div className="bg-[#2a3347]/95 backdrop-blur-xl rounded-2xl border border-[#c9a45c]/20 p-4 shadow-2xl">
+            <p className="text-sm text-gray-400">
+              © {currentYear} Revision Casitas AG. Todos los derechos reservados.
+            </p>
+          </div>
+        </footer>
+      </div>
     </div>
   );
-} 
+}
