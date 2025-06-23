@@ -10,6 +10,7 @@ import { MagnifyingGlassIcon } from '@heroicons/react/24/outline';
 import Link from 'next/link';
 import { useAuth } from '@/context/AuthContext';
 import { useSpectacularBackground } from '@/hooks/useSpectacularBackground';
+import Sidebar from '@/components/Sidebar';
 
 interface RevisionData {
   id?: string;
@@ -69,13 +70,13 @@ export default function Home() {
     password: ''
   });
   const [loginError, setLoginError] = useState<string | null>(null);
-  const [showMenuDropdown, setShowMenuDropdown] = useState(false);
+  const [showSidebar, setShowSidebar] = useState(false);
   const [showReportModal, setShowReportModal] = useState(false);
   const [reportDateFrom, setReportDateFrom] = useState('');
   const [reportDateTo, setReportDateTo] = useState('');
   // Función para manejar el toggle del menú
   const handleMenuToggle = () => {
-    setShowMenuDropdown(prev => !prev);
+    setShowSidebar(prev => !prev);
   };
 
   const tableContainerRef = useRef<HTMLDivElement>(null);
@@ -103,26 +104,7 @@ export default function Home() {
     }
   }, []);
 
-  // Cerrar menú desplegable al hacer clic fuera
-  useEffect(() => {
-    const handleClickOutside = (event: Event) => {
-      if (showMenuDropdown) {
-        const target = event.target as Element;
-        if (!target.closest('.menu-dropdown-container')) {
-          setShowMenuDropdown(false);
-        }
-      }
-    };
-
-    // Usar eventos más específicos para mejor compatibilidad móvil
-    document.addEventListener('click', handleClickOutside, true);
-    document.addEventListener('touchend', handleClickOutside, true);
-    
-    return () => {
-      document.removeEventListener('click', handleClickOutside, true);
-      document.removeEventListener('touchend', handleClickOutside, true);
-    };
-  }, [showMenuDropdown]);
+  // Cerrar sidebar con tecla ESC se maneja dentro del componente Sidebar
 
   const fetchRevisiones = async () => {
     try {
@@ -416,7 +398,7 @@ export default function Home() {
 
       // Cerrar modal y limpiar campos
       setShowReportModal(false);
-      setShowMenuDropdown(false);
+      setShowSidebar(false);
       setReportDateFrom('');
       setReportDateTo('');
       
@@ -433,74 +415,26 @@ export default function Home() {
     <main style={spectacularBg} className="relative overflow-hidden">
       
       <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-                {/* Botón del menú en posición fija */}
-        <div className="absolute top-8 right-8 z-50 menu-dropdown-container">
-          <button 
-            className="w-12 h-12 bg-[#c9a45c] rounded-xl flex items-center justify-center shadow-lg hover:bg-[#f0c987] transition-colors duration-200"
-            onClick={handleMenuToggle}
-            type="button"
-            aria-label="Abrir menú"
-          >
-            <div className="flex flex-col gap-1">
-              <div className="w-5 h-0.5 bg-[#1a1f35] rounded"></div>
-              <div className="w-5 h-0.5 bg-[#1a1f35] rounded"></div>
-              <div className="w-5 h-0.5 bg-[#1a1f35] rounded"></div>
-            </div>
-          </button>
-          
-          {/* Menú Desplegable */}
-          {showMenuDropdown && (
-            <div className="absolute top-14 right-0 w-64 bg-gradient-to-br from-[#1e2538]/95 to-[#2a3347]/95 backdrop-blur-md rounded-xl border border-[#3d4659]/50 shadow-2xl z-50">
-              <div className="p-2">
-                <div className="px-3 py-2 text-xs font-medium text-[#c9a45c] uppercase tracking-wider border-b border-[#3d4659]/30 mb-2">
-                  Herramientas
-                </div>
-                <Link
-                  href="/unir-imagenes"
-                  onClick={() => setShowMenuDropdown(false)}
-                  className="w-full flex items-center gap-3 px-3 py-2.5 text-white hover:bg-[#3d4659]/30 rounded-lg transition-all duration-200 text-left"
-                >
-                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5 text-blue-400">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 15.75l5.159-5.159a2.25 2.25 0 013.182 0l5.159 5.159m-1.5-1.5l1.409-1.409a2.25 2.25 0 013.182 0l2.909 2.909m-18 3.75h16.5a1.5 1.5 0 001.5-1.5V6a1.5 1.5 0 00-1.5-1.5H3.75A1.5 1.5 0 002.25 6v12a1.5 1.5 0 001.5 1.5zm10.5-11.25h.008v.008h-.008V8.25zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0z" />
-                  </svg>
-                  Unir imágenes
-                </Link>
-                
-                {isLoggedIn && (
-                  <Link
-                    href="/estadisticas"
-                    onClick={() => setShowMenuDropdown(false)}
-                    className="w-full flex items-center gap-3 px-3 py-2.5 text-white hover:bg-[#3d4659]/30 rounded-lg transition-all duration-200 text-left"
-                  >
-                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5 text-yellow-400">
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M3 13.125C3 12.504 3.504 12 4.125 12h2.25c.621 0 1.125.504 1.125 1.125v6.75C7.5 20.496 6.996 21 6.375 21h-2.25A1.125 1.125 0 013 19.875v-6.75zM9.75 8.625c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125v11.25c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V8.625zM16.5 4.125c0-.621.504-1.125 1.125-1.125h2.25C20.496 3 21 3.504 21 4.125v15.75c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V4.125z" />
-                    </svg>
-                    Estadísticas
-                  </Link>
-                )}
+                {/* Botón del menú lateral en posición fija */}
+        <button 
+          className="fixed top-8 left-8 z-50 w-12 h-12 bg-gradient-to-br from-[#c9a45c] to-[#f0c987] rounded-xl flex items-center justify-center shadow-lg hover:scale-105 transition-all duration-200 group"
+          onClick={handleMenuToggle}
+          type="button"
+          aria-label="Abrir menú lateral"
+        >
+          <div className="flex flex-col gap-1">
+            <div className={`w-5 h-0.5 bg-[#1a1f35] rounded transition-transform duration-200 ${showSidebar ? 'rotate-45 translate-y-1.5' : ''}`}></div>
+            <div className={`w-5 h-0.5 bg-[#1a1f35] rounded transition-opacity duration-200 ${showSidebar ? 'opacity-0' : ''}`}></div>
+            <div className={`w-5 h-0.5 bg-[#1a1f35] rounded transition-transform duration-200 ${showSidebar ? '-rotate-45 -translate-y-1.5' : ''}`}></div>
+          </div>
+        </button>
 
-                
-                <div className="px-3 py-2 text-xs font-medium text-[#c9a45c] uppercase tracking-wider border-b border-[#3d4659]/30 mb-2 mt-4">
-                  Reportes
-                </div>
-                {userRole === 'SuperAdmin' && (
-                  <button
-                    onClick={() => {
-                      setShowReportModal(true);
-                      setShowMenuDropdown(false);
-                    }}
-                    className="w-full flex items-center gap-3 px-3 py-2.5 text-white hover:bg-[#3d4659]/30 rounded-lg transition-all duration-200 text-left"
-                  >
-                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5 text-green-400">
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" />
-                    </svg>
-                    Exportar Reporte
-                  </button>
-                )}
-              </div>
-            </div>
-          )}
-        </div>
+        {/* Sidebar */}
+        <Sidebar 
+          isOpen={showSidebar} 
+          onClose={() => setShowSidebar(false)}
+          onShowReportModal={() => setShowReportModal(true)}
+        />
 
                 {/* Hero Section */}
         <div className="text-center mb-12">

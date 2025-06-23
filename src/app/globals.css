@@ -357,6 +357,28 @@ button, [role="button"] {
   transition-duration: 300ms;
 }
 
+/* Estilos específicos para el sidebar glassmorphism */
+.sidebar-glassmorphism {
+  background: rgba(30, 37, 56, 0.95);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border-right: 1px solid rgba(201, 164, 92, 0.2);
+}
+
+/* Efectos de brillo para elementos del sidebar */
+@keyframes sidebar-shine {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+.sidebar-shine-effect {
+  animation: sidebar-shine 0.7s ease-out;
+}
+
 /* Efectos de hover elegantes */
 .hover\:shadow-gold:hover {
   box-shadow: 0 0 20px rgba(201, 164, 92, 0.2);
