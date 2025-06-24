@@ -74,6 +74,11 @@ export default function Home() {
   const [showReportModal, setShowReportModal] = useState(false);
   const [reportDateFrom, setReportDateFrom] = useState('');
   const [reportDateTo, setReportDateTo] = useState('');
+  
+  // 🚀 Estados para paginado
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(50); // Por defecto PC
+  
   // Función para manejar el toggle del menú
   const handleMenuToggle = () => {
     setShowSidebar(prev => !prev);
@@ -102,6 +107,20 @@ export default function Home() {
     if (isMobile && searchInputRef.current) {
       searchInputRef.current.focus();
     }
+  }, []);
+
+  // 🚀 Efecto para detectar dispositivo y ajustar elementos por página
+  useEffect(() => {
+    const updateItemsPerPage = () => {
+      const isMobile = window.innerWidth < 768;
+      setItemsPerPage(isMobile ? 20 : 50);
+      setCurrentPage(1); // Reset página al cambiar tamaño
+    };
+
+    updateItemsPerPage();
+    window.addEventListener('resize', updateItemsPerPage);
+    
+    return () => window.removeEventListener('resize', updateItemsPerPage);
   }, []);
 
   // Cerrar sidebar con tecla ESC se maneja dentro del componente Sidebar
@@ -156,6 +175,28 @@ export default function Home() {
 
     return cajaFuerteMatch && searchMatch;
   });
+
+  // 🚀 Cálculos de paginado
+  const totalItems = filteredData.length;
+  const totalPages = Math.ceil(totalItems / itemsPerPage);
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const endIndex = startIndex + itemsPerPage;
+  const paginatedData = filteredData.slice(startIndex, endIndex);
+
+  // 🚀 Funciones de navegación de páginas
+  const goToPage = (page: number) => {
+    if (page >= 1 && page <= totalPages) {
+      setCurrentPage(page);
+    }
+  };
+
+  const goToPrevious = () => goToPage(currentPage - 1);
+  const goToNext = () => goToPage(currentPage + 1);
+
+  // Reset página cuando cambien los filtros
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm, cajaFuerteFilter]);
 
   const openModal = (imgUrl: string) => {
     setModalImg(imgUrl);
@@ -642,7 +683,44 @@ export default function Home() {
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-[#3d4659]/50">
-                        {filteredData.map((row, index) => (
+                        {paginatedData.length === 0 ? (
+                          <tr>
+                            <td colSpan={23} className="px-6 py-12 text-center">
+                              <div className="flex flex-col items-center justify-center space-y-4">
+                                <div className="w-16 h-16 bg-gray-600/20 rounded-full flex items-center justify-center">
+                                  <svg className="w-8 h-8 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12h3.75M9 15h3.75M9 18h3.75m3 .75H18a2.25 2.25 0 002.25-2.25V6.108c0-1.135-.845-2.098-1.976-2.192a48.424 48.424 0 00-1.123-.08m-5.801 0c-.065.21-.1.433-.1.664 0 .414.336.75.75.75h4.5a.75.75 0 00.75-.75 2.25 2.25 0 00-.1-.664m-5.8 0A2.251 2.251 0 0113.5 2.25H15c1.012 0 1.867.668 2.15 1.586m-5.8 0c-.376.023-.75.05-1.124.08C9.095 4.01 8.25 4.973 8.25 6.108V8.25m8.9-4.414c.376.023.75.05 1.124.08 1.131.094 1.976 1.057 1.976 2.192V16.5A2.25 2.25 0 0118 18.75h-2.25m-7.5-10.5H4.875c-.621 0-1.125.504-1.125 1.125v11.25c0 .621.504 1.125 1.125 1.125h9.75c.621 0 1.125-.504 1.125-1.125V18.75m-7.5-10.5h6.375c.621 0 1.125.504 1.125 1.125v9.75m-16.5 0h.008v.008H3v-.008z" />
+                                  </svg>
+                                </div>
+                                <div className="text-center">
+                                  <h3 className="text-lg font-semibold text-gray-400 mb-2">
+                                    {filteredData.length === 0 ? 'No se encontraron revisiones' : 'No hay datos en esta página'}
+                                  </h3>
+                                  <p className="text-gray-500 text-sm max-w-md mx-auto">
+                                    {filteredData.length === 0 
+                                      ? (searchTerm || cajaFuerteFilter)
+                                        ? 'Intenta ajustar los filtros de búsqueda para encontrar revisiones.'
+                                        : 'Aún no se han registrado revisiones en el sistema.'
+                                      : `Página ${currentPage} está vacía. Navega a una página anterior.`
+                                    }
+                                  </p>
+                                  {filteredData.length === 0 && (searchTerm || cajaFuerteFilter) && (
+                                    <button
+                                      onClick={() => {
+                                        setSearchTerm('');
+                                        setCajaFuerteFilter('');
+                                      }}
+                                      className="mt-4 px-4 py-2 bg-[#c9a45c]/20 hover:bg-[#c9a45c]/30 border border-[#c9a45c]/40 text-[#c9a45c] rounded-xl transition-all duration-200 text-sm"
+                                    >
+                                      Limpiar filtros
+                                    </button>
+                                  )}
+                                </div>
+                              </div>
+                            </td>
+                          </tr>
+                        ) : (
+                          paginatedData.map((row, index) => (
                           <tr
                             key={row.id || index}
                             className="border-t border-[#3d4659]/50 text-gray-300 hover:bg-[#1e2538]/50 transition-colors duration-200"
@@ -728,11 +806,78 @@ export default function Home() {
                               </div>
                             </td>
                           </tr>
-                        ))}
+                        )))}
                       </tbody>
                     </table>
                   </div>
                 </div>
+                
+                {/* 🚀 Componente de Paginado Glassmorphism */}
+                {totalPages > 1 && (
+                  <div className="mt-8 flex items-center justify-between bg-[#2a3347]/95 backdrop-blur-xl rounded-2xl border border-[#c9a45c]/20 p-4 shadow-2xl">
+                    {/* Información de registros */}
+                    <div className="flex items-center gap-2">
+                      <div className="w-8 h-8 bg-[#c9a45c]/20 rounded-lg flex items-center justify-center">
+                        <svg className="w-4 h-4 text-[#c9a45c]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12h3.75M9 15h3.75M9 18h3.75m3 .75H18a2.25 2.25 0 002.25-2.25V6.108c0-1.135-.845-2.098-1.976-2.192a48.424 48.424 0 00-1.123-.08m-5.801 0c-.065.21-.1.433-.1.664 0 .414.336.75.75.75h4.5a.75.75 0 00.75-.75 2.25 2.25 0 00-.1-.664m-5.8 0A2.251 2.251 0 0113.5 2.25H15c1.012 0 1.867.668 2.15 1.586m-5.8 0c-.376.023-.75.05-1.124.08C9.095 4.01 8.25 4.973 8.25 6.108V8.25m8.9-4.414c.376.023.75.05 1.124.08 1.131.094 1.976 1.057 1.976 2.192V16.5A2.25 2.25 0 0118 18.75h-2.25m-7.5-10.5H4.875c-.621 0-1.125.504-1.125 1.125v11.25c0 .621.504 1.125 1.125 1.125h9.75c.621 0 1.125-.504 1.125-1.125V18.75m-7.5-10.5h6.375c.621 0 1.125.504 1.125 1.125v9.75m-16.5 0h.008v.008H3v-.008z" />
+                        </svg>
+                      </div>
+                      <div className="hidden sm:block">
+                        <p className="text-sm text-gray-400">
+                          Mostrando {startIndex + 1} a {Math.min(endIndex, totalItems)} de {totalItems} registros
+                        </p>
+                        <p className="text-xs text-gray-500 mt-1">
+                          {itemsPerPage} por página • Página {currentPage} de {totalPages}
+                        </p>
+                      </div>
+                      <div className="sm:hidden">
+                        <p className="text-sm text-gray-400">
+                          {startIndex + 1}-{Math.min(endIndex, totalItems)} de {totalItems}
+                        </p>
+                        <p className="text-xs text-gray-500">
+                          Pág. {currentPage}/{totalPages}
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* Controles de navegación */}
+                    <div className="flex items-center gap-2">
+                      {/* Botón Anterior */}
+                      <button
+                        onClick={goToPrevious}
+                        disabled={currentPage === 1}
+                        className="flex items-center gap-2 px-3 py-2 bg-[#c9a45c]/20 hover:bg-[#c9a45c]/30 disabled:bg-gray-600/20 border border-[#c9a45c]/40 disabled:border-gray-500/40 text-[#c9a45c] disabled:text-gray-500 rounded-xl transition-all duration-200 disabled:cursor-not-allowed hover:scale-105 active:scale-95"
+                        title="Página anterior"
+                      >
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15.75 19.5L8.25 12l7.5-7.5" />
+                        </svg>
+                        <span className="hidden sm:inline">Anterior</span>
+                      </button>
+
+                      {/* Indicador de página actual */}
+                      <div className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-[#c9a45c]/20 via-[#f0c987]/20 to-[#c9a45c]/20 border border-[#c9a45c]/40 rounded-xl">
+                        <div className="w-2 h-2 bg-[#c9a45c] rounded-full animate-pulse"></div>
+                        <span className="text-[#c9a45c] font-semibold text-sm">
+                          {currentPage}
+                        </span>
+                      </div>
+
+                      {/* Botón Siguiente */}
+                      <button
+                        onClick={goToNext}
+                        disabled={currentPage === totalPages}
+                        className="flex items-center gap-2 px-3 py-2 bg-[#c9a45c]/20 hover:bg-[#c9a45c]/30 disabled:bg-gray-600/20 border border-[#c9a45c]/40 disabled:border-gray-500/40 text-[#c9a45c] disabled:text-gray-500 rounded-xl transition-all duration-200 disabled:cursor-not-allowed hover:scale-105 active:scale-95"
+                        title="Página siguiente"
+                      >
+                        <span className="hidden sm:inline">Siguiente</span>
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M8.25 4.5l7.5 7.5-7.5 7.5" />
+                        </svg>
+                      </button>
+                    </div>
+                  </div>
+                )}
               </div>
             )}
           </>
